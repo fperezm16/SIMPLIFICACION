@@ -1,0 +1,15 @@
+<div class="shell">
+  <header class="shell__header">
+    <div>
+      <div class="eyebrow">Registro Aeronáutico Nacional</div>
+      <h1>Formulario TG</h1>
+    </div>
+    <nav class="nav">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Formulario</a>
+      <a routerLink="/revision" routerLinkActive="active">Revisión (rol revisor)</a>
+    </nav>
+  </header>
+  <main class="shell__body">
+    <router-outlet></router-outlet>
+  </main>
+</div>

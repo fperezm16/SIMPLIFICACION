@@ -1,0 +1,417 @@
+﻿<div class="page">
+  <div class="document">
+    <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <header class="doc-header">
+        <div class="logos">
+          <div class="logo-block">
+            <img class="mciv-official-logo" src="assets/mciv-oficial.png" alt="Ministerio de Comunicaciones, Infraestructura y Vivienda">
+          </div>
+          <div class="logo-block right">
+            <img class="dgac-official-logo" src="assets/dgac-oficial.png" alt="Dirección General de Aeronáutica Civil">
+          </div>
+        </div>
+        <div class="title">
+          <h1>{{ formMainTitle() }}</h1>
+          <p>Departamento de Registro Aeronáutico Nacional</p>
+          <span class="mode-pill" *ngIf="isRanMode">{{ ranModeLabel() }}</span>
+        </div>
+        <div class="meta-row">
+          <label class="inline-label">Fecha:
+          <input type="date" formControlName="fecha" class="line-input fixed-date" [attr.min]="todayDate" [attr.max]="todayDate" readonly>
+          </label>
+        </div>
+        <p class="edit-banner" *ngIf="isEditingReturned()">
+          Corrigiendo formulario devuelto #{{ editingReturnedId }}. Al guardar se reenviará al analista.
+        </p>
+      </header>
+
+      <section class="section">
+        <h2>{{ sectionATitle() }}</h2>
+        <div class="persona-toggle">
+          <button type="button" [class.active]="!isJuridica()" (click)="setPersonaTipo('individual')">Persona individual</button>
+          <button type="button" [class.active]="isJuridica()" (click)="setPersonaTipo('juridica')">Persona jurídica</button>
+        </div>
+        <h3>Datos del propietario</h3>
+
+        <ol class="fields fixed-numerals" *ngIf="!isRanUav">
+          <li data-num="1">
+            <div class="dual" *ngIf="isJuridica(); else ownerIndividualGeneral">
+              <label>Nombre de Entidad:
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Razón social de la entidad">
+                <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
+              </label>
+              <label>Representante Legal / Arrendatario:
+                <input formControlName="representante_legal" class="line-input" type="text" placeholder="Nombre completo del representante">
+                <small class="error" *ngIf="getFieldError('representante_legal')">{{ getFieldError('representante_legal') }}</small>
+              </label>
+            </div>
+            <ng-template #ownerIndividualGeneral>
+              <label>Nombre de Empresa, Propietario:
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Nombre completo o razón social">
+              </label>
+              <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
+            </ng-template>
+          </li>
+          <li data-num="2">
+            <label>{{ ownerDocumentLabel() }}
+              <input
+                formControlName="documento_propietario"
+                class="line-input"
+                type="text"
+                maxlength="13"
+                inputmode="numeric"
+                (input)="onDigitsInput($event, 'documento_propietario', 13)">
+            </label>
+            <small class="error" *ngIf="getFieldError('documento_propietario')">{{ getFieldError('documento_propietario') }}</small>
+          </li>
+          <li [attr.data-num]="addressNumber()" *ngIf="shouldShowAddressBlock()">
+            <label>{{ addressLabel() }}
+              <input formControlName="direccion" class="line-input" type="text" placeholder="Dirección completa">
+            </label>
+            <small class="error" *ngIf="getFieldError('direccion')">{{ getFieldError('direccion') }}</small>
+          </li>
+          <li class="dual">
+            <label>Teléfono (8 dígitos):
+              <input
+                formControlName="telefono"
+                class="line-input"
+                type="text"
+                maxlength="8"
+                inputmode="numeric"
+                (input)="onDigitsInput($event, 'telefono', 8)">
+              <small class="error" *ngIf="getFieldError('telefono')">{{ getFieldError('telefono') }}</small>
+            </label>
+            <label>Correo Electrónico:
+              <input formControlName="correo" class="line-input" type="email">
+              <small class="error" *ngIf="getFieldError('correo')">{{ getFieldError('correo') }}</small>
+            </label>
+          </li>
+          <li [attr.data-num]="nitBlockNumber()">
+            <div class="note-line">NIT y nombre a consignar en orden de pago:</div>
+            <div class="dual">
+              <label>NIT:
+                <input formControlName="nit" class="line-input" type="text">
+              </label>
+              <label>Nombre para orden de pago:
+                <input formControlName="nombre_orden_pago" class="line-input" type="text">
+              </label>
+            </div>
+          </li>
+          <li class="with-note" [attr.data-num]="authorizedBlockNumber()" *ngIf="shouldShowAuthorizedBlock()">
+            <div class="note-line">En caso de no poder acudir personalmente a realizar cualquier diligencia, autorizo a:</div>
+            <label>Nombre completo:
+              <input formControlName="autorizado_nombre" class="line-input" type="text">
+            </label>
+            <div class="dual">
+              <label>Número de DPI (13 dígitos):
+                <input
+                  formControlName="autorizado_documento"
+                  class="line-input"
+                  type="text"
+                  maxlength="13"
+                  inputmode="numeric"
+                  (input)="onDigitsInput($event, 'autorizado_documento', 13)">
+                <small class="error" *ngIf="getFieldError('autorizado_documento')">{{ getFieldError('autorizado_documento') }}</small>
+              </label>
+              <label>Teléfono (8 dígitos):
+                <input
+                  formControlName="autorizado_telefono"
+                  class="line-input"
+                  type="text"
+                  maxlength="8"
+                  inputmode="numeric"
+                  (input)="onDigitsInput($event, 'autorizado_telefono', 8)">
+                <small class="error" *ngIf="getFieldError('autorizado_telefono')">{{ getFieldError('autorizado_telefono') }}</small>
+              </label>
+            </div>
+          </li>
+        </ol>
+
+        <ol class="fields fixed-numerals" *ngIf="isRanUav">
+          <li data-num="1">
+            <div class="dual" *ngIf="isJuridica(); else ownerIndividualUav">
+              <label>Nombre de Entidad:
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Razón social de la entidad">
+                <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
+              </label>
+              <label>Representante Legal / Arrendatario:
+                <input formControlName="representante_legal" class="line-input" type="text" placeholder="Nombre completo del representante">
+                <small class="error" *ngIf="getFieldError('representante_legal')">{{ getFieldError('representante_legal') }}</small>
+              </label>
+            </div>
+            <ng-template #ownerIndividualUav>
+              <label>Nombre de Empresa, Propietario:
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Nombre completo o razón social">
+              </label>
+              <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
+            </ng-template>
+          </li>
+          <li data-num="2">
+            <label>{{ ownerDocumentLabel() }}
+              <input
+                formControlName="documento_propietario"
+                class="line-input"
+                type="text"
+                maxlength="13"
+                inputmode="numeric"
+                (input)="onDigitsInput($event, 'documento_propietario', 13)">
+            </label>
+            <small class="error" *ngIf="getFieldError('documento_propietario')">{{ getFieldError('documento_propietario') }}</small>
+          </li>
+          <li data-num="3">
+            <div class="dual">
+              <label>Teléfonos (8 dígitos):
+                <input
+                  formControlName="telefono"
+                  class="line-input"
+                  type="text"
+                  maxlength="8"
+                  inputmode="numeric"
+                  (input)="onDigitsInput($event, 'telefono', 8)">
+                <small class="error" *ngIf="getFieldError('telefono')">{{ getFieldError('telefono') }}</small>
+              </label>
+              <label>Correo Electrónico:
+                <input formControlName="correo" class="line-input" type="email">
+                <small class="error" *ngIf="getFieldError('correo')">{{ getFieldError('correo') }}</small>
+              </label>
+            </div>
+          </li>
+          <li data-num="4">
+            <div class="note-line">N.I.T y nombre a consignar en orden de pago:</div>
+            <div class="dual">
+              <label>NIT:
+                <input formControlName="nit" class="line-input" type="text">
+              </label>
+              <label>Nombre para orden de pago:
+                <input formControlName="nombre_orden_pago" class="line-input" type="text">
+              </label>
+            </div>
+          </li>
+          <li data-num="5">
+            <label>{{ addressLabel() }}
+              <input formControlName="direccion" class="line-input" type="text" placeholder="Dirección completa">
+            </label>
+            <small class="error" *ngIf="getFieldError('direccion')">{{ getFieldError('direccion') }}</small>
+          </li>
+          <li class="with-note" [attr.data-num]="authorizedBlockNumber()">
+            <div class="note-line">En caso de no poder acudir personalmente a realizar cualquier diligencia, autorizo a:</div>
+            <label>Nombre completo:
+              <input formControlName="autorizado_nombre" class="line-input" type="text">
+            </label>
+            <div class="dual">
+              <label>Número de DPI / Pasaporte:
+                <input
+                  formControlName="autorizado_documento"
+                  class="line-input"
+                  type="text"
+                  maxlength="13"
+                  inputmode="numeric"
+                  (input)="onDigitsInput($event, 'autorizado_documento', 13)">
+                <small class="error" *ngIf="getFieldError('autorizado_documento')">{{ getFieldError('autorizado_documento') }}</small>
+              </label>
+              <label>Teléfono (8 dígitos):
+                <input
+                  formControlName="autorizado_telefono"
+                  class="line-input"
+                  type="text"
+                  maxlength="8"
+                  inputmode="numeric"
+                  (input)="onDigitsInput($event, 'autorizado_telefono', 8)">
+                <small class="error" *ngIf="getFieldError('autorizado_telefono')">{{ getFieldError('autorizado_telefono') }}</small>
+              </label>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section">
+        <h2>{{ sectionBTitle() }}</h2>
+        <ol class="fields" *ngIf="!isRanUav">
+          <li class="dual">
+            <label>Matrícula TG/UAV-TG:
+              <input formControlName="matricula_tg" class="line-input short" type="text" placeholder="TG-">
+            </label>
+            <label *ngIf="!isRanForm8">Nueva Matrícula TG (por cambio):
+              <input formControlName="matricula_tg_nueva" class="line-input short" type="text" placeholder="TG-">
+            </label>
+            <small class="error" *ngIf="getFieldError('matricula_tg')">{{ getFieldError('matricula_tg') }}</small>
+          </li>
+          <li>
+            <div class="uso-options">
+              <span>Uso:</span>
+              <label *ngFor="let opt of currentUsoOptions()">
+                <input type="radio" [value]="opt.value" formControlName="uso"> {{ opt.label }}
+              </label>
+            </div>
+            <small class="error" *ngIf="getFieldError('uso')">{{ getFieldError('uso') }}</small>
+          </li>
+          <li class="dual">
+            <label>Nombre del Fabricante:
+              <input formControlName="fabricante" class="line-input" type="text">
+            </label>
+            <label>Número de Serie:
+              <input formControlName="numero_serie" class="line-input" type="text">
+              <small class="error" *ngIf="getFieldError('numero_serie')">{{ getFieldError('numero_serie') }}</small>
+            </label>
+          </li>
+          <li class="dual">
+            <label>Modelo (no confundir con a&ntilde;o de fabricaci&oacute;n):
+              <input formControlName="modelo" class="line-input" type="text">
+            </label>
+            <label>A&ntilde;o de Fabricaci&oacute;n:
+              <input formControlName="anio_fabricacion" class="line-input short" type="text">
+            </label>
+          </li>
+          <li>
+            <label>Colores (identificar solo colores primarios):
+              <input formControlName="colores" class="line-input" type="text">
+            </label>
+          </li>
+        </ol>
+
+        <ol class="fields fixed-numerals" *ngIf="isRanUav">
+          <li data-num="1">
+            <label>Marca:
+              <input formControlName="fabricante" class="line-input" type="text">
+            </label>
+          </li>
+          <li data-num="2">
+            <label>Modelo:
+              <input formControlName="modelo" class="line-input" type="text">
+            </label>
+          </li>
+          <li data-num="3">
+            <label>Serie (si aplica):
+              <input formControlName="numero_serie" class="line-input" type="text">
+            </label>
+          </li>
+          <li data-num="4">
+            <label>No. UAV - TG (si ya fue reservado):
+              <input formControlName="matricula_tg" class="line-input short" type="text" placeholder="UAV-TG-">
+            </label>
+            <small class="error" *ngIf="getFieldError('matricula_tg')">{{ getFieldError('matricula_tg') }}</small>
+          </li>
+          <li data-num="5">
+            <div class="uso-options">
+              <span>Uso:</span>
+              <label *ngFor="let opt of currentUsoOptions()">
+                <input type="radio" [value]="opt.value" formControlName="uso"> {{ opt.label }}
+              </label>
+            </div>
+            <small class="error" *ngIf="getFieldError('uso')">{{ getFieldError('uso') }}</small>
+          </li>
+        </ol>
+        <p class="note" *ngIf="isRanUav">Nota: en caso de ser más de dos aeronaves, adjuntar nómina con la serie y modelo de todos los drones.</p>
+        <p class="note" *ngIf="!isRanUav">Nota: los datos deben consignarse tal y como aparecen en las placas de datos de la aeronave.</p>
+      </section>
+
+      <section class="section" *ngIf="showSolicitudSection()">
+        <h2>C. Tipo de solicitud</h2>
+        <div class="check-grid" *ngIf="!isRanUav">
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_internacion">
+            <span>1. Internación de la Aeronave (0125)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_reservacion">
+            <span>2. Reservación de Matrícula (0105)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_inscripcion">
+            <span>3. Inscripción en e-DRAN (0100)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_certificado_prov">
+            <span>4. Certificado de Matrícula Provisional (0200)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_reposicion">
+            <span>5. Reposición de Certificado (0200)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_cambio_prop">
+            <span>6. Cambio de Propietario (0400)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_cambio_datos">
+            <span>7. Cambio de datos en Certificados (0105)</span>
+          </label>
+          <label class="check-item">
+            <input type="checkbox" formControlName="tipo_certificacion">
+            <span>8. Certificación (050)</span>
+          </label>
+        </div>
+
+        <div class="check-grid" *ngIf="isRanUav">
+          <label class="check-item" *ngFor="let row of droneSolicitudRows()">
+            <input type="checkbox" [formControlName]="row.key">
+            <span>{{ row.label }}</span>
+          </label>
+        </div>
+
+        <div class="spec">
+          <label>{{ isRanUav ? '6. Especificaciones u Observaciones de la solicitud:' : 'Especificaciones o Motivos de la Solicitud:' }}
+            <textarea rows="3" formControlName="especificaciones" class="line-input textarea"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="section upload">
+        <h2>Adjuntar DPI (obligatorio)</h2>
+        <p class="muted">Carga el DPI del solicitante en formato PDF antes de guardar.</p>
+        <label class="file-label">
+          <input type="file" accept="application/pdf" (change)="onFileSelected($event)">
+          <span>{{ dpiFile?.name || 'Seleccionar PDF...' }}</span>
+        </label>
+        <small class="muted" *ngIf="isEditingReturned() && existingDpiName && !dpiFile">DPI actual: {{ existingDpiName }}</small>
+        <small class="error" *ngIf="dpiError">{{ dpiError }}</small>
+
+        <div class="extra-upload" *ngIf="isJuridica()">
+          <h2>Acta de Nombramiento del Representante Legal de la Entidad Propietaria/Arrendataria (obligatorio)</h2>
+          <p class="muted">Carga el acta notarial de la persona jurídica en formato PDF.</p>
+          <label class="file-label">
+            <input type="file" accept="application/pdf" (change)="onActaSelected($event)">
+            <span>{{ actaFile?.name || 'Seleccionar PDF del Acta de Nombramiento...' }}</span>
+          </label>
+          <small class="muted" *ngIf="isEditingReturned() && existingActaName && !actaFile">Acta actual: {{ existingActaName }}</small>
+          <small class="error" *ngIf="actaError">{{ actaError }}</small>
+
+          <h2>Registro Mercantil General de la República (obligatorio)</h2>
+          <p class="muted">Carga el registro mercantil de la entidad en formato PDF.</p>
+          <label class="file-label">
+            <input type="file" accept="application/pdf" (change)="onRegistroMercantilSelected($event)">
+            <span>{{ registroMercantilFile?.name || 'Seleccionar PDF del Registro Mercantil...' }}</span>
+          </label>
+          <small class="muted" *ngIf="isEditingReturned() && existingRegistroMercantilName && !registroMercantilFile">Registro mercantil actual: {{ existingRegistroMercantilName }}</small>
+          <small class="error" *ngIf="registroMercantilError">{{ registroMercantilError }}</small>
+        </div>
+      </section>
+
+      <section class="section" *ngIf="isRanForm2 || isRanForm8">
+        <h2>Observaciones del solicitante (opcional)</h2>
+        <label>Si necesitas agregar información adicional:
+          <textarea rows="3" formControlName="especificaciones" class="line-input textarea" placeholder="Escribe tus observaciones aquí..."></textarea>
+        </label>
+      </section>
+
+      <div class="actions">
+        <button type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Enviando...' : 'Guardar' }}
+        </button>
+        <button type="button" class="secondary" *ngIf="isEditingReturned()" (click)="cancelReturnedEdit()" [disabled]="isSubmitting">
+          Cancelar corrección
+        </button>
+        <div class="status" *ngIf="status" [class.success]="status.type === 'success'" [class.error]="status.type === 'error'">
+          {{ status.message }}
+        </div>
+      </div>
+
+          </form>
+
+    <footer class="legal">
+      <p>Fundamento de derecho: Convenio de Aviación Civil Internacional, Art. 44 Ley de Aviación Civil, Art. 77 Reglamento de la Ley de Aviación Civil, Regulación de Aviación Civil 45, Manual de Normas y Procedimientos, Decreto 5-2021 Ley de Simplificación de Trámites y Requisitos Administrativos.</p>
+    </footer>
+  </div>
+</div>
+
+

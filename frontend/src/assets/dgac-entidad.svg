@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" role="img" aria-labelledby="title desc">
+  <title id="title">Direccion General de Aeronautica Civil</title>
+  <desc id="desc">Logotipo institucional DGAC Guatemala</desc>
+  <rect width="1200" height="340" fill="none"/>
+  <g transform="translate(20 20)">
+    <circle cx="150" cy="150" r="126" fill="none" stroke="#0e2f6f" stroke-width="12"/>
+    <circle cx="150" cy="150" r="95" fill="none" stroke="#0e2f6f" stroke-width="6" stroke-dasharray="5 10"/>
+    <path d="M60 150 Q150 88 240 150" fill="none" stroke="#0e2f6f" stroke-width="8"/>
+    <path d="M80 208 Q150 235 220 208" fill="none" stroke="#0e2f6f" stroke-width="8"/>
+    <path d="M105 120 L150 210 L195 120 Z" fill="#0e2f6f"/>
+    <circle cx="150" cy="132" r="24" fill="#0e2f6f"/>
+    <text x="150" y="46" text-anchor="middle" font-family="IBM Plex Sans, Arial, sans-serif" font-size="28" font-weight="700" fill="#0e2f6f" letter-spacing="1.2">GOBIERNO</text>
+    <text x="150" y="286" text-anchor="middle" font-family="IBM Plex Sans, Arial, sans-serif" font-size="28" font-weight="700" fill="#0e2f6f" letter-spacing="1.2">GUATEMALA</text>
+  </g>
+
+  <g transform="translate(336 26)">
+    <rect x="0" y="10" width="10" height="268" fill="#1bb4f1"/>
+    <rect x="0" y="108" width="10" height="72" fill="#ffffff"/>
+  </g>
+
+  <g transform="translate(380 58)">
+    <text x="0" y="84" font-family="Sora, Arial, sans-serif" font-size="96" font-weight="400" fill="#0e2f6f">
+      Direccion General
+    </text>
+    <text x="0" y="184" font-family="Sora, Arial, sans-serif" font-size="112" font-weight="800" fill="#0e2f6f">
+      de Aeronautica
+    </text>
+    <text x="0" y="292" font-family="Sora, Arial, sans-serif" font-size="112" font-weight="800" fill="#0e2f6f">
+      Civil
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,31 @@
+# dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# build outputs
+frontend/dist/
+backend/dist/
+
+# local env and secrets
+.env
+*.env
+backend/.env
+frontend/.env
+
+# local database/data
+local-pgdata/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# temporary artifacts
+backend/test-pdf-output.pdf

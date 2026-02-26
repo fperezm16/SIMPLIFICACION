@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="es" class="no-js scheme_default">
+<head>
+			<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+		<meta name="format-detection" content="telephone=no">
+		<link rel="profile" href="//gmpg.org/xfn/11">
+		<link rel="pingback" href="https://www.dgac.gob.gt/xmlrpc.php">
+		<title>Página no encontrada &#8211; Dirección General de Aeronáutica Civil</title>
+		    <!-- PVC Template -->
+    <script type="text/template" id="pvc-stats-view-template">
+    <i class="pvc-stats-icon medium" aria-hidden="true"><svg aria-hidden="true" focusable="false" data-prefix="far" data-icon="chart-bar" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" class="svg-inline--fa fa-chart-bar fa-w-16 fa-2x"><path fill="currentColor" d="M396.8 352h22.4c6.4 0 12.8-6.4 12.8-12.8V108.8c0-6.4-6.4-12.8-12.8-12.8h-22.4c-6.4 0-12.8 6.4-12.8 12.8v230.4c0 6.4 6.4 12.8 12.8 12.8zm-192 0h22.4c6.4 0 12.8-6.4 12.8-12.8V140.8c0-6.4-6.4-12.8-12.8-12.8h-22.4c-6.4 0-12.8 6.4-12.8 12.8v198.4c0 6.4 6.4 12.8 12.8 12.8zm96 0h22.4c6.4 0 12.8-6.4 12.8-12.8V204.8c0-6.4-6.4-12.8-12.8-12.8h-22.4c-6.4 0-12.8 6.4-12.8 12.8v134.4c0 6.4 6.4 12.8 12.8 12.8zM496 400H48V80c0-8.84-7.16-16-16-16H16C7.16 64 0 71.16 0 80v336c0 17.67 14.33 32 32 32h464c8.84 0 16-7.16 16-16v-16c0-8.84-7.16-16-16-16zm-387.2-48h22.4c6.4 0 12.8-6.4 12.8-12.8v-70.4c0-6.4-6.4-12.8-12.8-12.8h-22.4c-6.4 0-12.8 6.4-12.8 12.8v70.4c0 6.4 6.4 12.8 12.8 12.8z" class=""></path></svg></i>
+	 <%= total_view %> total views	<% if ( today_view > 0 ) { %>
+		<span class="views_today">,  <%= today_view %> views today</span>
+	<% } %>
+	</span>
+	</script>
+		    <meta name='robots' content='max-image-preview:large' />
+<link rel='dns-prefetch' href='//fonts.googleapis.com' />
+<link rel="alternate" type="application/rss+xml" title="Dirección General de Aeronáutica Civil &raquo; Feed" href="https://www.dgac.gob.gt/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Dirección General de Aeronáutica Civil &raquo; Feed de los comentarios" href="https://www.dgac.gob.gt/comments/feed/" />
+<style id='wp-img-auto-sizes-contain-inline-css' type='text/css'>
+img:is([sizes=auto i],[sizes^="auto," i]){contain-intrinsic-size:3000px 1500px}
+/*# sourceURL=wp-img-auto-sizes-contain-inline-css */
+</style>
+
+<link rel='stylesheet' id='fluentform-elementor-widget-css' href='https://www.dgac.gob.gt/wp-content/plugins/fluentform/assets/css/fluent-forms-elementor-widget.css?ver=6.1.17' type='text/css' media='all' />
+<style id='wp-emoji-styles-inline-css' type='text/css'>
+
+	img.wp-smiley, img.emoji {
+		display: inline !important;
+		border: none !important;
+		box-shadow: none !important;
+		height: 1em !important;
+		width: 1em !important;
+		margin: 0 0.07em !important;
+		vertical-align: -0.1em !important;
+		background: none !important;
+		padding: 0 !important;
+	}
+/*# sourceURL=wp-emoji-styles-inline-css */
+</style>
+<link rel='stylesheet' id='wp-block-library-css' href='https://www.dgac.gob.gt/wp-includes/css/dist/block-library/style.css?ver=6.9.1' type='text/css' media='all' />
+<style id='classic-theme-styles-inline-css' type='text/css'>
+/**
+ * These rules are needed for backwards compatibility.
+ * They should match the button element rules in the base theme.json file.
+ */
+.wp-block-button__link {
+	color: #ffffff;
+	background-color: #32373c;
+	border-radius: 9999px; /* 100% causes an oval, but any explicit but really high value retains the pill shape. */
+
+	/* This needs a low specificity so it won't override the rules from the button element if defined in theme.json. */
+	box-shadow: none;
+	text-decoration: none;
+
+	/* The extra 2px are added to size solids the same as the outline versions.*/
+	padding: calc(0.667em + 2px) calc(1.333em + 2px);
+
+	font-size: 1.125em;
+}
+
+.wp-block-file__button {
+	background: #32373c;
+	color: #ffffff;
+	text-decoration: none;
+}
+
+/*# sourceURL=/wp-includes/css/classic-themes.css */
+</style>
+<style id='wpecounter-most-viewed-block-style-inline-css' type='text/css'>
+.mvpb-post-list {
+    margin: 0;
+    list-style: none;
+}
+/*# sourceURL=https://www.dgac.gob.gt/wp-content/plugins/wpecounter/src/style-index.css */
+</style>
+<style id='global-styles-inline-css' type='text/css'>
+:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgb(6,147,227) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgb(252,185,0) 0%,rgb(255,105,0) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgb(255,105,0) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;--wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);--wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);--wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);--wp--preset--shadow--outlined: 6px 6px 0px -3px rgb(255, 255, 255), 6px 6px rgb(0, 0, 0);--wp--preset--shadow--crisp: 6px 6px 0px rgb(0, 0, 0);}:where(.is-layout-flex){gap: 0.5em;}:where(.is-layout-grid){gap: 0.5em;}body .is-layout-flex{display: flex;}.is-layout-flex{flex-wrap: wrap;align-items: center;}.is-layout-flex > :is(*, div){margin: 0;}body .is-layout-grid{display: grid;}.is-layout-grid > :is(*, div){margin: 0;}:where(.wp-block-columns.is-layout-flex){gap: 2em;}:where(.wp-block-columns.is-layout-grid){gap: 2em;}:where(.wp-block-post-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-post-template.is-layout-grid){gap: 1.25em;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+:where(.wp-block-post-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-post-template.is-layout-grid){gap: 1.25em;}
+:where(.wp-block-term-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-term-template.is-layout-grid){gap: 1.25em;}
+:where(.wp-block-columns.is-layout-flex){gap: 2em;}:where(.wp-block-columns.is-layout-grid){gap: 2em;}
+:root :where(.wp-block-pullquote){font-size: 1.5em;line-height: 1.6;}
+/*# sourceURL=global-styles-inline-css */
+</style>
+<link rel='stylesheet' id='contact-form-7-css' href='https://www.dgac.gob.gt/wp-content/plugins/contact-form-7/includes/css/styles.css?ver=6.1.5' type='text/css' media='all' />
+<link rel='stylesheet' id='a3-pvc-style-css' href='https://www.dgac.gob.gt/wp-content/plugins/page-views-count/assets/css/style.css?ver=2.8.7' type='text/css' media='all' />
+<link rel='stylesheet' id='wp-show-posts-css' href='https://www.dgac.gob.gt/wp-content/plugins/wp-show-posts/css/wp-show-posts.css?ver=1.1.6' type='text/css' media='all' />
+<link rel='stylesheet' id='parent-style-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/style.css?ver=6.9.1' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-trx-addons-layouts-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/plugins/trx_addons/layouts/layouts.css' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-trx-addons-layouts-responsive-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/plugins/trx_addons/layouts/layouts.responsive.css' type='text/css' media='all' />
+<link rel='stylesheet' id='a3pvc-css' href='//www.dgac.gob.gt/wp-content/uploads/sass/pvc.min.css?ver=1771470998' type='text/css' media='all' />
+<link rel='stylesheet' id='um_modal-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-modal.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_ui-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/jquery-ui/jquery-ui.css?ver=1.13.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_tipsy-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/tipsy/tipsy.css?ver=1.0.0a' type='text/css' media='all' />
+<link rel='stylesheet' id='um_raty-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/raty/um-raty.css?ver=2.6.0' type='text/css' media='all' />
+<link rel='stylesheet' id='select2-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/select2/select2.css?ver=4.0.13' type='text/css' media='all' />
+<link rel='stylesheet' id='um_fileupload-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-fileupload.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_confirm-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/um-confirm/um-confirm.css?ver=1.0' type='text/css' media='all' />
+<link rel='stylesheet' id='um_datetime-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/default.css?ver=3.6.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_datetime_date-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/default.date.css?ver=3.6.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_datetime_time-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/default.time.css?ver=3.6.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_fonticons_ii-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/legacy/fonticons/fonticons-ii.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_fonticons_fa-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/legacy/fonticons/fonticons-fa.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_fontawesome-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-fontawesome.css?ver=6.5.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_common-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/common.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_responsive-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-responsive.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_styles-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-styles.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_crop-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/cropper/cropper.css?ver=1.6.1' type='text/css' media='all' />
+<link rel='stylesheet' id='um_profile-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-profile.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_account-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-account.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_misc-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-misc.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='um_default_css-css' href='https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/css/um-old-default.css?ver=2.11.2' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-font-Titillium-Web-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/css/font-face/Titillium-Web/stylesheet.css' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-font-google_fonts-css' href='https://fonts.googleapis.com/css?family=Oswald:400,400italic,500,500italic,700,700italic&#038;subset=latin,latin-ext' type='text/css' media='all' />
+<link rel='stylesheet' id='fontello-icons-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/css/font-icons/css/fontello-embedded.css' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-main-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/style.css' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-colors-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/css/__colors.css' type='text/css' media='all' />
+<link rel='stylesheet' id='mediaelement-css' href='https://www.dgac.gob.gt/wp-includes/js/mediaelement/mediaelementplayer-legacy.min.css?ver=4.2.17' type='text/css' media='all' />
+<link rel='stylesheet' id='wp-mediaelement-css' href='https://www.dgac.gob.gt/wp-includes/js/mediaelement/wp-mediaelement.css?ver=6.9.1' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-child-css' href='https://www.dgac.gob.gt/wp-content/themes/honor-child/style.css' type='text/css' media='all' />
+<link rel='stylesheet' id='honor-responsive-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/css/responsive.css' type='text/css' media='all' />
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/jquery/jquery.js?ver=3.7.1" id="jquery-core-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/jquery/jquery-migrate.js?ver=3.4.1" id="jquery-migrate-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/underscore.min.js?ver=1.13.7" id="underscore-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/backbone.min.js?ver=1.6.0" id="backbone-js"></script>
+<script type="text/javascript" id="a3-pvc-backbone-js-extra">
+/* <![CDATA[ */
+var pvc_vars = {"rest_api_url":"https://www.dgac.gob.gt/wp-json/pvc/v1","ajax_url":"https://www.dgac.gob.gt/wp-admin/admin-ajax.php","security":"15394a0c46","ajax_load_type":"rest_api"};
+//# sourceURL=a3-pvc-backbone-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/page-views-count/assets/js/pvc.backbone.js?ver=2.8.7" id="a3-pvc-backbone-js"></script>
+<script type="text/javascript" id="ai-js-js-extra">
+/* <![CDATA[ */
+var MyAjax = {"ajaxurl":"https://www.dgac.gob.gt/wp-admin/admin-ajax.php","security":"7d6e8326f6"};
+//# sourceURL=ai-js-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/advanced-iframe/js/ai.min.js?ver=426541" id="ai-js-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-gdpr.js?ver=2.11.2" id="um-gdpr-js"></script>
+<script></script><link rel="https://api.w.org/" href="https://www.dgac.gob.gt/wp-json/" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.dgac.gob.gt/xmlrpc.php?rsd" />
+<meta name="generator" content="WordPress 6.9.1" />
+		<script type="text/javascript">
+			var StrCPVisits_page_data = {
+				'abort' : 'false',
+				'title' : '404',
+			};
+		</script>
+		<!-- Analytics by WP Statistics - https://wp-statistics.com -->
+<meta name="generator" content="Elementor 3.35.5; features: additional_custom_breakpoints; settings: css_print_method-internal, google_font-enabled, font_display-auto">
+			<style>
+				.e-con.e-parent:nth-of-type(n+4):not(.e-lazyloaded):not(.e-no-lazyload),
+				.e-con.e-parent:nth-of-type(n+4):not(.e-lazyloaded):not(.e-no-lazyload) * {
+					background-image: none !important;
+				}
+				@media screen and (max-height: 1024px) {
+					.e-con.e-parent:nth-of-type(n+3):not(.e-lazyloaded):not(.e-no-lazyload),
+					.e-con.e-parent:nth-of-type(n+3):not(.e-lazyloaded):not(.e-no-lazyload) * {
+						background-image: none !important;
+					}
+				}
+				@media screen and (max-height: 640px) {
+					.e-con.e-parent:nth-of-type(n+2):not(.e-lazyloaded):not(.e-no-lazyload),
+					.e-con.e-parent:nth-of-type(n+2):not(.e-lazyloaded):not(.e-no-lazyload) * {
+						background-image: none !important;
+					}
+				}
+			</style>
+			<meta name="generator" content="Powered by WPBakery Page Builder - drag and drop page builder for WordPress."/>
+<meta name="generator" content="Powered by Slider Revolution 6.6.20 - responsive, Mobile-Friendly Slider Plugin for WordPress with comfortable drag and drop interface." />
+<link rel="icon" href="https://www.dgac.gob.gt/wp-content/uploads/2024/03/DGAC-EXTENDIDO-AZUL-3-150x65.png" sizes="32x32" />
+<link rel="icon" href="https://www.dgac.gob.gt/wp-content/uploads/2024/03/DGAC-EXTENDIDO-AZUL-3.png" sizes="192x192" />
+<link rel="apple-touch-icon" href="https://www.dgac.gob.gt/wp-content/uploads/2024/03/DGAC-EXTENDIDO-AZUL-3.png" />
+<meta name="msapplication-TileImage" content="https://www.dgac.gob.gt/wp-content/uploads/2024/03/DGAC-EXTENDIDO-AZUL-3.png" />
+<script>function setREVStartSize(e){
+			//window.requestAnimationFrame(function() {
+				window.RSIW = window.RSIW===undefined ? window.innerWidth : window.RSIW;
+				window.RSIH = window.RSIH===undefined ? window.innerHeight : window.RSIH;
+				try {
+					var pw = document.getElementById(e.c).parentNode.offsetWidth,
+						newh;
+					pw = pw===0 || isNaN(pw) || (e.l=="fullwidth" || e.layout=="fullwidth") ? window.RSIW : pw;
+					e.tabw = e.tabw===undefined ? 0 : parseInt(e.tabw);
+					e.thumbw = e.thumbw===undefined ? 0 : parseInt(e.thumbw);
+					e.tabh = e.tabh===undefined ? 0 : parseInt(e.tabh);
+					e.thumbh = e.thumbh===undefined ? 0 : parseInt(e.thumbh);
+					e.tabhide = e.tabhide===undefined ? 0 : parseInt(e.tabhide);
+					e.thumbhide = e.thumbhide===undefined ? 0 : parseInt(e.thumbhide);
+					e.mh = e.mh===undefined || e.mh=="" || e.mh==="auto" ? 0 : parseInt(e.mh,0);
+					if(e.layout==="fullscreen" || e.l==="fullscreen")
+						newh = Math.max(e.mh,window.RSIH);
+					else{
+						e.gw = Array.isArray(e.gw) ? e.gw : [e.gw];
+						for (var i in e.rl) if (e.gw[i]===undefined || e.gw[i]===0) e.gw[i] = e.gw[i-1];
+						e.gh = e.el===undefined || e.el==="" || (Array.isArray(e.el) && e.el.length==0)? e.gh : e.el;
+						e.gh = Array.isArray(e.gh) ? e.gh : [e.gh];
+						for (var i in e.rl) if (e.gh[i]===undefined || e.gh[i]===0) e.gh[i] = e.gh[i-1];
+											
+						var nl = new Array(e.rl.length),
+							ix = 0,
+							sl;
+						e.tabw = e.tabhide>=pw ? 0 : e.tabw;
+						e.thumbw = e.thumbhide>=pw ? 0 : e.thumbw;
+						e.tabh = e.tabhide>=pw ? 0 : e.tabh;
+						e.thumbh = e.thumbhide>=pw ? 0 : e.thumbh;
+						for (var i in e.rl) nl[i] = e.rl[i]<window.RSIW ? 0 : e.rl[i];
+						sl = nl[0];
+						for (var i in nl) if (sl>nl[i] && nl[i]>0) { sl = nl[i]; ix=i;}
+						var m = pw>(e.gw[ix]+e.tabw+e.thumbw) ? 1 : (pw-(e.tabw+e.thumbw)) / (e.gw[ix]);
+						newh =  (e.gh[ix] * m) + (e.tabh + e.thumbh);
+					}
+					var el = document.getElementById(e.c);
+					if (el!==null && el) el.style.height = newh+"px";
+					el = document.getElementById(e.c+"_wrapper");
+					if (el!==null && el) {
+						el.style.height = newh+"px";
+						el.style.display = "block";
+					}
+				} catch(e){
+					console.log("Failure at Presize of Slider:" + e)
+				}
+			//});
+		  };</script>
+<noscript><style> .wpb_animate_when_almost_visible { opacity: 1; }</style></noscript></head>
+
+<body class="error404 wp-custom-logo wp-theme-honor wp-child-theme-honor-child body_tag scheme_default blog_mode_blog body_style_wide  is_stream blog_style_excerpt sidebar_hide expand_content trx_addons_absent header_type_default header_style_header-default header_position_default menu_style_top no_layout wpb-js-composer js-comp-ver-7.4 vc_responsive elementor-default elementor-kit-459">
+    
+	
+	<div class="body_wrap">
+
+		<div class="page_wrap"><header class="top_panel top_panel_default without_bg_image"><div class="top_panel_navi sc_layouts_row sc_layouts_row_type_compact sc_layouts_row_fixed sc_layouts_row_fixed_always sc_layouts_row_delimiter">
+	<div class="content_wrap">
+		<div class="columns_wrap columns_fluid">
+			<div class="sc_layouts_column sc_layouts_column_align_left sc_layouts_column_icons_position_left sc_layouts_column_fluid column-1_4">
+				<div class="sc_layouts_item"><a class="sc_layouts_logo" href="https://www.dgac.gob.gt/"><img src="//www.dgac.gob.gt/wp-content/uploads/2024/03/cropped-DGAC-EXTENDIDO-AZUL-3.png" alt="Dirección General de Aeronáutica Civil" width="203" height="65"></a></div>
+			</div><div class="sc_layouts_column sc_layouts_column_align_right sc_layouts_column_icons_position_left sc_layouts_column_fluid column-3_4">
+				<div class="sc_layouts_item">
+					<nav itemscope itemtype="//schema.org/SiteNavigationElement" class="menu_main_nav_area sc_layouts_menu sc_layouts_menu_default sc_layouts_hide_on_mobile"><ul id="menu_main" class="sc_layouts_menu_nav menu_main_nav"><li id="menu-item-471" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-471"><a href="https://www.dgac.gob.gt/"><span>Inicio</span></a></li><li id="menu-item-476" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-476"><a href="https://www.dgac.gob.gt/organizacion-2/"><span>Organización</span></a>
+<ul class="sub-menu"><li id="menu-item-566" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-566"><a href="https://www.dgac.gob.gt/circular-dgac/"><span>Circular DGAC</span></a></li><li id="menu-item-17024" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-17024"><a href="https://www.dgac.gob.gt/planificacion/"><span>Unidad de Planificación</span></a>
+	<ul class="sub-menu"><li id="menu-item-17035" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17035"><a href="https://www.dgac.gob.gt/archivos/"><span>Programa para la Recuperación de la Aviación Civil de Guatemala de la Dirección General de Aeronáutica Civil</span></a></li><li id="menu-item-17076" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17076"><a href="https://www.dgac.gob.gt/apoyo-a-la-preparacion-del-programa-para-la-recuperacion-de-la-aviacion-civil-de-guatemala-de-la-direccion-general-de-aeronautica-civil/"><span>Apoyo a la preparación del Programa para la Recuperación de la Aviación Civil de Guatemala de la Dirección General de Aeronáutica Civil</span></a></li></ul>
+</li><li id="menu-item-569" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-569"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/"><span>Unidad de Estadística</span></a>
+	<ul class="sub-menu"><li id="menu-item-6205" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6205"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aeropuerto-internacional-la-aurora/"><span>Estadísticas Aeropuerto Internacional La Aurora</span></a></li><li id="menu-item-6204" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6204"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aeropuerto-mundo-maya/"><span>Estadísticas Aeropuerto Mundo Maya</span></a></li><li id="menu-item-6206" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6206"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aerodromos/"><span>Estadísticas Aeródromos</span></a></li></ul>
+</li><li id="menu-item-1077" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1077"><a href="https://www.dgac.gob.gt/dvso/"><span>DVSO</span></a>
+	<ul class="sub-menu"><li id="menu-item-1112" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1112"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/"><span>Aeródromos y Ayudas Terrestres -AGA-</span></a>
+		<ul class="sub-menu"><li id="menu-item-13118" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-13118"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/aerodromos/"><span>Aeródromos</span></a>
+			<ul class="sub-menu"><li id="menu-item-11431" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11431"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/estudios-de-compatibilidad-2/"><span>Estudios de Compatibilidad</span></a></li><li id="menu-item-11432" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11432"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/estudios-aeronauticos/"><span>Estudios Aeronáuticos</span></a></li><li id="menu-item-11433" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11433"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/circulares-de-asesoramiento/"><span>Circulares de Asesoramiento</span></a></li></ul>
+</li><li id="menu-item-13117" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-13117"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/"><span>Servicios de Escala</span></a>
+			<ul class="sub-menu"><li id="menu-item-13115" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-13115"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/documentos-de-apoyo/"><span>Documentos de Apoyo</span></a></li><li id="menu-item-13116" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-13116"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/circulares-de-asesoramiento/"><span>Circulares de Asesoramiento</span></a></li></ul>
+</li></ul>
+</li><li id="menu-item-1351" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1351"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/"><span>Aeronavegabilidad</span></a>
+		<ul class="sub-menu"><li id="menu-item-11441" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11441"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/circulares-de-asesoramiento-2/"><span>Circulares de Asesoramiento</span></a></li><li id="menu-item-11440" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11440"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/formas-2/"><span>Formas</span></a></li></ul>
+</li><li id="menu-item-1644" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1644"><a href="https://www.dgac.gob.gt/dvso/certificaciones/"><span>Certificaciones</span></a>
+		<ul class="sub-menu"><li id="menu-item-11444" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11444"><a href="https://www.dgac.gob.gt/dvso/certificaciones/empresas-certificadas-2/"><span>Empresas Certificadas</span></a></li><li id="menu-item-16692" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16692"><a href="https://www.dgac.gob.gt/dvso/certificaciones/requisitos-para-la-obtencion-de-certificados-2/"><span>Requisitos para la obtención de certificados</span></a></li></ul>
+</li><li id="menu-item-1647" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1647"><a href="https://www.dgac.gob.gt/dvso/ley-y-reglamento-de-aviacion-civil/"><span>Ley y Reglamento de Aviación Civil</span></a></li><li id="menu-item-1648" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1648"><a href="https://www.dgac.gob.gt/dvso/operaciones/"><span>Operaciones</span></a></li><li id="menu-item-14268" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14268"><a href="https://www.dgac.gob.gt/dvso/directivas-operacionales/"><span>Directivas Operacionales</span></a></li><li id="menu-item-12895" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-12895"><a href="https://www.dgac.gob.gt/dvso/exenciones/"><span>Exenciones</span></a></li></ul>
+</li><li id="menu-item-568" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-568"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/"><span>Departamento de Licencias</span></a>
+	<ul class="sub-menu"><li id="menu-item-1035" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1035"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/"><span>Escuelas Aeronáuticas</span></a>
+		<ul class="sub-menu"><li id="menu-item-1038" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1038"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/programas-instruccion-avion/"><span>Programas instrucción avion</span></a></li><li id="menu-item-1037" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1037"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/programas-instruccion-helicoptero/"><span>Programas Instrucción Helicóptero</span></a></li><li id="menu-item-1057" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1057"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/documentacion_escuelas/"><span>Documentación de Escuelas</span></a></li></ul>
+</li><li id="menu-item-1034" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1034"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/documentacion_licencias/"><span>Departamento de Licencias</span></a>
+		<ul class="sub-menu"><li id="menu-item-811" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-811"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/procedimientos_licencias/"><span>Procedimientos</span></a></li><li id="menu-item-950" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-950"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/formularios_licencias/"><span>Formas</span></a></li><li id="menu-item-953" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-953"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/guias_licencias/"><span>Guías</span></a></li></ul>
+</li><li id="menu-item-1046" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1046"><a href="https://www.dgac.gob.gt/rac/"><span>Regulaciones</span></a></li><li id="menu-item-18420" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18420"><a href="https://www.dgac.gob.gt/listado-vigente-de-escuelas-de-instruccion-aeronautica/"><span>Listado vigente de Escuelas de Instrucción Aeronáutica</span></a></li></ul>
+</li><li id="menu-item-4414" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4414"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/"><span>Investigación de Accidentes e Incidentes Aéreos</span></a>
+	<ul class="sub-menu"><li id="menu-item-4415" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4415"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/informes-finales/"><span>Informes Finales</span></a></li><li id="menu-item-4417" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4417"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/formularios-y-solicitudes/"><span>Formularios y Solicitudes</span></a></li><li id="menu-item-17598" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17598"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/circulares-accidentes/"><span>Circulares Accidentes</span></a></li><li id="menu-item-4418" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4418"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/formas/"><span>Formas</span></a></li><li id="menu-item-4419" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4419"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/estadisticas-y-graficas/"><span>Estadísticas y Gráficas</span></a></li><li id="menu-item-4420" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4420"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/boletines-tecnicos/"><span>Boletines Técnicos</span></a></li><li id="menu-item-4421" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4421"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/boletines-informativos/"><span>Boletines Informativos</span></a></li><li id="menu-item-5119" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5119"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/rac/"><span>RAC</span></a></li></ul>
+</li><li id="menu-item-4444" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4444"><a href="https://www.dgac.gob.gt/aim-ais/"><span>AIM / AIS</span></a>
+	<ul class="sub-menu"><li id="menu-item-10575" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10575"><a href="https://www.dgac.gob.gt/aim-ais/pub/"><span>PUB</span></a></li><li id="menu-item-10574" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10574"><a href="https://www.dgac.gob.gt/aim-ais/map/"><span>MAP</span></a></li><li id="menu-item-10573" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10573"><a href="https://www.dgac.gob.gt/aim-ais/aro/"><span>ARO</span></a></li><li id="menu-item-10572" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10572"><a href="https://www.dgac.gob.gt/aim-ais/wfpl/"><span>WFPL</span></a></li><li id="menu-item-10571" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10571"><a href="https://www.dgac.gob.gt/aim-ais/calidad/"><span>Calidad</span></a></li></ul>
+</li><li id="menu-item-4837" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4837"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/"><span>Seguridad de Aviación -AVSEC-</span></a>
+	<ul class="sub-menu"><li id="menu-item-4862" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4862"><a href="https://www.dgac.gob.gt/reportes-voluntarios-avsec/"><span>Reportes voluntarios AVSEC</span></a></li><li id="menu-item-4838" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4838"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/"><span>Documentos Nacionales</span></a>
+		<ul class="sub-menu"><li id="menu-item-4839" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4839"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/departamento-nacional-de-operaciones/"><span>DEPARTAMENTO NACIONAL DE OPERACIONES DE SEGURIDAD DE AVIACIÓN CIVIL</span></a></li><li id="menu-item-4840" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4840"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-certificacion-de-seguridad-de-aviacion-civil/"><span>DEPARTAMENTO NACIONAL DE CERTIFICACION DE SEGURIDAD DE AVIACION CIVIL</span></a></li><li id="menu-item-4841" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4841"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-facilitacion-del-transporte-aereo/"><span>DEPARTAMENTO NACIONAL DE FACILITACION DEL TRANSPORTE AEREO</span></a></li><li id="menu-item-4842" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4842"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-control-de-calidad-de-seguridad-de-aviacion-civil/"><span>DEPARTAMENTO NACIONAL DE CONTROL DE CALIDAD DE SEGURIDAD DE AVIACION CIVIL</span></a></li><li id="menu-item-4843" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4843"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-instruccion-vol-de-seguridad-de-aviacion-civil-vol-1-y-2/"><span>DEPARTAMENTO NACIONAL DE INSTRUCCIÓN DE SEGURIDAD DE AVIACIÓN CIVIL</span></a></li></ul>
+</li></ul>
+</li><li id="menu-item-5157" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-5157"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/"><span>Departamento de Infraestructura Aeroportuaria</span></a>
+	<ul class="sub-menu"><li id="menu-item-5158" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5158"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/resoluciones-de-altura-maxima-permisible/"><span>Resoluciones de Altura Máxima Permisible</span></a></li><li id="menu-item-5159" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5159"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/formularios/"><span>Formularios</span></a></li><li id="menu-item-567" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-567"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/regulaciones/"><span>Regulaciones</span></a></li></ul>
+</li><li id="menu-item-6491" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6491"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/"><span>Registro Aeronáutico Nacional</span></a>
+	<ul class="sub-menu"><li id="menu-item-6558" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6558"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/aeronaves/"><span>Aeronaves</span></a></li><li id="menu-item-6557" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6557"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/drones/"><span>Drones</span></a></li></ul>
+</li><li id="menu-item-7238" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-7238"><a href="https://www.dgac.gob.gt/organizacion-2/unidad-de-compras/"><span>Unidad de Compras</span></a>
+	<ul class="sub-menu"><li id="menu-item-7237" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-7237"><a href="https://www.dgac.gob.gt/organizacion-2/unidad-de-compras/archivos/"><span>Archivos</span></a></li></ul>
+</li><li id="menu-item-8579" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8579"><a href="https://www.dgac.gob.gt/organizacion-2/gerencia-de-recursos-humanos/"><span>Gerencia de Recursos Humanos</span></a></li></ul>
+</li><li id="menu-item-2003" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-2003"><a href="https://www.dgac.gob.gt/institucional/"><span>Institucional</span></a>
+<ul class="sub-menu"><li id="menu-item-14539" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14539"><a href="https://www.dgac.gob.gt/aviacion-civil-ley-y-reglamento/"><span>Aviación Civil – Ley y Reglamento</span></a></li><li id="menu-item-14267" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-14267"><a href="https://www.dgac.gob.gt/normativa-aeronautica/"><span>Normativa Aeronáutica</span></a>
+	<ul class="sub-menu"><li id="menu-item-12698" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-12698"><a href="https://www.dgac.gob.gt/normativa-aeronautica/rac-regulaciones-de-aviacion-civil/"><span>RAC – Regulaciones de Aviación Civil</span></a></li><li id="menu-item-5040" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5040"><a href="https://www.dgac.gob.gt/normativa-aeronautica/regulaciones-para-consulta-de-aviacion-civil-rac/"><span>REGULACIONES PARA CONSULTA DE AVIACIÓN CIVIL -RAC-</span></a></li></ul>
+</li><li id="menu-item-472" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-472"><a href="https://www.dgac.gob.gt/institucional/quienes-somos/"><span>¿Quiénes somos?</span></a></li><li id="menu-item-2061" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2061"><a href="https://www.dgac.gob.gt/institucional/organigrama-institucional/"><span>Organigrama Institucional</span></a></li><li id="menu-item-2008" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2008"><a href="https://www.dgac.gob.gt/institucional/mision_vision/"><span>Misión y Visión</span></a></li><li id="menu-item-2030" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2030"><a href="https://www.dgac.gob.gt/institucional/objetivos-generales/"><span>Objetivos Generales</span></a></li><li id="menu-item-576" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-576"><a href="https://www.dgac.gob.gt/resena-historica/"><span>Reseña histórica</span></a></li><li id="menu-item-571" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-571"><a href="https://www.dgac.gob.gt/autoridades/"><span>Autoridades</span></a></li></ul>
+</li><li id="menu-item-474" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-474"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/"><span>Formularios y Solicitudes</span></a>
+<ul class="sub-menu"><li id="menu-item-14351" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14351"><a href="https://www.dgac.gob.gt/aeropuerto-internacional-la-aurora/"><span>Aeropuerto Internacional La Aurora</span></a></li><li id="menu-item-14346" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14346"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/gerencia-de-vigilancia-de-la-seguridad-operacional/"><span>Departamento de Vigilancia de la Seguridad Operacional</span></a></li><li id="menu-item-14348" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14348"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/ran/"><span>Departamento  de Registro Aeronáutico</span></a></li><li id="menu-item-14347" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14347"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-transporte-aereo/"><span>Departamento de Transporte Aéreo</span></a></li><li id="menu-item-14350" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14350"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/seccion-de-ingresos-y-cobranza/"><span>Departamento Financiero</span></a></li><li id="menu-item-14349" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14349"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-infraestructura/"><span>Departamento de Infraestructura Aeroportuaria</span></a></li><li id="menu-item-14352" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14352"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-licencias-aeronauticas/"><span>Departamento de Licencias Aeronáuticas</span></a></li><li id="menu-item-14353" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-14353"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/gestion-de-la-informacion-aeronautica/"><span>Gestión de la Información Aeronáutica</span></a>
+	<ul class="sub-menu"><li id="menu-item-17813" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17813"><a href="https://www.dgac.gob.gt/costos/"><span>COSTOS</span></a></li><li id="menu-item-17812" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17812"><a href="https://www.dgac.gob.gt/manual-de-simplificacion/"><span>MANUAL DE SIMPLIFICACIÓN</span></a></li></ul>
+</li></ul>
+</li><li id="menu-item-475" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-475"><a href="https://www.dgac.gob.gt/informacion-publica/"><span>Información Pública</span></a>
+<ul class="sub-menu"><li id="menu-item-6036" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6036"><a href="https://www.dgac.gob.gt/informacion-publica/ley-de-acceso-a-la-informacion-publica/"><span>Ley de Acceso a la Información Pública</span></a>
+	<ul class="sub-menu"><li id="menu-item-590" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-590"><a href="https://www.dgac.gob.gt/ley-de-acceso-a-la-informacion-publica-en-espanol/"><span>Ley de Acceso a la Información Publica en Español</span></a></li><li id="menu-item-591" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-591"><a href="https://www.dgac.gob.gt/ley-de-acceso-a-la-informacion-publica-idiomas-mayas/"><span>Ley de Acceso a la Información Publica Idiomas Mayas</span></a></li><li id="menu-item-6065" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6065"><a href="https://www.dgac.gob.gt/informacion-publica/ley-de-acceso-a-la-informacion-publica/ley-de-acceso-a-la-informacion-publica-en-lenguaje-de-senas/"><span>Ley de Acceso a la Información Pública en Lenguaje de Señas</span></a></li></ul>
+</li><li id="menu-item-588" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-588"><a href="https://www.dgac.gob.gt/formulario-solicitud-informacion-publica/"><span>Formulario Solicitud Información Publica</span></a></li><li id="menu-item-6032" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6032"><a href="https://www.dgac.gob.gt/informacion-publica/formulario-de-informe-sociolinguistico/"><span>Formulario de Informe Sociolingüístico</span></a></li><li id="menu-item-10188" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10188"><a href="https://www.dgac.gob.gt/informacion-publica/informacionftp-publica-de-oficio/"><span>Información Pública de Oficio – Manuales</span></a></li><li id="menu-item-10187" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10187"><a href="https://www.dgac.gob.gt/informacion-publica/transparenciaftp-presupuestaria/"><span>Transparencia Presupuestaria</span></a></li><li id="menu-item-10186" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10186"><a href="https://www.dgac.gob.gt/informacion-publica/comprasftp-por-covid-19/"><span>Compras por COVID-19</span></a></li></ul>
+</li><li id="menu-item-477" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-477"><a href="https://www.dgac.gob.gt/contactenos/"><span>Contáctenos y comentarios</span></a>
+<ul class="sub-menu"><li id="menu-item-14593" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14593"><a href="https://www.dgac.gob.gt/contactenos/oportunidades-laborales/"><span>Oportunidades Laborales</span></a></li><li id="menu-item-16930" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16930"><a href="https://www.dgac.gob.gt/denuncias-y-quejas/sugerencias-reclamos-y-o-quejas/"><span>SUGERENCIAS, RECLAMOS Y/O QUEJAS</span></a></li><li id="menu-item-17535" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17535"><a href="https://www.dgac.gob.gt/faq/"><span>PREGUNTAS FRECUENTES</span></a></li></ul>
+</li></ul></nav>					<div class="sc_layouts_iconed_text sc_layouts_menu_mobile_button">
+						<a class="sc_layouts_item_link sc_layouts_iconed_text_link" href="#">
+							<span class="sc_layouts_item_icon sc_layouts_iconed_text_icon trx_addons_icon-menu"></span>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div><!-- /.columns_wrap -->
+	</div><!-- /.content_wrap -->
+</div><!-- /.top_panel_navi -->	<div class="top_panel_title sc_layouts_row sc_layouts_row_type_normal">
+		<div class="content_wrap">
+			<div class="sc_layouts_column sc_layouts_column_align_center">
+				<div class="sc_layouts_item">
+					<div class="sc_layouts_title sc_align_center">
+						<div class="sc_layouts_title_title">							<h1 itemprop="headline" class="sc_layouts_title_caption">URL not found</h1>
+							</div><div class="sc_layouts_title_breadcrumbs"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	</header><div class="menu_mobile_overlay"></div>
+<div class="menu_mobile menu_mobile_narrow scheme_dark">
+	<div class="menu_mobile_inner">
+		<a class="menu_mobile_close icon-cancel"></a><a class="sc_layouts_logo" href="https://www.dgac.gob.gt/"><span class="logo_text">Dirección General de Aeronáutica Civil</span><span class="logo_slogan">DGAC GT</span></a><nav itemscope itemtype="//schema.org/SiteNavigationElement" class="menu_mobile_nav_area"><ul id="menu_mobile" class=" menu_mobile_nav"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-471"><a href="https://www.dgac.gob.gt/"><span>Inicio</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-476"><a href="https://www.dgac.gob.gt/organizacion-2/"><span>Organización</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-566"><a href="https://www.dgac.gob.gt/circular-dgac/"><span>Circular DGAC</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-17024"><a href="https://www.dgac.gob.gt/planificacion/"><span>Unidad de Planificación</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17035"><a href="https://www.dgac.gob.gt/archivos/"><span>Programa para la Recuperación de la Aviación Civil de Guatemala de la Dirección General de Aeronáutica Civil</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17076"><a href="https://www.dgac.gob.gt/apoyo-a-la-preparacion-del-programa-para-la-recuperacion-de-la-aviacion-civil-de-guatemala-de-la-direccion-general-de-aeronautica-civil/"><span>Apoyo a la preparación del Programa para la Recuperación de la Aviación Civil de Guatemala de la Dirección General de Aeronáutica Civil</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-569"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/"><span>Unidad de Estadística</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6205"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aeropuerto-internacional-la-aurora/"><span>Estadísticas Aeropuerto Internacional La Aurora</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6204"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aeropuerto-mundo-maya/"><span>Estadísticas Aeropuerto Mundo Maya</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6206"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aerodromos/"><span>Estadísticas Aeródromos</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1077"><a href="https://www.dgac.gob.gt/dvso/"><span>DVSO</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1112"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/"><span>Aeródromos y Ayudas Terrestres -AGA-</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-13118"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/aerodromos/"><span>Aeródromos</span></a>
+			<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11431"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/estudios-de-compatibilidad-2/"><span>Estudios de Compatibilidad</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11432"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/estudios-aeronauticos/"><span>Estudios Aeronáuticos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11433"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/circulares-de-asesoramiento/"><span>Circulares de Asesoramiento</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-13117"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/"><span>Servicios de Escala</span></a>
+			<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-13115"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/documentos-de-apoyo/"><span>Documentos de Apoyo</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-13116"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/circulares-de-asesoramiento/"><span>Circulares de Asesoramiento</span></a></li></ul>
+</li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1351"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/"><span>Aeronavegabilidad</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11441"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/circulares-de-asesoramiento-2/"><span>Circulares de Asesoramiento</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11440"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/formas-2/"><span>Formas</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1644"><a href="https://www.dgac.gob.gt/dvso/certificaciones/"><span>Certificaciones</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11444"><a href="https://www.dgac.gob.gt/dvso/certificaciones/empresas-certificadas-2/"><span>Empresas Certificadas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16692"><a href="https://www.dgac.gob.gt/dvso/certificaciones/requisitos-para-la-obtencion-de-certificados-2/"><span>Requisitos para la obtención de certificados</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1647"><a href="https://www.dgac.gob.gt/dvso/ley-y-reglamento-de-aviacion-civil/"><span>Ley y Reglamento de Aviación Civil</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1648"><a href="https://www.dgac.gob.gt/dvso/operaciones/"><span>Operaciones</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14268"><a href="https://www.dgac.gob.gt/dvso/directivas-operacionales/"><span>Directivas Operacionales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-12895"><a href="https://www.dgac.gob.gt/dvso/exenciones/"><span>Exenciones</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-568"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/"><span>Departamento de Licencias</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1035"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/"><span>Escuelas Aeronáuticas</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1038"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/programas-instruccion-avion/"><span>Programas instrucción avion</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1037"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/programas-instruccion-helicoptero/"><span>Programas Instrucción Helicóptero</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1057"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/documentacion_escuelas/"><span>Documentación de Escuelas</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1034"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/documentacion_licencias/"><span>Departamento de Licencias</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-811"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/procedimientos_licencias/"><span>Procedimientos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-950"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/formularios_licencias/"><span>Formas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-953"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/guias_licencias/"><span>Guías</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1046"><a href="https://www.dgac.gob.gt/rac/"><span>Regulaciones</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18420"><a href="https://www.dgac.gob.gt/listado-vigente-de-escuelas-de-instruccion-aeronautica/"><span>Listado vigente de Escuelas de Instrucción Aeronáutica</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4414"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/"><span>Investigación de Accidentes e Incidentes Aéreos</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4415"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/informes-finales/"><span>Informes Finales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4417"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/formularios-y-solicitudes/"><span>Formularios y Solicitudes</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17598"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/circulares-accidentes/"><span>Circulares Accidentes</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4418"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/formas/"><span>Formas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4419"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/estadisticas-y-graficas/"><span>Estadísticas y Gráficas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4420"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/boletines-tecnicos/"><span>Boletines Técnicos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4421"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/boletines-informativos/"><span>Boletines Informativos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5119"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/rac/"><span>RAC</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4444"><a href="https://www.dgac.gob.gt/aim-ais/"><span>AIM / AIS</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10575"><a href="https://www.dgac.gob.gt/aim-ais/pub/"><span>PUB</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10574"><a href="https://www.dgac.gob.gt/aim-ais/map/"><span>MAP</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10573"><a href="https://www.dgac.gob.gt/aim-ais/aro/"><span>ARO</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10572"><a href="https://www.dgac.gob.gt/aim-ais/wfpl/"><span>WFPL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10571"><a href="https://www.dgac.gob.gt/aim-ais/calidad/"><span>Calidad</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4837"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/"><span>Seguridad de Aviación -AVSEC-</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4862"><a href="https://www.dgac.gob.gt/reportes-voluntarios-avsec/"><span>Reportes voluntarios AVSEC</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4838"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/"><span>Documentos Nacionales</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4839"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/departamento-nacional-de-operaciones/"><span>DEPARTAMENTO NACIONAL DE OPERACIONES DE SEGURIDAD DE AVIACIÓN CIVIL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4840"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-certificacion-de-seguridad-de-aviacion-civil/"><span>DEPARTAMENTO NACIONAL DE CERTIFICACION DE SEGURIDAD DE AVIACION CIVIL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4841"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-facilitacion-del-transporte-aereo/"><span>DEPARTAMENTO NACIONAL DE FACILITACION DEL TRANSPORTE AEREO</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4842"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-control-de-calidad-de-seguridad-de-aviacion-civil/"><span>DEPARTAMENTO NACIONAL DE CONTROL DE CALIDAD DE SEGURIDAD DE AVIACION CIVIL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4843"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-instruccion-vol-de-seguridad-de-aviacion-civil-vol-1-y-2/"><span>DEPARTAMENTO NACIONAL DE INSTRUCCIÓN DE SEGURIDAD DE AVIACIÓN CIVIL</span></a></li></ul>
+</li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-5157"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/"><span>Departamento de Infraestructura Aeroportuaria</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5158"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/resoluciones-de-altura-maxima-permisible/"><span>Resoluciones de Altura Máxima Permisible</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5159"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/formularios/"><span>Formularios</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-567"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/regulaciones/"><span>Regulaciones</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6491"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/"><span>Registro Aeronáutico Nacional</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6558"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/aeronaves/"><span>Aeronaves</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6557"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/drones/"><span>Drones</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-7238"><a href="https://www.dgac.gob.gt/organizacion-2/unidad-de-compras/"><span>Unidad de Compras</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-7237"><a href="https://www.dgac.gob.gt/organizacion-2/unidad-de-compras/archivos/"><span>Archivos</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8579"><a href="https://www.dgac.gob.gt/organizacion-2/gerencia-de-recursos-humanos/"><span>Gerencia de Recursos Humanos</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-2003"><a href="https://www.dgac.gob.gt/institucional/"><span>Institucional</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14539"><a href="https://www.dgac.gob.gt/aviacion-civil-ley-y-reglamento/"><span>Aviación Civil – Ley y Reglamento</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-14267"><a href="https://www.dgac.gob.gt/normativa-aeronautica/"><span>Normativa Aeronáutica</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-12698"><a href="https://www.dgac.gob.gt/normativa-aeronautica/rac-regulaciones-de-aviacion-civil/"><span>RAC – Regulaciones de Aviación Civil</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5040"><a href="https://www.dgac.gob.gt/normativa-aeronautica/regulaciones-para-consulta-de-aviacion-civil-rac/"><span>REGULACIONES PARA CONSULTA DE AVIACIÓN CIVIL -RAC-</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-472"><a href="https://www.dgac.gob.gt/institucional/quienes-somos/"><span>¿Quiénes somos?</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2061"><a href="https://www.dgac.gob.gt/institucional/organigrama-institucional/"><span>Organigrama Institucional</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2008"><a href="https://www.dgac.gob.gt/institucional/mision_vision/"><span>Misión y Visión</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2030"><a href="https://www.dgac.gob.gt/institucional/objetivos-generales/"><span>Objetivos Generales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-576"><a href="https://www.dgac.gob.gt/resena-historica/"><span>Reseña histórica</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-571"><a href="https://www.dgac.gob.gt/autoridades/"><span>Autoridades</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-474"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/"><span>Formularios y Solicitudes</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14351"><a href="https://www.dgac.gob.gt/aeropuerto-internacional-la-aurora/"><span>Aeropuerto Internacional La Aurora</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14346"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/gerencia-de-vigilancia-de-la-seguridad-operacional/"><span>Departamento de Vigilancia de la Seguridad Operacional</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14348"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/ran/"><span>Departamento  de Registro Aeronáutico</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14347"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-transporte-aereo/"><span>Departamento de Transporte Aéreo</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14350"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/seccion-de-ingresos-y-cobranza/"><span>Departamento Financiero</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14349"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-infraestructura/"><span>Departamento de Infraestructura Aeroportuaria</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14352"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-licencias-aeronauticas/"><span>Departamento de Licencias Aeronáuticas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-14353"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/gestion-de-la-informacion-aeronautica/"><span>Gestión de la Información Aeronáutica</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17813"><a href="https://www.dgac.gob.gt/costos/"><span>COSTOS</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17812"><a href="https://www.dgac.gob.gt/manual-de-simplificacion/"><span>MANUAL DE SIMPLIFICACIÓN</span></a></li></ul>
+</li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-475"><a href="https://www.dgac.gob.gt/informacion-publica/"><span>Información Pública</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6036"><a href="https://www.dgac.gob.gt/informacion-publica/ley-de-acceso-a-la-informacion-publica/"><span>Ley de Acceso a la Información Pública</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-590"><a href="https://www.dgac.gob.gt/ley-de-acceso-a-la-informacion-publica-en-espanol/"><span>Ley de Acceso a la Información Publica en Español</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-591"><a href="https://www.dgac.gob.gt/ley-de-acceso-a-la-informacion-publica-idiomas-mayas/"><span>Ley de Acceso a la Información Publica Idiomas Mayas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6065"><a href="https://www.dgac.gob.gt/informacion-publica/ley-de-acceso-a-la-informacion-publica/ley-de-acceso-a-la-informacion-publica-en-lenguaje-de-senas/"><span>Ley de Acceso a la Información Pública en Lenguaje de Señas</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-588"><a href="https://www.dgac.gob.gt/formulario-solicitud-informacion-publica/"><span>Formulario Solicitud Información Publica</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6032"><a href="https://www.dgac.gob.gt/informacion-publica/formulario-de-informe-sociolinguistico/"><span>Formulario de Informe Sociolingüístico</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10188"><a href="https://www.dgac.gob.gt/informacion-publica/informacionftp-publica-de-oficio/"><span>Información Pública de Oficio – Manuales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10187"><a href="https://www.dgac.gob.gt/informacion-publica/transparenciaftp-presupuestaria/"><span>Transparencia Presupuestaria</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10186"><a href="https://www.dgac.gob.gt/informacion-publica/comprasftp-por-covid-19/"><span>Compras por COVID-19</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-477"><a href="https://www.dgac.gob.gt/contactenos/"><span>Contáctenos y comentarios</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14593"><a href="https://www.dgac.gob.gt/contactenos/oportunidades-laborales/"><span>Oportunidades Laborales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16930"><a href="https://www.dgac.gob.gt/denuncias-y-quejas/sugerencias-reclamos-y-o-quejas/"><span>SUGERENCIAS, RECLAMOS Y/O QUEJAS</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17535"><a href="https://www.dgac.gob.gt/faq/"><span>PREGUNTAS FRECUENTES</span></a></li></ul>
+</li></ul></nav><div class="search_wrap search_style_normal search_mobile">
+	<div class="search_form_wrap">
+		<form role="search" method="get" class="search_form" action="https://www.dgac.gob.gt/">
+			<input type="text" class="search_field" placeholder="Search" value="" name="s">
+			<button type="submit" class="search_submit icon-search"></button>
+		</form>
+	</div>
+</div>	</div>
+</div>
+
+			<div class="page_content_wrap">
+
+								<div class="content_wrap">
+				
+									
+
+					<div class="content">
+										
+<article class="post_item_single post_item_404">
+	<div class="post_content">
+		<h1 class="page_title">404</h1>
+		<div class="page_info">
+			<h1 class="page_subtitle">Oops...</h1>
+			<p class="page_description">We're sorry, but <br>something went wrong.</p>
+			<a href="https://www.dgac.gob.gt/" class="go_home theme_button">Homepage</a>
+		</div>
+	</div>
+</article>
+				
+					</div><!-- </.content> -->
+
+					</div><!-- </.content_wrap> -->			</div><!-- </.page_content_wrap> -->
+
+			<footer class="footer_wrap footer_default scheme_dark">
+			<div class="footer_widgets_wrap widget_area sc_layouts_row sc_layouts_row_type_normal">
+			<div class="footer_widgets_inner widget_area_inner">
+				<div class="content_wrap"><aside id="block-7" class="widget widget_block">Visitas al sitio
+<!-- WEBSITE VISITS COUNTER - DARK -->
+<div id="strcpv-website-counter">N/A</div>
+<style>
+#strcpv-website-counter {
+text-align: left;
+}
+#strcpv-website-counter p {
+display: inline-block !important;
+padding-top: 0 !important;
+padding-bottom: 0 !important;
+padding-left: 5px !important;
+padding-right: 1px !important;
+letter-spacing: 5px !important;
+background-color: black !important;
+color: white !important;
+border-radius: 4px !important;
+font-weight: bold !important;
+font-size: 12px !important;
+}
+</style></aside></div><!-- /.content_wrap -->			</div><!-- /.footer_widgets_inner -->
+		</div><!-- /.footer_widgets_wrap -->
+			<div class="footer_menu_wrap">
+		<div class="footer_menu_inner">
+			<nav itemscope itemtype="//schema.org/SiteNavigationElement" class="menu_footer_nav_area sc_layouts_menu sc_layouts_menu_default"><ul id="menu_footer" class="sc_layouts_menu_nav menu_footer_nav"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-home menu-item-471"><a href="https://www.dgac.gob.gt/"><span>Inicio</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-476"><a href="https://www.dgac.gob.gt/organizacion-2/"><span>Organización</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-566"><a href="https://www.dgac.gob.gt/circular-dgac/"><span>Circular DGAC</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-17024"><a href="https://www.dgac.gob.gt/planificacion/"><span>Unidad de Planificación</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17035"><a href="https://www.dgac.gob.gt/archivos/"><span>Programa para la Recuperación de la Aviación Civil de Guatemala de la Dirección General de Aeronáutica Civil</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17076"><a href="https://www.dgac.gob.gt/apoyo-a-la-preparacion-del-programa-para-la-recuperacion-de-la-aviacion-civil-de-guatemala-de-la-direccion-general-de-aeronautica-civil/"><span>Apoyo a la preparación del Programa para la Recuperación de la Aviación Civil de Guatemala de la Dirección General de Aeronáutica Civil</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-569"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/"><span>Unidad de Estadística</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6205"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aeropuerto-internacional-la-aurora/"><span>Estadísticas Aeropuerto Internacional La Aurora</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6204"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aeropuerto-mundo-maya/"><span>Estadísticas Aeropuerto Mundo Maya</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6206"><a href="https://www.dgac.gob.gt/organizacion-2/estadistica/estadisticas-aerodromos/"><span>Estadísticas Aeródromos</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1077"><a href="https://www.dgac.gob.gt/dvso/"><span>DVSO</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1112"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/"><span>Aeródromos y Ayudas Terrestres -AGA-</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-13118"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/aerodromos/"><span>Aeródromos</span></a>
+			<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11431"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/estudios-de-compatibilidad-2/"><span>Estudios de Compatibilidad</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11432"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/estudios-aeronauticos/"><span>Estudios Aeronáuticos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11433"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/circulares-de-asesoramiento/"><span>Circulares de Asesoramiento</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-13117"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/"><span>Servicios de Escala</span></a>
+			<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-13115"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/documentos-de-apoyo/"><span>Documentos de Apoyo</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-13116"><a href="https://www.dgac.gob.gt/dvso/aerodromos-y-ayudas-terrestres-aga/servicios-de-escala/circulares-de-asesoramiento/"><span>Circulares de Asesoramiento</span></a></li></ul>
+</li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1351"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/"><span>Aeronavegabilidad</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11441"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/circulares-de-asesoramiento-2/"><span>Circulares de Asesoramiento</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11440"><a href="https://www.dgac.gob.gt/dvso/aeronavegabilidad/formas-2/"><span>Formas</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1644"><a href="https://www.dgac.gob.gt/dvso/certificaciones/"><span>Certificaciones</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-11444"><a href="https://www.dgac.gob.gt/dvso/certificaciones/empresas-certificadas-2/"><span>Empresas Certificadas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16692"><a href="https://www.dgac.gob.gt/dvso/certificaciones/requisitos-para-la-obtencion-de-certificados-2/"><span>Requisitos para la obtención de certificados</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1647"><a href="https://www.dgac.gob.gt/dvso/ley-y-reglamento-de-aviacion-civil/"><span>Ley y Reglamento de Aviación Civil</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1648"><a href="https://www.dgac.gob.gt/dvso/operaciones/"><span>Operaciones</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14268"><a href="https://www.dgac.gob.gt/dvso/directivas-operacionales/"><span>Directivas Operacionales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-12895"><a href="https://www.dgac.gob.gt/dvso/exenciones/"><span>Exenciones</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-568"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/"><span>Departamento de Licencias</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1035"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/"><span>Escuelas Aeronáuticas</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1038"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/programas-instruccion-avion/"><span>Programas instrucción avion</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1037"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/programas-instruccion-helicoptero/"><span>Programas Instrucción Helicóptero</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1057"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/escuelas_licencias/documentacion_escuelas/"><span>Documentación de Escuelas</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-1034"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/documentacion_licencias/"><span>Departamento de Licencias</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-811"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/procedimientos_licencias/"><span>Procedimientos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-950"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/formularios_licencias/"><span>Formas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-953"><a href="https://www.dgac.gob.gt/organizacion-2/licencias/guias_licencias/"><span>Guías</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-1046"><a href="https://www.dgac.gob.gt/rac/"><span>Regulaciones</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-18420"><a href="https://www.dgac.gob.gt/listado-vigente-de-escuelas-de-instruccion-aeronautica/"><span>Listado vigente de Escuelas de Instrucción Aeronáutica</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4414"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/"><span>Investigación de Accidentes e Incidentes Aéreos</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4415"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/informes-finales/"><span>Informes Finales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4417"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/formularios-y-solicitudes/"><span>Formularios y Solicitudes</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17598"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/circulares-accidentes/"><span>Circulares Accidentes</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4418"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/formas/"><span>Formas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4419"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/estadisticas-y-graficas/"><span>Estadísticas y Gráficas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4420"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/boletines-tecnicos/"><span>Boletines Técnicos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4421"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/boletines-informativos/"><span>Boletines Informativos</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5119"><a href="https://www.dgac.gob.gt/investigacion-de-accidentes/rac/"><span>RAC</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4444"><a href="https://www.dgac.gob.gt/aim-ais/"><span>AIM / AIS</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10575"><a href="https://www.dgac.gob.gt/aim-ais/pub/"><span>PUB</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10574"><a href="https://www.dgac.gob.gt/aim-ais/map/"><span>MAP</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10573"><a href="https://www.dgac.gob.gt/aim-ais/aro/"><span>ARO</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10572"><a href="https://www.dgac.gob.gt/aim-ais/wfpl/"><span>WFPL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10571"><a href="https://www.dgac.gob.gt/aim-ais/calidad/"><span>Calidad</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4837"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/"><span>Seguridad de Aviación -AVSEC-</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4862"><a href="https://www.dgac.gob.gt/reportes-voluntarios-avsec/"><span>Reportes voluntarios AVSEC</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4838"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/"><span>Documentos Nacionales</span></a>
+		<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4839"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/departamento-nacional-de-operaciones/"><span>DEPARTAMENTO NACIONAL DE OPERACIONES DE SEGURIDAD DE AVIACIÓN CIVIL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4840"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-certificacion-de-seguridad-de-aviacion-civil/"><span>DEPARTAMENTO NACIONAL DE CERTIFICACION DE SEGURIDAD DE AVIACION CIVIL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4841"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-facilitacion-del-transporte-aereo/"><span>DEPARTAMENTO NACIONAL DE FACILITACION DEL TRANSPORTE AEREO</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4842"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-control-de-calidad-de-seguridad-de-aviacion-civil/"><span>DEPARTAMENTO NACIONAL DE CONTROL DE CALIDAD DE SEGURIDAD DE AVIACION CIVIL</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-4843"><a href="https://www.dgac.gob.gt/seguridad-de-aviacion-avsec/programas/programa-nacional-de-instruccion-vol-de-seguridad-de-aviacion-civil-vol-1-y-2/"><span>DEPARTAMENTO NACIONAL DE INSTRUCCIÓN DE SEGURIDAD DE AVIACIÓN CIVIL</span></a></li></ul>
+</li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-5157"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/"><span>Departamento de Infraestructura Aeroportuaria</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5158"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/resoluciones-de-altura-maxima-permisible/"><span>Resoluciones de Altura Máxima Permisible</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5159"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/formularios/"><span>Formularios</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-567"><a href="https://www.dgac.gob.gt/departamento-de-infraestructura-aeroportuaria/regulaciones/"><span>Regulaciones</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6491"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/"><span>Registro Aeronáutico Nacional</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6558"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/aeronaves/"><span>Aeronaves</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6557"><a href="https://www.dgac.gob.gt/registro-aeronautico-nacional/drones/"><span>Drones</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-7238"><a href="https://www.dgac.gob.gt/organizacion-2/unidad-de-compras/"><span>Unidad de Compras</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-7237"><a href="https://www.dgac.gob.gt/organizacion-2/unidad-de-compras/archivos/"><span>Archivos</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8579"><a href="https://www.dgac.gob.gt/organizacion-2/gerencia-de-recursos-humanos/"><span>Gerencia de Recursos Humanos</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-2003"><a href="https://www.dgac.gob.gt/institucional/"><span>Institucional</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14539"><a href="https://www.dgac.gob.gt/aviacion-civil-ley-y-reglamento/"><span>Aviación Civil – Ley y Reglamento</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-14267"><a href="https://www.dgac.gob.gt/normativa-aeronautica/"><span>Normativa Aeronáutica</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-12698"><a href="https://www.dgac.gob.gt/normativa-aeronautica/rac-regulaciones-de-aviacion-civil/"><span>RAC – Regulaciones de Aviación Civil</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5040"><a href="https://www.dgac.gob.gt/normativa-aeronautica/regulaciones-para-consulta-de-aviacion-civil-rac/"><span>REGULACIONES PARA CONSULTA DE AVIACIÓN CIVIL -RAC-</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-472"><a href="https://www.dgac.gob.gt/institucional/quienes-somos/"><span>¿Quiénes somos?</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2061"><a href="https://www.dgac.gob.gt/institucional/organigrama-institucional/"><span>Organigrama Institucional</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2008"><a href="https://www.dgac.gob.gt/institucional/mision_vision/"><span>Misión y Visión</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2030"><a href="https://www.dgac.gob.gt/institucional/objetivos-generales/"><span>Objetivos Generales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-576"><a href="https://www.dgac.gob.gt/resena-historica/"><span>Reseña histórica</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-571"><a href="https://www.dgac.gob.gt/autoridades/"><span>Autoridades</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-474"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/"><span>Formularios y Solicitudes</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14351"><a href="https://www.dgac.gob.gt/aeropuerto-internacional-la-aurora/"><span>Aeropuerto Internacional La Aurora</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14346"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/gerencia-de-vigilancia-de-la-seguridad-operacional/"><span>Departamento de Vigilancia de la Seguridad Operacional</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14348"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/ran/"><span>Departamento  de Registro Aeronáutico</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14347"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-transporte-aereo/"><span>Departamento de Transporte Aéreo</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14350"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/seccion-de-ingresos-y-cobranza/"><span>Departamento Financiero</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14349"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-infraestructura/"><span>Departamento de Infraestructura Aeroportuaria</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14352"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/departamento-de-licencias-aeronauticas/"><span>Departamento de Licencias Aeronáuticas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-14353"><a href="https://www.dgac.gob.gt/formularios-y-solicitudes/gestion-de-la-informacion-aeronautica/"><span>Gestión de la Información Aeronáutica</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17813"><a href="https://www.dgac.gob.gt/costos/"><span>COSTOS</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17812"><a href="https://www.dgac.gob.gt/manual-de-simplificacion/"><span>MANUAL DE SIMPLIFICACIÓN</span></a></li></ul>
+</li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-475"><a href="https://www.dgac.gob.gt/informacion-publica/"><span>Información Pública</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6036"><a href="https://www.dgac.gob.gt/informacion-publica/ley-de-acceso-a-la-informacion-publica/"><span>Ley de Acceso a la Información Pública</span></a>
+	<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-590"><a href="https://www.dgac.gob.gt/ley-de-acceso-a-la-informacion-publica-en-espanol/"><span>Ley de Acceso a la Información Publica en Español</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-591"><a href="https://www.dgac.gob.gt/ley-de-acceso-a-la-informacion-publica-idiomas-mayas/"><span>Ley de Acceso a la Información Publica Idiomas Mayas</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6065"><a href="https://www.dgac.gob.gt/informacion-publica/ley-de-acceso-a-la-informacion-publica/ley-de-acceso-a-la-informacion-publica-en-lenguaje-de-senas/"><span>Ley de Acceso a la Información Pública en Lenguaje de Señas</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-588"><a href="https://www.dgac.gob.gt/formulario-solicitud-informacion-publica/"><span>Formulario Solicitud Información Publica</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6032"><a href="https://www.dgac.gob.gt/informacion-publica/formulario-de-informe-sociolinguistico/"><span>Formulario de Informe Sociolingüístico</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10188"><a href="https://www.dgac.gob.gt/informacion-publica/informacionftp-publica-de-oficio/"><span>Información Pública de Oficio – Manuales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10187"><a href="https://www.dgac.gob.gt/informacion-publica/transparenciaftp-presupuestaria/"><span>Transparencia Presupuestaria</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-10186"><a href="https://www.dgac.gob.gt/informacion-publica/comprasftp-por-covid-19/"><span>Compras por COVID-19</span></a></li></ul>
+</li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-477"><a href="https://www.dgac.gob.gt/contactenos/"><span>Contáctenos y comentarios</span></a>
+<ul class="sub-menu"><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-14593"><a href="https://www.dgac.gob.gt/contactenos/oportunidades-laborales/"><span>Oportunidades Laborales</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-16930"><a href="https://www.dgac.gob.gt/denuncias-y-quejas/sugerencias-reclamos-y-o-quejas/"><span>SUGERENCIAS, RECLAMOS Y/O QUEJAS</span></a></li><li class="menu-item menu-item-type-post_type menu-item-object-page menu-item-17535"><a href="https://www.dgac.gob.gt/faq/"><span>PREGUNTAS FRECUENTES</span></a></li></ul>
+</li></ul></nav>		</div>
+	</div>
+	 
+<div class="footer_copyright_wrap scheme_">
+	<div class="footer_copyright_inner">
+		<div class="content_wrap">
+			<div class="copyright_text">Tel. 2321-5000 - Dirección
+9a. Av. 14-75, zona 13, Guatemala, Ciudad.
+DGAC © 2026. All rights reserved.</div>
+		</div>
+	</div>
+</div>
+</footer><!-- /.footer_wrap -->
+
+		</div><!-- /.page_wrap -->
+
+	</div><!-- /.body_wrap -->
+
+	
+	
+		<script>
+			window.RS_MODULES = window.RS_MODULES || {};
+			window.RS_MODULES.modules = window.RS_MODULES.modules || {};
+			window.RS_MODULES.waiting = window.RS_MODULES.waiting || [];
+			window.RS_MODULES.defered = true;
+			window.RS_MODULES.moduleWaiting = window.RS_MODULES.moduleWaiting || {};
+			window.RS_MODULES.type = 'compiled';
+		</script>
+		
+<div id="um_upload_single" style="display:none;"></div>
+
+<div id="um_view_photo" style="display:none;">
+	<a href="javascript:void(0);" data-action="um_remove_modal" class="um-modal-close" aria-label="Cerrar la vista emergente de la foto">
+		<i class="um-faicon-times"></i>
+	</a>
+
+	<div class="um-modal-body photo">
+		<div class="um-modal-photo"></div>
+	</div>
+</div>
+<script type="speculationrules">
+{"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/honor-child/*","/wp-content/themes/honor/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
+</script>
+			<script>
+				const lazyloadRunObserver = () => {
+					const lazyloadBackgrounds = document.querySelectorAll( `.e-con.e-parent:not(.e-lazyloaded)` );
+					const lazyloadBackgroundObserver = new IntersectionObserver( ( entries ) => {
+						entries.forEach( ( entry ) => {
+							if ( entry.isIntersecting ) {
+								let lazyloadBackground = entry.target;
+								if( lazyloadBackground ) {
+									lazyloadBackground.classList.add( 'e-lazyloaded' );
+								}
+								lazyloadBackgroundObserver.unobserve( entry.target );
+							}
+						});
+					}, { rootMargin: '200px 0px 200px 0px' } );
+					lazyloadBackgrounds.forEach( ( lazyloadBackground ) => {
+						lazyloadBackgroundObserver.observe( lazyloadBackground );
+					} );
+				};
+				const events = [
+					'DOMContentLoaded',
+					'elementor/lazyload/observe',
+				];
+				events.forEach( ( event ) => {
+					document.addEventListener( event, lazyloadRunObserver );
+				} );
+			</script>
+			<style id='core-block-supports-inline-css' type='text/css'>
+/**
+ * Core styles: block-supports
+ */
+
+/*# sourceURL=core-block-supports-inline-css */
+</style>
+<link rel='stylesheet' id='honor-inline-styles-css' href='https://www.dgac.gob.gt/wp-content/themes/honor/css/__inline.css' type='text/css' media='all' />
+<style id='honor-inline-styles-inline-css' type='text/css'>
+.sc_layouts_title_title{font-size:0.3em}
+/*# sourceURL=honor-inline-styles-inline-css */
+</style>
+<link rel='stylesheet' id='rs-plugin-settings-css' href='https://www.dgac.gob.gt/wp-content/plugins/revslider/public/assets/css/rs6.css?ver=6.6.20' type='text/css' media='all' />
+<style id='rs-plugin-settings-inline-css' type='text/css'>
+#rs-demo-id {}
+/*# sourceURL=rs-plugin-settings-inline-css */
+</style>
+<script type="text/javascript" id="fluentform-elementor-js-extra">
+/* <![CDATA[ */
+var fluentformElementor = {"adminUrl":"https://www.dgac.gob.gt/wp-admin/admin.php"};
+//# sourceURL=fluentform-elementor-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/fluentform/assets/js/fluent-forms-elementor-widget.js?ver=6.1.17" id="fluentform-elementor-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/dist/hooks.js?ver=220ff17f5667d013d468" id="wp-hooks-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/dist/i18n.js?ver=6b3ae5bd3b8d9598492d" id="wp-i18n-js"></script>
+<script type="text/javascript" id="wp-i18n-js-after">
+/* <![CDATA[ */
+wp.i18n.setLocaleData( { 'text direction\u0004ltr': [ 'ltr' ] } );
+//# sourceURL=wp-i18n-js-after
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/contact-form-7/includes/swv/js/index.js?ver=6.1.5" id="swv-js"></script>
+<script type="text/javascript" id="contact-form-7-js-translations">
+/* <![CDATA[ */
+( function( domain, translations ) {
+	var localeData = translations.locale_data[ domain ] || translations.locale_data.messages;
+	localeData[""].domain = domain;
+	wp.i18n.setLocaleData( localeData, domain );
+} )( "contact-form-7", {"translation-revision-date":"2025-12-01 15:45:40+0000","generator":"GlotPress\/4.0.3","domain":"messages","locale_data":{"messages":{"":{"domain":"messages","plural-forms":"nplurals=2; plural=n != 1;","lang":"es"},"This contact form is placed in the wrong place.":["Este formulario de contacto est\u00e1 situado en el lugar incorrecto."],"Error:":["Error:"]}},"comment":{"reference":"includes\/js\/index.js"}} );
+//# sourceURL=contact-form-7-js-translations
+/* ]]> */
+</script>
+<script type="text/javascript" id="contact-form-7-js-before">
+/* <![CDATA[ */
+var wpcf7 = {
+    "api": {
+        "root": "https:\/\/www.dgac.gob.gt\/wp-json\/",
+        "namespace": "contact-form-7\/v1"
+    },
+    "cached": 1
+};
+//# sourceURL=contact-form-7-js-before
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/contact-form-7/includes/js/index.js?ver=6.1.5" id="contact-form-7-js"></script>
+<script type="text/javascript" id="StrCPVisits_js_frontend-js-extra">
+/* <![CDATA[ */
+var STR_CPVISITS = {"security":"22563a8bad","ajax_url":"https://www.dgac.gob.gt/wp-admin/admin-ajax.php","text_page_name":"PAGE NAME","text_cannot_access_page_name":"Cannot access page name - try to flush server cache...","text_message":"MESSAGE","text_total_page_visits":"TOTAL PAGE VISITS","text_total_website_visits":"TOTAL WEBSITE VISITS"};
+//# sourceURL=StrCPVisits_js_frontend-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/page-visits-counter-lite/assets/frontend/page-visits-counter-lite-ajax.js?ver=1771470907" id="StrCPVisits_js_frontend-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/revslider/public/assets/js/rbtools.min.js?ver=6.6.20" defer async id="tp-tools-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/revslider/public/assets/js/rs6.min.js?ver=6.6.20" defer async id="revmin-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/litespeed-cache/assets/js/instant_click.min.js?ver=7.7" id="litespeed-cache-js" defer="defer" data-wp-strategy="defer"></script>
+<script type="text/javascript" id="wp-statistics-tracker-js-extra">
+/* <![CDATA[ */
+var WP_Statistics_Tracker_Object = {"requestUrl":"https://www.dgac.gob.gt/wp-json/wp-statistics/v2","ajaxUrl":"https://www.dgac.gob.gt/wp-admin/admin-ajax.php","hitParams":{"wp_statistics_hit":1,"source_type":"404","source_id":0,"search_query":"","signature":"857c43699284bc60b43e3f2a97864e05","endpoint":"hit"},"option":{"dntEnabled":"1","bypassAdBlockers":false,"consentIntegration":{"name":null,"status":[]},"isPreview":false,"userOnline":false,"trackAnonymously":false,"isWpConsentApiActive":false,"consentLevel":"functional"},"isLegacyEventLoaded":"","customEventAjaxUrl":"https://www.dgac.gob.gt/wp-admin/admin-ajax.php?action=wp_statistics_custom_event&nonce=95592d3589","onlineParams":{"wp_statistics_hit":1,"source_type":"404","source_id":0,"search_query":"","signature":"857c43699284bc60b43e3f2a97864e05","action":"wp_statistics_online_check"},"jsCheckTime":"60000","isConsoleVerbose":"1"};
+//# sourceURL=wp-statistics-tracker-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/wp-statistics/assets/js/tracker.js?ver=14.16.1" id="wp-statistics-tracker-js"></script>
+<script type="text/javascript" id="wp-util-js-extra">
+/* <![CDATA[ */
+var _wpUtilSettings = {"ajax":{"url":"/wp-admin/admin-ajax.php"}};
+//# sourceURL=wp-util-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/wp-util.js?ver=6.9.1" id="wp-util-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/tipsy/tipsy.js?ver=1.0.0a" id="um_tipsy-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/um-confirm/um-confirm.js?ver=1.0" id="um_confirm-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/picker.js?ver=3.6.2" id="um_datetime-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/picker.date.js?ver=3.6.2" id="um_datetime_date-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/picker.time.js?ver=3.6.2" id="um_datetime_time-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/pickadate/translations/es_ES.js?ver=3.6.2" id="um_datetime_locale-js"></script>
+<script type="text/javascript" id="um_common-js-extra">
+/* <![CDATA[ */
+var um_common_variables = {"locale":"es_ES"};
+var um_common_variables = {"locale":"es_ES"};
+//# sourceURL=um_common-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/common.js?ver=2.11.2" id="um_common-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/cropper/cropper.js?ver=1.6.1" id="um_crop-js"></script>
+<script type="text/javascript" id="um_frontend_common-js-extra">
+/* <![CDATA[ */
+var um_frontend_common_variables = [];
+//# sourceURL=um_frontend_common-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/common-frontend.js?ver=2.11.2" id="um_frontend_common-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-modal.js?ver=2.11.2" id="um_modal-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/jquery-form/jquery-form.js?ver=2.11.2" id="um_jquery_form-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/fileupload/fileupload.js?ver=2.11.2" id="um_fileupload-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-functions.js?ver=2.11.2" id="um_functions-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-responsive.js?ver=2.11.2" id="um_responsive-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-conditional.js?ver=2.11.2" id="um_conditional-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/select2/select2.full.js?ver=4.0.13" id="select2-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/select2/i18n/es.js?ver=4.0.13" id="um_select2_locale-js"></script>
+<script type="text/javascript" id="um_raty-js-translations">
+/* <![CDATA[ */
+( function( domain, translations ) {
+	var localeData = translations.locale_data[ domain ] || translations.locale_data.messages;
+	localeData[""].domain = domain;
+	wp.i18n.setLocaleData( localeData, domain );
+} )( "ultimate-member", {"translation-revision-date":"2025-08-28 17:17:14+0000","generator":"GlotPress\/4.0.3","domain":"messages","locale_data":{"messages":{"":{"domain":"messages","plural-forms":"nplurals=2; plural=n != 1;","lang":"es"},"Cancel this rating!":["\u00a1Cancelar esta puntuaci\u00f3n!"],"Not rated yet!":["\u00a1A\u00fan no puntuado!"]}},"comment":{"reference":"assets\/libs\/raty\/um-raty.js"}} );
+//# sourceURL=um_raty-js-translations
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/libs/raty/um-raty.js?ver=2.6.0" id="um_raty-js"></script>
+<script type="text/javascript" id="um_scripts-js-extra">
+/* <![CDATA[ */
+var um_scripts = {"max_upload_size":"268435456","nonce":"86235e4201"};
+//# sourceURL=um_scripts-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-scripts.js?ver=2.11.2" id="um_scripts-js"></script>
+<script type="text/javascript" id="um_profile-js-translations">
+/* <![CDATA[ */
+( function( domain, translations ) {
+	var localeData = translations.locale_data[ domain ] || translations.locale_data.messages;
+	localeData[""].domain = domain;
+	wp.i18n.setLocaleData( localeData, domain );
+} )( "ultimate-member", {"translation-revision-date":"2025-08-28 17:17:14+0000","generator":"GlotPress\/4.0.3","domain":"messages","locale_data":{"messages":{"":{"domain":"messages","plural-forms":"nplurals=2; plural=n != 1;","lang":"es"},"Are you sure that you want to delete this user?":["\u00bfSeguro que quieres borrar este usuario?"],"Upload a cover photo":["Subir una foto de portada"]}},"comment":{"reference":"assets\/js\/um-profile.js"}} );
+//# sourceURL=um_profile-js-translations
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-profile.js?ver=2.11.2" id="um_profile-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/plugins/ultimate-member/assets/js/um-account.js?ver=2.11.2" id="um_account-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/themes/honor/js/superfish/superfish.min.js" id="superfish-js"></script>
+<script type="text/javascript" id="honor-init-js-extra">
+/* <![CDATA[ */
+var HONOR_STORAGE = {"ajax_url":"https://www.dgac.gob.gt/wp-admin/admin-ajax.php","ajax_nonce":"d9eac55083","site_url":"https://www.dgac.gob.gt","theme_url":"https://www.dgac.gob.gt/wp-content/themes/honor","site_scheme":"scheme_default","user_logged_in":"","mobile_layout_width":"767","mobile_device":"","menu_side_stretch":"1","menu_side_icons":"","background_video":"","use_mediaelements":"1","comment_maxlength":"1000","admin_mode":"","email_mask":"^([a-zA-Z0-9_\\-]+\\.)*[a-zA-Z0-9_\\-]+@[a-z0-9_\\-]+(\\.[a-z0-9_\\-]+)*\\.[a-z]{2,6}$","strings":{"ajax_error":"Invalid server answer!","error_global":"Error data validation!","name_empty":"The name can&#039;t be empty","name_long":"Too long name","email_empty":"Too short (or empty) email address","email_long":"Too long email address","email_not_valid":"Invalid email address","text_empty":"The message text can&#039;t be empty","text_long":"Too long message text"},"alter_link_color":"#1d1d1f","button_hover":"default"};
+//# sourceURL=honor-init-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-content/themes/honor/js/__scripts.js" id="honor-init-js"></script>
+<script type="text/javascript" id="mediaelement-core-js-before">
+/* <![CDATA[ */
+var mejsL10n = {"language":"es","strings":{"mejs.download-file":"Descargar archivo","mejs.install-flash":"Est\u00e1s usando un navegador que no tiene Flash activo o instalado. Por favor, activa el componente del reproductor Flash o descarga la \u00faltima versi\u00f3n desde https://get.adobe.com/flashplayer/","mejs.fullscreen":"Pantalla completa","mejs.play":"Reproducir","mejs.pause":"Pausa","mejs.time-slider":"Control de tiempo","mejs.time-help-text":"Usa las teclas de direcci\u00f3n izquierda/derecha para avanzar un segundo y las flechas arriba/abajo para avanzar diez segundos.","mejs.live-broadcast":"Transmisi\u00f3n en vivo","mejs.volume-help-text":"Utiliza las teclas de flecha arriba/abajo para aumentar o disminuir el volumen.","mejs.unmute":"Activar el sonido","mejs.mute":"Silenciar","mejs.volume-slider":"Control de volumen","mejs.video-player":"Reproductor de v\u00eddeo","mejs.audio-player":"Reproductor de audio","mejs.captions-subtitles":"Pies de foto / Subt\u00edtulos","mejs.captions-chapters":"Cap\u00edtulos","mejs.none":"Ninguna","mejs.afrikaans":"Afrik\u00e1ans","mejs.albanian":"Albano","mejs.arabic":"\u00c1rabe","mejs.belarusian":"Bielorruso","mejs.bulgarian":"B\u00falgaro","mejs.catalan":"Catal\u00e1n","mejs.chinese":"Chino","mejs.chinese-simplified":"Chino (Simplificado)","mejs.chinese-traditional":"Chino (Tradicional)","mejs.croatian":"Croata","mejs.czech":"Checo","mejs.danish":"Dan\u00e9s","mejs.dutch":"Neerland\u00e9s","mejs.english":"Ingl\u00e9s","mejs.estonian":"Estonio","mejs.filipino":"Filipino","mejs.finnish":"Fin\u00e9s","mejs.french":"Franc\u00e9s","mejs.galician":"Gallego","mejs.german":"Alem\u00e1n","mejs.greek":"Griego","mejs.haitian-creole":"Creole haitiano","mejs.hebrew":"Hebreo","mejs.hindi":"Indio","mejs.hungarian":"H\u00fangaro","mejs.icelandic":"Island\u00e9s","mejs.indonesian":"Indonesio","mejs.irish":"Irland\u00e9s","mejs.italian":"Italiano","mejs.japanese":"Japon\u00e9s","mejs.korean":"Coreano","mejs.latvian":"Let\u00f3n","mejs.lithuanian":"Lituano","mejs.macedonian":"Macedonio","mejs.malay":"Malayo","mejs.maltese":"Malt\u00e9s","mejs.norwegian":"Noruego","mejs.persian":"Persa","mejs.polish":"Polaco","mejs.portuguese":"Portugu\u00e9s","mejs.romanian":"Rumano","mejs.russian":"Ruso","mejs.serbian":"Serbio","mejs.slovak":"Eslovaco","mejs.slovenian":"Esloveno","mejs.spanish":"Espa\u00f1ol","mejs.swahili":"Swahili","mejs.swedish":"Sueco","mejs.tagalog":"Tagalo","mejs.thai":"Tailand\u00e9s","mejs.turkish":"Turco","mejs.ukrainian":"Ukraniano","mejs.vietnamese":"Vietnamita","mejs.welsh":"Gal\u00e9s","mejs.yiddish":"Yiddish"}};
+//# sourceURL=mediaelement-core-js-before
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/mediaelement/mediaelement-and-player.js?ver=4.2.17" id="mediaelement-core-js"></script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/mediaelement/mediaelement-migrate.js?ver=6.9.1" id="mediaelement-migrate-js"></script>
+<script type="text/javascript" id="mediaelement-js-extra">
+/* <![CDATA[ */
+var _wpmejsSettings = {"pluginPath":"/wp-includes/js/mediaelement/","classPrefix":"mejs-","stretching":"responsive","audioShortcodeLibrary":"mediaelement","videoShortcodeLibrary":"mediaelement"};
+//# sourceURL=mediaelement-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://www.dgac.gob.gt/wp-includes/js/mediaelement/wp-mediaelement.js?ver=6.9.1" id="wp-mediaelement-js"></script>
+<script id="wp-emoji-settings" type="application/json">
+{"baseUrl":"https://s.w.org/images/core/emoji/17.0.2/72x72/","ext":".png","svgUrl":"https://s.w.org/images/core/emoji/17.0.2/svg/","svgExt":".svg","source":{"wpemoji":"https://www.dgac.gob.gt/wp-includes/js/wp-emoji.js?ver=6.9.1","twemoji":"https://www.dgac.gob.gt/wp-includes/js/twemoji.js?ver=6.9.1"}}
+</script>
+<script type="module">
+/* <![CDATA[ */
+/**
+ * @output wp-includes/js/wp-emoji-loader.js
+ */
+
+/* eslint-env es6 */
+
+// Note: This is loaded as a script module, so there is no need for an IIFE to prevent pollution of the global scope.
+
+/**
+ * Emoji Settings as exported in PHP via _print_emoji_detection_script().
+ * @typedef WPEmojiSettings
+ * @type {object}
+ * @property {?object} source
+ * @property {?string} source.concatemoji
+ * @property {?string} source.twemoji
+ * @property {?string} source.wpemoji
+ */
+
+const settings = /** @type {WPEmojiSettings} */ (
+	JSON.parse( document.getElementById( 'wp-emoji-settings' ).textContent )
+);
+
+// For compatibility with other scripts that read from this global, in particular wp-includes/js/wp-emoji.js (source file: js/_enqueues/wp/emoji.js).
+window._wpemojiSettings = settings;
+
+/**
+ * Support tests.
+ * @typedef SupportTests
+ * @type {object}
+ * @property {?boolean} flag
+ * @property {?boolean} emoji
+ */
+
+const sessionStorageKey = 'wpEmojiSettingsSupports';
+const tests = [ 'flag', 'emoji' ];
+
+/**
+ * Checks whether the browser supports offloading to a Worker.
+ *
+ * @since 6.3.0
+ *
+ * @private
+ *
+ * @returns {boolean}
+ */
+function supportsWorkerOffloading() {
+	return (
+		typeof Worker !== 'undefined' &&
+		typeof OffscreenCanvas !== 'undefined' &&
+		typeof URL !== 'undefined' &&
+		URL.createObjectURL &&
+		typeof Blob !== 'undefined'
+	);
+}
+
+/**
+ * @typedef SessionSupportTests
+ * @type {object}
+ * @property {number} timestamp
+ * @property {SupportTests} supportTests
+ */
+
+/**
+ * Get support tests from session.
+ *
+ * @since 6.3.0
+ *
+ * @private
+ *
+ * @returns {?SupportTests} Support tests, or null if not set or older than 1 week.
+ */
+function getSessionSupportTests() {
+	try {
+		/** @type {SessionSupportTests} */
+		const item = JSON.parse(
+			sessionStorage.getItem( sessionStorageKey )
+		);
+		if (
+			typeof item === 'object' &&
+			typeof item.timestamp === 'number' &&
+			new Date().valueOf() < item.timestamp + 604800 && // Note: Number is a week in seconds.
+			typeof item.supportTests === 'object'
+		) {
+			return item.supportTests;
+		}
+	} catch ( e ) {}
+	return null;
+}
+
+/**
+ * Persist the supports in session storage.
+ *
+ * @since 6.3.0
+ *
+ * @private
+ *
+ * @param {SupportTests} supportTests Support tests.
+ */
+function setSessionSupportTests( supportTests ) {
+	try {
+		/** @type {SessionSupportTests} */
+		const item = {
+			supportTests: supportTests,
+			timestamp: new Date().valueOf()
+		};
+
+		sessionStorage.setItem(
+			sessionStorageKey,
+			JSON.stringify( item )
+		);
+	} catch ( e ) {}
+}
+
+/**
+ * Checks if two sets of Emoji characters render the same visually.
+ *
+ * This is used to determine if the browser is rendering an emoji with multiple data points
+ * correctly. set1 is the emoji in the correct form, using a zero-width joiner. set2 is the emoji
+ * in the incorrect form, using a zero-width space. If the two sets render the same, then the browser
+ * does not support the emoji correctly.
+ *
+ * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+ * scope. Everything must be passed by parameters.
+ *
+ * @since 4.9.0
+ *
+ * @private
+ *
+ * @param {CanvasRenderingContext2D} context 2D Context.
+ * @param {string} set1 Set of Emoji to test.
+ * @param {string} set2 Set of Emoji to test.
+ *
+ * @return {boolean} True if the two sets render the same.
+ */
+function emojiSetsRenderIdentically( context, set1, set2 ) {
+	// Cleanup from previous test.
+	context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+	context.fillText( set1, 0, 0 );
+	const rendered1 = new Uint32Array(
+		context.getImageData(
+			0,
+			0,
+			context.canvas.width,
+			context.canvas.height
+		).data
+	);
+
+	// Cleanup from previous test.
+	context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+	context.fillText( set2, 0, 0 );
+	const rendered2 = new Uint32Array(
+		context.getImageData(
+			0,
+			0,
+			context.canvas.width,
+			context.canvas.height
+		).data
+	);
+
+	return rendered1.every( ( rendered2Data, index ) => {
+		return rendered2Data === rendered2[ index ];
+	} );
+}
+
+/**
+ * Checks if the center point of a single emoji is empty.
+ *
+ * This is used to determine if the browser is rendering an emoji with a single data point
+ * correctly. The center point of an incorrectly rendered emoji will be empty. A correctly
+ * rendered emoji will have a non-zero value at the center point.
+ *
+ * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+ * scope. Everything must be passed by parameters.
+ *
+ * @since 6.8.2
+ *
+ * @private
+ *
+ * @param {CanvasRenderingContext2D} context 2D Context.
+ * @param {string} emoji Emoji to test.
+ *
+ * @return {boolean} True if the center point is empty.
+ */
+function emojiRendersEmptyCenterPoint( context, emoji ) {
+	// Cleanup from previous test.
+	context.clearRect( 0, 0, context.canvas.width, context.canvas.height );
+	context.fillText( emoji, 0, 0 );
+
+	// Test if the center point (16, 16) is empty (0,0,0,0).
+	const centerPoint = context.getImageData(16, 16, 1, 1);
+	for ( let i = 0; i < centerPoint.data.length; i++ ) {
+		if ( centerPoint.data[ i ] !== 0 ) {
+			// Stop checking the moment it's known not to be empty.
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Determines if the browser properly renders Emoji that Twemoji can supplement.
+ *
+ * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+ * scope. Everything must be passed by parameters.
+ *
+ * @since 4.2.0
+ *
+ * @private
+ *
+ * @param {CanvasRenderingContext2D} context 2D Context.
+ * @param {string} type Whether to test for support of "flag" or "emoji".
+ * @param {Function} emojiSetsRenderIdentically Reference to emojiSetsRenderIdentically function, needed due to minification.
+ * @param {Function} emojiRendersEmptyCenterPoint Reference to emojiRendersEmptyCenterPoint function, needed due to minification.
+ *
+ * @return {boolean} True if the browser can render emoji, false if it cannot.
+ */
+function browserSupportsEmoji( context, type, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint ) {
+	let isIdentical;
+
+	switch ( type ) {
+		case 'flag':
+			/*
+			 * Test for Transgender flag compatibility. Added in Unicode 13.
+			 *
+			 * To test for support, we try to render it, and compare the rendering to how it would look if
+			 * the browser doesn't render it correctly (white flag emoji + transgender symbol).
+			 */
+			isIdentical = emojiSetsRenderIdentically(
+				context,
+				'\uD83C\uDFF3\uFE0F\u200D\u26A7\uFE0F', // as a zero-width joiner sequence
+				'\uD83C\uDFF3\uFE0F\u200B\u26A7\uFE0F' // separated by a zero-width space
+			);
+
+			if ( isIdentical ) {
+				return false;
+			}
+
+			/*
+			 * Test for Sark flag compatibility. This is the least supported of the letter locale flags,
+			 * so gives us an easy test for full support.
+			 *
+			 * To test for support, we try to render it, and compare the rendering to how it would look if
+			 * the browser doesn't render it correctly ([C] + [Q]).
+			 */
+			isIdentical = emojiSetsRenderIdentically(
+				context,
+				'\uD83C\uDDE8\uD83C\uDDF6', // as the sequence of two code points
+				'\uD83C\uDDE8\u200B\uD83C\uDDF6' // as the two code points separated by a zero-width space
+			);
+
+			if ( isIdentical ) {
+				return false;
+			}
+
+			/*
+			 * Test for English flag compatibility. England is a country in the United Kingdom, it
+			 * does not have a two letter locale code but rather a five letter sub-division code.
+			 *
+			 * To test for support, we try to render it, and compare the rendering to how it would look if
+			 * the browser doesn't render it correctly (black flag emoji + [G] + [B] + [E] + [N] + [G]).
+			 */
+			isIdentical = emojiSetsRenderIdentically(
+				context,
+				// as the flag sequence
+				'\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC65\uDB40\uDC6E\uDB40\uDC67\uDB40\uDC7F',
+				// with each code point separated by a zero-width space
+				'\uD83C\uDFF4\u200B\uDB40\uDC67\u200B\uDB40\uDC62\u200B\uDB40\uDC65\u200B\uDB40\uDC6E\u200B\uDB40\uDC67\u200B\uDB40\uDC7F'
+			);
+
+			return ! isIdentical;
+		case 'emoji':
+			/*
+			 * Is there a large, hairy, humanoid mythical creature living in the browser?
+			 *
+			 * To test for Emoji 17.0 support, try to render a new emoji: Hairy Creature.
+			 *
+			 * The hairy creature emoji is a single code point emoji. Testing for browser
+			 * support required testing the center point of the emoji to see if it is empty.
+			 *
+			 * 0xD83E 0x1FAC8 (\uD83E\u1FAC8) == 🫈 Hairy creature.
+			 *
+			 * When updating this test, please ensure that the emoji is either a single code point
+			 * or switch to using the emojiSetsRenderIdentically function and testing with a zero-width
+			 * joiner vs a zero-width space.
+			 */
+			const notSupported = emojiRendersEmptyCenterPoint( context, '\uD83E\u1FAC8' );
+			return ! notSupported;
+	}
+
+	return false;
+}
+
+/**
+ * Checks emoji support tests.
+ *
+ * This function may be serialized to run in a Worker. Therefore, it cannot refer to variables from the containing
+ * scope. Everything must be passed by parameters.
+ *
+ * @since 6.3.0
+ *
+ * @private
+ *
+ * @param {string[]} tests Tests.
+ * @param {Function} browserSupportsEmoji Reference to browserSupportsEmoji function, needed due to minification.
+ * @param {Function} emojiSetsRenderIdentically Reference to emojiSetsRenderIdentically function, needed due to minification.
+ * @param {Function} emojiRendersEmptyCenterPoint Reference to emojiRendersEmptyCenterPoint function, needed due to minification.
+ *
+ * @return {SupportTests} Support tests.
+ */
+function testEmojiSupports( tests, browserSupportsEmoji, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint ) {
+	let canvas;
+	if (
+		typeof WorkerGlobalScope !== 'undefined' &&
+		self instanceof WorkerGlobalScope
+	) {
+		canvas = new OffscreenCanvas( 300, 150 ); // Dimensions are default for HTMLCanvasElement.
+	} else {
+		canvas = document.createElement( 'canvas' );
+	}
+
+	const context = canvas.getContext( '2d', { willReadFrequently: true } );
+
+	/*
+	 * Chrome on OS X added native emoji rendering in M41. Unfortunately,
+	 * it doesn't work when the font is bolder than 500 weight. So, we
+	 * check for bold rendering support to avoid invisible emoji in Chrome.
+	 */
+	context.textBaseline = 'top';
+	context.font = '600 32px Arial';
+
+	const supports = {};
+	tests.forEach( ( test ) => {
+		supports[ test ] = browserSupportsEmoji( context, test, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint );
+	} );
+	return supports;
+}
+
+/**
+ * Adds a script to the head of the document.
+ *
+ * @ignore
+ *
+ * @since 4.2.0
+ *
+ * @param {string} src The url where the script is located.
+ *
+ * @return {void}
+ */
+function addScript( src ) {
+	const script = document.createElement( 'script' );
+	script.src = src;
+	script.defer = true;
+	document.head.appendChild( script );
+}
+
+settings.supports = {
+	everything: true,
+	everythingExceptFlag: true
+};
+
+// Obtain the emoji support from the browser, asynchronously when possible.
+new Promise( ( resolve ) => {
+	let supportTests = getSessionSupportTests();
+	if ( supportTests ) {
+		resolve( supportTests );
+		return;
+	}
+
+	if ( supportsWorkerOffloading() ) {
+		try {
+			// Note that the functions are being passed as arguments due to minification.
+			const workerScript =
+				'postMessage(' +
+				testEmojiSupports.toString() +
+				'(' +
+				[
+					JSON.stringify( tests ),
+					browserSupportsEmoji.toString(),
+					emojiSetsRenderIdentically.toString(),
+					emojiRendersEmptyCenterPoint.toString()
+				].join( ',' ) +
+				'));';
+			const blob = new Blob( [ workerScript ], {
+				type: 'text/javascript'
+			} );
+			const worker = new Worker( URL.createObjectURL( blob ), { name: 'wpTestEmojiSupports' } );
+			worker.onmessage = ( event ) => {
+				supportTests = event.data;
+				setSessionSupportTests( supportTests );
+				worker.terminate();
+				resolve( supportTests );
+			};
+			return;
+		} catch ( e ) {}
+	}
+
+	supportTests = testEmojiSupports( tests, browserSupportsEmoji, emojiSetsRenderIdentically, emojiRendersEmptyCenterPoint );
+	setSessionSupportTests( supportTests );
+	resolve( supportTests );
+} )
+	// Once the browser emoji support has been obtained from the session, finalize the settings.
+	.then( ( supportTests ) => {
+		/*
+		 * Tests the browser support for flag emojis and other emojis, and adjusts the
+		 * support settings accordingly.
+		 */
+		for ( const test in supportTests ) {
+			settings.supports[ test ] = supportTests[ test ];
+
+			settings.supports.everything =
+				settings.supports.everything && settings.supports[ test ];
+
+			if ( 'flag' !== test ) {
+				settings.supports.everythingExceptFlag =
+					settings.supports.everythingExceptFlag &&
+					settings.supports[ test ];
+			}
+		}
+
+		settings.supports.everythingExceptFlag =
+			settings.supports.everythingExceptFlag &&
+			! settings.supports.flag;
+
+		// When the browser can not render everything we need to load a polyfill.
+		if ( ! settings.supports.everything ) {
+			const src = settings.source || {};
+
+			if ( src.concatemoji ) {
+				addScript( src.concatemoji );
+			} else if ( src.wpemoji && src.twemoji ) {
+				addScript( src.twemoji );
+				addScript( src.wpemoji );
+			}
+		}
+	} );
+//# sourceURL=https://www.dgac.gob.gt/wp-includes/js/wp-emoji-loader.js
+/* ]]> */
+</script>
+<script></script>
+</body>
+</html>
+
+<!-- Page cached by LiteSpeed Cache 7.7 on 2026-02-23 10:58:46 -->

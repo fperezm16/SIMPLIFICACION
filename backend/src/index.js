@@ -1,0 +1,2924 @@
+﻿const express = require("express");
+const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const fs = require("fs");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const puppeteer = require("puppeteer-core");
+const { pool, init } = require("./db");
+const { validateEmailAddress } = require("./email-validator");
+const { sendAlertEmail } = require("./mailer");
+const { authRouter, requireAuth, requireRole } = require("./auth");
+require("dotenv").config();
+
+const app = express();
+const PORT = process.env.PORT || 4000;
+const ALLOWED_ROLES = ["user", "revisor", "analista", "aprobador", "admin", "supervisor"];
+const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO"];
+const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "aprobador"];
+
+function normalizeUnitAccess(unitAccess) {
+  if (!Array.isArray(unitAccess)) return [...ALL_UNITS];
+  const allowed = new Set(ALL_UNITS);
+  const normalized = unitAccess
+    .map((u) => String(u || "").trim().toUpperCase())
+    .filter((u) => allowed.has(u));
+  return Array.from(new Set(normalized));
+}
+
+function isUnitRestrictedRole(role = "") {
+  return UNIT_RESTRICTED_ROLES.includes(String(role || "").trim().toLowerCase());
+}
+
+async function getCurrentUserRole(userId, fallbackRole = "user") {
+  const normalizedFallback = String(fallbackRole || "user").trim().toLowerCase();
+  try {
+    const result = await pool.query("SELECT role FROM users WHERE id = $1", [userId]);
+    if (!result.rowCount) return normalizedFallback;
+    return String(result.rows[0].role || normalizedFallback).trim().toLowerCase();
+  } catch {
+    return normalizedFallback;
+  }
+}
+
+async function getCurrentUserUnitAccess(userId, fallbackUnits = ALL_UNITS) {
+  const normalizedFallback = normalizeUnitAccess(fallbackUnits);
+  try {
+    const result = await pool.query("SELECT unit_access FROM users WHERE id = $1", [userId]);
+    if (!result.rowCount) return normalizedFallback;
+    return normalizeUnitAccess(result.rows[0].unit_access);
+  } catch {
+    return normalizedFallback;
+  }
+}
+
+async function registerSubmissionLog({
+  submissionId,
+  eventCode,
+  eventLabel,
+  eventDetail = null,
+  actorUserId = null,
+  actorRole = null,
+  metadata = null
+}) {
+  try {
+    await pool.query(
+      `INSERT INTO submission_logs (
+         submission_id,
+         event_code,
+         event_label,
+         event_detail,
+         actor_user_id,
+         actor_role,
+         metadata
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        submissionId,
+        String(eventCode || "").trim().slice(0, 80),
+        String(eventLabel || "").trim().slice(0, 180),
+        eventDetail ? String(eventDetail).trim().slice(0, 300) : null,
+        actorUserId || null,
+        actorRole ? String(actorRole).trim().toLowerCase().slice(0, 40) : null,
+        metadata && typeof metadata === "object" ? metadata : null
+      ]
+    );
+  } catch (err) {
+    console.error("Error writing submission log", err);
+  }
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("es-GT");
+}
+
+function formatDateOnly(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const d = String(value.getDate()).padStart(2, "0");
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const y = String(value.getFullYear());
+    return `${d}/${m}/${y}`;
+  }
+  const raw = String(value).trim();
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw || "";
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = String(date.getFullYear());
+  return `${d}/${m}/${y}`;
+}
+
+function validateNumericSubmissionFields(payload = {}, { onlyProvided = false, requireMainPhone = false } = {}) {
+  const fields = [
+    { key: "documento_propietario", label: "DPI del propietario", length: 13, required: false },
+    { key: "telefono", label: "Teléfono", length: 8, required: requireMainPhone },
+    { key: "autorizado_documento", label: "DPI autorizado", length: 13, required: false },
+    { key: "autorizado_telefono", label: "Teléfono autorizado", length: 8, required: false }
+  ];
+
+  for (const field of fields) {
+    if (onlyProvided && !Object.prototype.hasOwnProperty.call(payload, field.key)) continue;
+    const raw = payload[field.key];
+    const value = raw === null || raw === undefined ? "" : String(raw).trim();
+    if (!value) {
+      if (field.required) {
+        return `${field.label} es obligatorio y debe tener ${field.length} digitos.`;
+      }
+      continue;
+    }
+    if (!new RegExp(`^\\d{${field.length}}$`).test(value)) {
+      return `${field.label} debe contener exactamente ${field.length} digitos.`;
+    }
+  }
+
+  return null;
+}
+
+function normalizeRegistroPrefix(unidadClave) {
+  const cleaned = String(unidadClave || "GENERAL")
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  return cleaned || "GENERAL";
+}
+
+async function reserveSubmissionCode(client, unidadClave, referenceDate = new Date()) {
+  const prefix = normalizeRegistroPrefix(unidadClave);
+  const date = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
+  const year = Number.isNaN(date.getTime()) ? new Date().getFullYear() : date.getFullYear();
+
+  const counterResult = await client.query(
+    `INSERT INTO submission_counters (unit_clave, year_value, last_number)
+     VALUES ($1, $2, 1)
+     ON CONFLICT (unit_clave, year_value)
+     DO UPDATE SET last_number = submission_counters.last_number + 1
+     RETURNING last_number`,
+    [prefix, year]
+  );
+
+  const sequence = Number(counterResult.rows[0]?.last_number || 1);
+  const padded = String(sequence).padStart(2, "0");
+  return `${prefix}-${padded}-${year}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderValue(value) {
+  const text = value === null || value === undefined ? "" : String(value).trim();
+  return text ? escapeHtml(text) : "&nbsp;";
+}
+
+const FRONTEND_ASSETS_DIR = path.resolve(__dirname, "..", "..", "frontend", "src", "assets");
+const INSTITUTION_LOGOS = {
+  mciv: path.join(FRONTEND_ASSETS_DIR, "mciv-oficial.png"),
+  dgac: path.join(FRONTEND_ASSETS_DIR, "dgac-oficial.png")
+};
+let institutionLogoCache = null;
+
+function toImageDataUri(filePath) {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return null;
+    const bytes = fs.readFileSync(filePath);
+    if (!bytes || !bytes.length) return null;
+    return `data:image/png;base64,${bytes.toString("base64")}`;
+  } catch (err) {
+    console.error("No se pudo cargar logo institucional", err);
+    return null;
+  }
+}
+
+function getInstitutionLogoData() {
+  if (institutionLogoCache) return institutionLogoCache;
+  institutionLogoCache = {
+    mciv: toImageDataUri(INSTITUTION_LOGOS.mciv),
+    dgac: toImageDataUri(INSTITUTION_LOGOS.dgac)
+  };
+  return institutionLogoCache;
+}
+
+function buildSubmissionPdfHtml(submission) {
+  const personaTipo = String(submission.persona_tipo || "individual").toLowerCase();
+  const isJuridica = personaTipo === "juridica";
+  const unidadClave = String(submission.unidad_clave || "GENERAL").toUpperCase();
+  const isRanMode = unidadClave === "RAN";
+  const uso = String(submission.uso || "").toLowerCase();
+  const gestionNombre = String(submission.gestion_nombre || "Formulario General TG");
+  const normalizedGestionNombre = gestionNombre
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const isRanDrone = isRanMode && (
+    normalizedGestionNombre.includes("uav") ||
+    normalizedGestionNombre.includes("rpa") ||
+    normalizedGestionNombre.includes("drone") ||
+    normalizedGestionNombre.includes("distintivo")
+  );
+  const hideSolicitudSection = isRanMode && !isRanDrone;
+  const formMainTitle = isRanDrone
+    ? "Formulario único para trámites de aeronaves no tripuladas - UAV - RPA's"
+    : 'Formulario único para trámites de aeronaves "TG"';
+  const ranModeLabel = (() => {
+    if (normalizedGestionNombre.includes("uav") || normalizedGestionNombre.includes("rpa") || normalizedGestionNombre.includes("distintivo")) {
+      return "Unidad RAN - UAV / RPA Distintivo";
+    }
+    if (normalizedGestionNombre.includes("certific")) return "Unidad RAN - Certificación";
+    if (normalizedGestionNombre.includes("reserva") || normalizedGestionNombre.includes("prorroga") || normalizedGestionNombre.includes("cesion")) {
+      return "Unidad RAN - Reserva, Prórroga o Cesión de Matrícula";
+    }
+    return "Unidad RAN";
+  })();
+  const solicitudRows = isRanDrone
+    ? [
+      { checked: submission.tipo_reservacion, label: "1. Reserva de Distintivo / DESADUANAJE (Q 105.00)" },
+      { checked: submission.tipo_inscripcion, label: "2. Inscripción en el D.R.A.N (Q 1,000.00)" },
+      { checked: submission.tipo_cambio_prop, label: "3. Cambio de Propietario (Q 400.00)" },
+      { checked: submission.tipo_reposicion, label: "4. Reposición de Certificado de Distintivo (Q 200.00)" },
+      { checked: submission.tipo_certificacion, label: "5. Certificación (Q 50.00)" }
+    ]
+    : [
+      { checked: submission.tipo_internacion, label: "1. Internación de la Aeronave (0125)" },
+      { checked: submission.tipo_reservacion, label: "2. Reservación de Matrícula (0105)" },
+      { checked: submission.tipo_inscripcion, label: "3. Inscripción en e-DRAN (0100)" },
+      { checked: submission.tipo_certificado_prov, label: "4. Certificado de Matrícula Provisional (0200)" },
+      { checked: submission.tipo_reposicion, label: "5. Reposición de Certificado (0200)" },
+      { checked: submission.tipo_cambio_prop, label: "6. Cambio de Propietario (0400)" },
+      { checked: submission.tipo_cambio_datos, label: "7. Cambio de datos en Certificados (0105)" },
+      { checked: submission.tipo_certificacion, label: "8. Certificación (050)" }
+    ];
+  const check = (value) => (value ? "[X]" : "[ ]");
+  const logos = getInstitutionLogoData();
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Formulario TG ${submission.id}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: #0f172a;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12.5px;
+      background: #fff;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 9mm;
+    }
+    .document {
+      border: 1px solid #cbd5e1;
+      padding: 8mm;
+    }
+    .doc-header {
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 5mm;
+      margin-bottom: 4mm;
+    }
+    .logos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .logo-block {
+      display: flex;
+      align-items: center;
+      min-height: 56px;
+    }
+    .logo-block.right {
+      justify-content: flex-end;
+      text-align: right;
+    }
+    .logo-image {
+      display: block;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+    }
+    .logo-image.mciv {
+      max-height: 60px;
+    }
+    .logo-image.dgac {
+      max-height: 56px;
+      margin-left: auto;
+    }
+    .logo-fallback {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-mark {
+      width: 46px;
+      height: 34px;
+      border: 1px solid #cbd5e1;
+      background: #f1f5f9;
+      display: grid;
+      place-items: center;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .logo-text strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 1px;
+    }
+    .logo-text small {
+      font-size: 11px;
+      color: #334155;
+    }
+    .title {
+      margin-top: 10px;
+      text-align: center;
+    }
+    .title h1 {
+      margin: 0;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .title p {
+      margin: 4px 0 0;
+      font-size: 11.5px;
+      color: #334155;
+    }
+    .mode-pill {
+      display: inline-block;
+      margin-top: 6px;
+      border: 1px solid #93c5fd;
+      background: #dbeafe;
+      color: #1e3a8a;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+    .meta-row {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+    }
+    .meta-item {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 8px;
+      min-width: 220px;
+    }
+    .meta-item span.label {
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .line-value {
+      flex: 1;
+      border-bottom: 1px solid #64748b;
+      min-height: 20px;
+      padding: 2px 4px;
+      display: inline-block;
+      word-break: break-word;
+    }
+    .section {
+      margin-top: 10px;
+      border-top: 2px solid #0f172a;
+      padding-top: 8px;
+      page-break-inside: avoid;
+    }
+    .section h2 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    .section h3 {
+      margin: 0 0 8px;
+      font-size: 12.5px;
+      text-transform: uppercase;
+    }
+    .persona-row {
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .fields {
+      display: grid;
+      gap: 8px;
+    }
+    .line-field {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .line-field .label {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .dual {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .note-line {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .uso-options {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-weight: 600;
+    }
+    .solicitud-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 18px;
+      margin-top: 4px;
+    }
+    .solicitud-item {
+      white-space: nowrap;
+    }
+    .legal {
+      border-top: 1px dashed #cbd5e1;
+      margin-top: 12px;
+      padding-top: 8px;
+      color: #475569;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="document">
+      <header class="doc-header">
+        <div class="logos">
+          <div class="logo-block">
+            ${
+              logos.mciv
+                ? `<img class="logo-image mciv" src="${logos.mciv}" alt="Ministerio de Comunicaciones, Infraestructura y Vivienda">`
+                : `<div class="logo-fallback">
+            <div class="logo-mark">GUA</div>
+            <div class="logo-text">
+              <strong>Gobierno de Guatemala</strong>
+              <small>Ministerio de Comunicaciones, Infraestructura y Vivienda</small>
+            </div>
+          </div>`
+            }
+          </div>
+          <div class="logo-block right">
+            ${
+              logos.dgac
+                ? `<img class="logo-image dgac" src="${logos.dgac}" alt="Dirección General de Aeronáutica Civil">`
+                : `<div class="logo-fallback">
+            <div class="logo-mark">DGAC</div>
+            <div class="logo-text">
+              <small>Dirección General de Aeronáutica Civil</small>
+            </div>
+          </div>`
+            }
+          </div>
+        </div>
+        <div class="title">
+          <h1>${escapeHtml(formMainTitle)}</h1>
+          <p>Departamento de Registro Aeronautico Nacional</p>
+          ${isRanMode ? `<span class="mode-pill">${escapeHtml(ranModeLabel)}</span>` : ""}
+        </div>
+        <div class="meta-row">
+          <div class="meta-item"><span class="label">Fecha:</span><span class="line-value">${renderValue(formatDateOnly(submission.fecha || submission.created_at))}</span></div>
+          <div class="meta-item"><span class="label">No. Registro:</span><span class="line-value">${renderValue(submission.registro_codigo || submission.id)}</span></div>
+        </div>
+      </header>
+
+      <section class="section">
+        <h2>${isRanDrone ? "A. Datos de identificación (individual o jurídico)." : "A. Inscripción de aeronaves a nombre de persona individual o jurídica"}</h2>
+        <div class="persona-row">${check(!isJuridica)} Persona individual&nbsp;&nbsp;&nbsp;${check(isJuridica)} Persona jurídica</div>
+        <h3>Datos del propietario</h3>
+        <div class="fields">
+          <div class="line-field">
+            <span class="label">1. ${isJuridica ? "Nombre de Entidad:" : "Nombre de Empresa, Propietario:"}</span>
+            <span class="line-value">${renderValue(submission.nombre_propietario)}</span>
+          </div>
+          ${
+            isJuridica
+              ? `<div class="line-field">
+            <span class="label">Representante Legal / Arrendatario:</span>
+            <span class="line-value">${renderValue(submission.representante_legal)}</span>
+          </div>`
+              : ""
+          }
+          <div class="line-field">
+            <span class="label">2. ${
+              isRanDrone
+                ? "No. de Documento Personal de Identificación (Persona Individual o Representante Legal):"
+                : isJuridica
+                ? "No. de Documento Personal de Identificación o Pasaporte:"
+                : "No. de Documento Personal de Identificación o Pasaporte del Propietario:"
+            }</span>
+            <span class="line-value">${renderValue(submission.documento_propietario)}</span>
+          </div>
+          <div class="line-field">
+            <span class="label">${isRanDrone ? "5. Dirección a consignar en el Certificado de Distintivo:" : "3. Dirección a consignar en el Certificado de matrícula:"}</span>
+            <span class="line-value">${renderValue(submission.direccion)}</span>
+          </div>
+          <div class="dual">
+            <div class="line-field">
+              <span class="label">Teléfono:</span>
+              <span class="line-value">${renderValue(submission.telefono)}</span>
+            </div>
+            <div class="line-field">
+              <span class="label">Correo Electronico:</span>
+              <span class="line-value">${renderValue(submission.correo)}</span>
+            </div>
+          </div>
+          <div>
+            <div class="note-line">4. NIT y nombre a consignar en orden de pago:</div>
+            <div class="dual">
+              <div class="line-field">
+                <span class="label">NIT:</span>
+                <span class="line-value">${renderValue(submission.nit)}</span>
+              </div>
+              <div class="line-field">
+                <span class="label">Nombre para orden de pago:</span>
+                <span class="line-value">${renderValue(submission.nombre_orden_pago)}</span>
+              </div>
+            </div>
+          </div>
+          ${
+            isJuridica || isRanDrone
+              ? `<div>
+            <div class="note-line">${isRanDrone ? "6." : "5."} En caso de no poder acudir personalmente a realizar cualquier diligencia, autorizo a:</div>
+            <div class="line-field">
+              <span class="label">Nombre completo:</span>
+              <span class="line-value">${renderValue(submission.autorizado_nombre)}</span>
+            </div>
+            <div class="dual">
+              <div class="line-field">
+                <span class="label">Número de DPI / Pasaporte:</span>
+                <span class="line-value">${renderValue(submission.autorizado_documento)}</span>
+              </div>
+              <div class="line-field">
+                <span class="label">Teléfono:</span>
+                <span class="line-value">${renderValue(submission.autorizado_telefono)}</span>
+              </div>
+            </div>
+          </div>`
+              : ""
+          }
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>${isRanDrone ? "B. Datos de la aeronave pilotada a distancia (RPA)." : "B. Datos de la aeronave"}</h2>
+        ${
+          isRanDrone
+            ? `<div class="fields">
+          <div class="line-field">
+            <span class="label">1. Marca:</span>
+            <span class="line-value">${renderValue(submission.fabricante)}</span>
+          </div>
+          <div class="line-field">
+            <span class="label">2. Modelo:</span>
+            <span class="line-value">${renderValue(submission.modelo)}</span>
+          </div>
+          <div class="line-field">
+            <span class="label">3. Serie (si aplica):</span>
+            <span class="line-value">${renderValue(submission.numero_serie)}</span>
+          </div>
+          <div class="line-field">
+            <span class="label">4. No. UAV - TG (si ya fue reservado):</span>
+            <span class="line-value">${renderValue(submission.matricula_tg)}</span>
+          </div>
+          <div class="uso-options">
+            <span>5. Uso:</span>
+            <span>${check(uso === "privado")} Privado</span>
+            <span>${check(uso === "comercial")} Comercial</span>
+            <span>${check(uso === "estado")} Entidades de Estado</span>
+            <span>${check(uso === "otros")} Otros</span>
+          </div>
+          <div class="line-field">
+            <span class="label">Nota:</span>
+            <span class="line-value">En caso de ser mas de dos aeronaves, adjuntar nomina con la serie y modelo de todos los drones.</span>
+          </div>
+        </div>`
+            : `<div class="fields">
+          <div class="dual">
+            <div class="line-field">
+              <span class="label">Matrícula TG:</span>
+              <span class="line-value">${renderValue(submission.matricula_tg)}</span>
+            </div>
+            <div class="line-field">
+              <span class="label">Nueva Matrícula TG (por cambio):</span>
+              <span class="line-value">${renderValue(submission.matricula_tg_nueva)}</span>
+            </div>
+          </div>
+          <div class="uso-options">
+            <span>Uso:</span>
+            <span>${check(uso === "privado")} Privado</span>
+            <span>${check(uso === "comercial")} Comercial</span>
+            <span>${check(uso === "fumigacion")} Fumigación</span>
+          </div>
+          <div class="dual">
+            <div class="line-field">
+              <span class="label">Nombre del Fabricante:</span>
+              <span class="line-value">${renderValue(submission.fabricante)}</span>
+            </div>
+            <div class="line-field">
+              <span class="label">Número de Serie:</span>
+              <span class="line-value">${renderValue(submission.numero_serie || "N/D")}</span>
+            </div>
+          </div>
+          <div class="dual">
+            <div class="line-field">
+              <span class="label">Modelo (no confundir con año de fabricación):</span>
+              <span class="line-value">${renderValue(submission.modelo)}</span>
+            </div>
+            <div class="line-field">
+              <span class="label">Año de Fabricación:</span>
+              <span class="line-value">${renderValue(submission.anio_fabricacion)}</span>
+            </div>
+          </div>
+          <div class="line-field">
+            <span class="label">Colores (identificar solo colores primarios):</span>
+            <span class="line-value">${renderValue(submission.colores)}</span>
+          </div>
+        </div>`
+        }
+      </section>
+
+      ${
+        !hideSolicitudSection
+          ? `<section class="section">
+        <h2>C. Tipo de solicitud</h2>
+        <div class="solicitud-grid">
+          ${solicitudRows
+            .map((row) => `<div class="solicitud-item">${check(row.checked)} ${escapeHtml(row.label)}</div>`)
+            .join("")}
+        </div>
+        <div class="line-field" style="margin-top: 8px;">
+          <span class="label">${isRanDrone ? "6. Especificaciones u Observaciones de la solicitud:" : "Especificaciones o Motivos de la Solicitud:"}</span>
+          <span class="line-value">${renderValue(submission.especificaciones)}</span>
+        </div>
+      </section>`
+          : `<section class="section">
+        <h2>C. Observaciones del solicitante</h2>
+        <div class="line-field" style="margin-top: 8px;">
+          <span class="label">Observaciones:</span>
+          <span class="line-value">${renderValue(submission.especificaciones)}</span>
+        </div>
+      </section>`
+      }
+
+      <section class="section">
+        <h2>D. Documentos adjuntos</h2>
+        <div class="fields">
+          <div class="line-field">
+            <span class="label">DPI (PDF):</span>
+            <span class="line-value">${renderValue(submission.has_dpi ? submission.dpi_filename || "Adjunto" : "No adjunto")}</span>
+          </div>
+          ${
+            isJuridica
+              ? `<div class="line-field">
+            <span class="label">Acta de Nombramiento del Representante Legal de la Entidad Propietaria/Arrendataria:</span>
+            <span class="line-value">${renderValue(submission.has_acta ? submission.acta_filename || "Adjunta" : "No adjunta")}</span>
+          </div>
+          <div class="line-field">
+            <span class="label">Registro Mercantil General de la Republica:</span>
+            <span class="line-value">${renderValue(submission.has_registro_mercantil ? submission.registro_mercantil_filename || "Adjunto" : "No adjunto")}</span>
+          </div>`
+              : ""
+          }
+          <div class="line-field">
+            <span class="label">Comentarios del revisor:</span>
+            <span class="line-value">${renderValue(submission.comentarios_revision)}</span>
+          </div>
+        </div>
+      </section>
+
+      <footer class="legal">
+        Fundamento de derecho: Convenio de Aviación Civil Internacional, Art. 44 Ley de Aviación Civil, Art. 77 Reglamento de la Ley de Aviación Civil, Regulación de Aviación Civil 45, Manual de Normas y Procedimientos, Decreto 5-2021 Ley de Simplificación de Trámites y Requisitos Administrativos.
+        <br>
+        Fecha de envío: ${renderValue(formatDateTime(submission.created_at))} - Fecha de aprobación: ${renderValue(formatDateTime(submission.approved_at))}
+      </footer>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildSubmissionFallbackPdfBuffer(submission) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 36 });
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const line = (label, value) => {
+      doc.font("Helvetica-Bold").fontSize(10).text(`${label}: `, { continued: true });
+      doc.font("Helvetica").fontSize(10).text(value ? String(value) : "N/D");
+    };
+
+    const drawLogo = (filePath, x, y, fitWidth, fitHeight) => {
+      try {
+        if (!filePath || !fs.existsSync(filePath)) return;
+        doc.image(filePath, x, y, { fit: [fitWidth, fitHeight] });
+      } catch (err) {
+        console.error("No se pudo dibujar logo en PDF de respaldo", err);
+      }
+    };
+
+    drawLogo(INSTITUTION_LOGOS.mciv, 36, 24, 245, 60);
+    drawLogo(INSTITUTION_LOGOS.dgac, 332, 24, 175, 58);
+    doc.y = 95;
+
+    doc.font("Helvetica-Bold").fontSize(14).text('FORMULARIO "TG" (respaldo)', { align: "center" });
+    doc.moveDown(0.5);
+    line("No. registro", submission.registro_codigo || submission.id);
+    line("Unidad", submission.unidad_clave || "GENERAL");
+    line("Gestión", submission.gestion_nombre || "Formulario General TG");
+    line("Fecha", formatDateOnly(submission.fecha || submission.created_at));
+    line("Fecha de envío", formatDateTime(submission.created_at));
+    line("Fecha de aprobación", formatDateTime(submission.approved_at));
+    doc.moveDown(0.5);
+    line("Persona tipo", submission.persona_tipo);
+    line("Nombre propietario", submission.nombre_propietario);
+    line("Representante legal", submission.representante_legal);
+    line("Documento propietario", submission.documento_propietario);
+    line("Dirección", submission.direccion);
+    line("Teléfono", submission.telefono);
+    line("Correo", submission.correo);
+    line("NIT", submission.nit);
+    line("Nombre orden pago", submission.nombre_orden_pago);
+    line("Matrícula TG", submission.matricula_tg);
+    line("Nueva matrícula TG", submission.matricula_tg_nueva);
+    line("Uso", submission.uso);
+    line("Fabricante", submission.fabricante);
+    line("Número de serie", submission.numero_serie);
+    line("Modelo", submission.modelo);
+    line("Año de fabricación", submission.anio_fabricacion);
+    line("Colores", submission.colores);
+    line("Especificaciones", submission.especificaciones);
+    line("Comentarios", submission.comentarios_revision);
+    line("DPI", submission.has_dpi ? "Adjunto" : "No adjunto");
+    line("Acta", submission.has_acta ? "Adjunta" : "No adjunta");
+    line("Registro mercantil", submission.has_registro_mercantil ? "Adjunto" : "No adjunto");
+    doc.end();
+  });
+}
+
+function resolveBrowserExecutablePath() {
+  const userHome = process.env.USERPROFILE || process.env.HOME || "";
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    process.env.CHROME_PATH,
+    process.env.BROWSER_EXECUTABLE_PATH,
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    userHome ? `${userHome}\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe` : null,
+    userHome ? `${userHome}\\AppData\\Local\\Microsoft\\Edge\\Application\\msedge.exe` : null
+  ].filter(Boolean);
+
+  return candidates.find((filePath) => fs.existsSync(filePath)) || null;
+}
+
+async function buildSubmissionPdfBuffer(submission) {
+  const executablePath = resolveBrowserExecutablePath();
+  if (!executablePath) {
+    console.error("No se encontro Chrome/Edge para generar el PDF. Se usara PDF de respaldo.");
+    return buildSubmissionFallbackPdfBuffer(submission);
+  }
+
+  let browser = null;
+  try {
+    browser = await puppeteer.launch({
+      executablePath,
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu"]
+    });
+    const page = await browser.newPage();
+    await page.setContent(buildSubmissionPdfHtml(submission), { waitUntil: "networkidle0" });
+    await page.emulateMediaType("screen");
+    const pdfBytes = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: "0mm",
+        right: "0mm",
+        bottom: "0mm",
+        left: "0mm"
+      }
+    });
+    return Buffer.isBuffer(pdfBytes) ? pdfBytes : Buffer.from(pdfBytes);
+  } catch (err) {
+    console.error("Error generando PDF con navegador. Se usara PDF de respaldo.", err);
+    return buildSubmissionFallbackPdfBuffer(submission);
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch {
+        // ignore close errors
+      }
+    }
+  }
+}
+
+function submissionProcessState(row) {
+  if (row?.returned_at) return { code: "devuelto", label: "Devuelto para corrección", step: 2, percent: 45 };
+  if (row?.returned_to_analista_at) {
+    return { code: "devuelto_analista", label: "Devuelto por aprobador a analista", step: 3, percent: 70 };
+  }
+  if (row?.approved_at) return { code: "aprobado", label: "Aprobado", step: 4, percent: 100 };
+  if (row?.assigned_aprobador_id || row?.sent_to_aprobador_at) {
+    return { code: "en_aprobacion", label: "En aprobación de unidad", step: 3, percent: 90 };
+  }
+  if (row?.assigned_analista_id) return { code: "asignado", label: "Asignado a analista", step: 3, percent: 75 };
+  if (row?.receptor_opened_at) return { code: "en_recepcion", label: "Recibido por receptor", step: 2, percent: 50 };
+  return { code: "enviado", label: "Enviado", step: 1, percent: 25 };
+}
+
+function parseDateSafe(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function diffHours(start, end) {
+  if (!start || !end) return null;
+  const ms = end.getTime() - start.getTime();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  return ms / (1000 * 60 * 60);
+}
+
+function roundTwo(value) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return null;
+  return Math.round(value * 100) / 100;
+}
+
+function averageHours(values) {
+  if (!Array.isArray(values) || !values.length) return null;
+  const total = values.reduce((acc, value) => acc + Number(value || 0), 0);
+  return roundTwo(total / values.length);
+}
+
+function computeSubmissionDurations(row, now = new Date()) {
+  const createdAt = parseDateSafe(row.created_at);
+  const receptorOpenedAt = parseDateSafe(row.receptor_opened_at);
+  const sentToApproverAt = parseDateSafe(row.sent_to_aprobador_at);
+  const approvedAt = parseDateSafe(row.approved_at);
+  const returnedAt = parseDateSafe(row.returned_at);
+  const returnedToAnalystAt = parseDateSafe(row.returned_to_analista_at);
+
+  const receptorHours = diffHours(createdAt, receptorOpenedAt);
+
+  const analystStart = receptorOpenedAt || createdAt;
+  const analystEnd = sentToApproverAt || returnedAt || approvedAt || returnedToAnalystAt;
+  const analystHours = diffHours(analystStart, analystEnd);
+
+  const approverEnd = approvedAt || returnedToAnalystAt;
+  const approverHours = diffHours(sentToApproverAt, approverEnd);
+
+  const totalToApprovedHours = diffHours(createdAt, approvedAt);
+
+  const process = submissionProcessState(row);
+  let currentStageStart = null;
+  if (process.code === "enviado") {
+    currentStageStart = createdAt;
+  } else if (process.code === "en_recepcion") {
+    currentStageStart = receptorOpenedAt || createdAt;
+  } else if (process.code === "asignado") {
+    currentStageStart = receptorOpenedAt || createdAt;
+  } else if (process.code === "en_aprobacion") {
+    currentStageStart = sentToApproverAt || receptorOpenedAt || createdAt;
+  } else if (process.code === "devuelto") {
+    currentStageStart = returnedAt || createdAt;
+  } else if (process.code === "devuelto_analista") {
+    currentStageStart = returnedToAnalystAt || sentToApproverAt || receptorOpenedAt || createdAt;
+  }
+
+  const currentStageHours = process.code === "aprobado" ? 0 : diffHours(currentStageStart, now) || 0;
+  return {
+    receptor_hours: roundTwo(receptorHours),
+    analista_hours: roundTwo(analystHours),
+    aprobador_hours: roundTwo(approverHours),
+    total_to_approved_hours: roundTwo(totalToApprovedHours),
+    current_stage_hours: roundTwo(currentStageHours)
+  };
+}
+
+function createUnitStats(unit) {
+  return {
+    unit,
+    total: 0,
+    active: 0,
+    status_counts: {
+      enviado: 0,
+      en_recepcion: 0,
+      asignado: 0,
+      en_aprobacion: 0,
+      aprobado: 0,
+      devuelto: 0,
+      devuelto_analista: 0
+    },
+    _durations: {
+      receptor: [],
+      analista: [],
+      aprobador: [],
+      total_aprobado: []
+    }
+  };
+}
+
+function normalizeUnitKey(value) {
+  const unit = String(value || "GENERAL").trim().toUpperCase();
+  return ALL_UNITS.includes(unit) ? unit : "GENERAL";
+}
+
+function buildSupervisorDashboard(rows) {
+  const now = new Date();
+  const unitMap = new Map();
+  const processRows = [];
+  const totals = {
+    total: 0,
+    active: 0,
+    approved: 0,
+    returned: 0
+  };
+
+  for (const row of rows) {
+    const unit = normalizeUnitKey(row.unidad_clave);
+    if (!unitMap.has(unit)) {
+      unitMap.set(unit, createUnitStats(unit));
+    }
+    const bucket = unitMap.get(unit);
+    const process = submissionProcessState(row);
+    const durations = computeSubmissionDurations(row, now);
+
+    bucket.total += 1;
+    totals.total += 1;
+
+    if (process.code !== "aprobado") {
+      bucket.active += 1;
+      totals.active += 1;
+    } else {
+      totals.approved += 1;
+    }
+    if (process.code === "devuelto" || process.code === "devuelto_analista") {
+      totals.returned += 1;
+    }
+    bucket.status_counts[process.code] = (bucket.status_counts[process.code] || 0) + 1;
+
+    if (durations.receptor_hours !== null) bucket._durations.receptor.push(durations.receptor_hours);
+    if (durations.analista_hours !== null) bucket._durations.analista.push(durations.analista_hours);
+    if (durations.aprobador_hours !== null) bucket._durations.aprobador.push(durations.aprobador_hours);
+    if (durations.total_to_approved_hours !== null) bucket._durations.total_aprobado.push(durations.total_to_approved_hours);
+
+    processRows.push({
+      id: row.id,
+      registro_codigo: row.registro_codigo,
+      unidad_clave: unit,
+      gestion_nombre: row.gestion_nombre || "Formulario General TG",
+      nombre_propietario: row.nombre_propietario || "",
+      estado_code: process.code,
+      estado_label: process.label,
+      created_at: row.created_at,
+      receptor_opened_at: row.receptor_opened_at,
+      sent_to_aprobador_at: row.sent_to_aprobador_at,
+      approved_at: row.approved_at,
+      returned_at: row.returned_at,
+      returned_to_analista_at: row.returned_to_analista_at,
+      assigned_analista_name: row.assigned_analista_name || row.assigned_analista_email || null,
+      assigned_aprobador_name: row.assigned_aprobador_name || row.assigned_aprobador_email || null,
+      ...durations
+    });
+  }
+
+  const unitOrder = [...ALL_UNITS];
+  const byUnit = unitOrder
+    .filter((unit) => unitMap.has(unit))
+    .map((unit) => {
+      const bucket = unitMap.get(unit);
+      return {
+        unit: bucket.unit,
+        total: bucket.total,
+        active: bucket.active,
+        status_counts: bucket.status_counts,
+        avg_stage_hours: {
+          receptor: averageHours(bucket._durations.receptor),
+          analista: averageHours(bucket._durations.analista),
+          aprobador: averageHours(bucket._durations.aprobador),
+          total_aprobado: averageHours(bucket._durations.total_aprobado)
+        }
+      };
+    });
+
+  processRows.sort((a, b) => {
+    const ta = new Date(String(a.created_at || "")).getTime();
+    const tb = new Date(String(b.created_at || "")).getTime();
+    return tb - ta;
+  });
+
+  return {
+    generated_at: now.toISOString(),
+    totals,
+    by_unit: byUnit,
+    processes: processRows
+  };
+}
+
+function csvEscape(value) {
+  const raw = value === null || value === undefined ? "" : String(value);
+  const escaped = raw.replace(/"/g, '""');
+  return `"${escaped}"`;
+}
+
+function buildSupervisorCsv(processes = []) {
+  const header = [
+    "registro_codigo",
+    "id",
+    "unidad",
+    "formulario",
+    "estado",
+    "propietario",
+    "analista",
+    "aprobador",
+    "fecha_envio",
+    "fecha_receptor",
+    "fecha_envio_aprobador",
+    "fecha_aprobacion",
+    "horas_receptor",
+    "horas_analista",
+    "horas_aprobador",
+    "horas_etapa_actual"
+  ];
+
+  const lines = [header.map(csvEscape).join(",")];
+  for (const row of processes) {
+    const values = [
+      row.registro_codigo || "",
+      row.id || "",
+      row.unidad_clave || "",
+      row.gestion_nombre || "",
+      row.estado_label || "",
+      row.nombre_propietario || "",
+      row.assigned_analista_name || "",
+      row.assigned_aprobador_name || "",
+      row.created_at || "",
+      row.receptor_opened_at || "",
+      row.sent_to_aprobador_at || "",
+      row.approved_at || "",
+      row.receptor_hours ?? "",
+      row.analista_hours ?? "",
+      row.aprobador_hours ?? "",
+      row.current_stage_hours ?? ""
+    ];
+    lines.push(values.map(csvEscape).join(","));
+  }
+
+  return `\uFEFF${lines.join("\n")}`;
+}
+
+app.use(cors());
+app.use(express.json({ limit: "10mb" }));
+app.use("/api/auth", authRouter);
+
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (req, res) => {
+  const {
+    persona_tipo = "individual",
+    unidad_clave = "GENERAL",
+    gestion_nombre = null,
+    nombre_propietario,
+    representante_legal,
+    documento_propietario,
+    direccion,
+    telefono,
+    correo,
+    nit,
+    nombre_orden_pago,
+    autorizado_nombre,
+    autorizado_documento,
+    autorizado_telefono,
+    matricula_tg,
+    matricula_tg_nueva,
+    uso,
+    fabricante,
+    numero_serie,
+    modelo,
+    anio_fabricacion,
+    colores,
+    tipo_internacion = false,
+    tipo_reservacion = false,
+    tipo_inscripcion = false,
+    tipo_certificado_prov = false,
+    tipo_reposicion = false,
+    tipo_cambio_prop = false,
+    tipo_cambio_datos = false,
+    tipo_certificacion = false,
+    especificaciones,
+    comentarios_revision,
+    dpi_pdf_base64,
+    dpi_filename,
+    dpi_mime,
+    acta_pdf_base64,
+    acta_filename,
+    acta_mime,
+    registro_mercantil_pdf_base64,
+    registro_mercantil_filename,
+    registro_mercantil_mime
+  } = req.body;
+
+  const unidadClave = String(unidad_clave || "GENERAL").toUpperCase();
+  const gestionNombre = gestion_nombre ? String(gestion_nombre).trim().slice(0, 180) : null;
+  const isRanDroneRequest = unidadClave === "RAN" && Boolean(gestionNombre) && /uav|rpa|distintivo|drone/i.test(gestionNombre);
+  const required = [
+    ["nombre_propietario", nombre_propietario],
+    ["correo", correo],
+    ["telefono", telefono],
+    ["uso", uso]
+  ];
+  if (!isRanDroneRequest) {
+    required.push(["matricula_tg", matricula_tg]);
+    required.push(["numero_serie", numero_serie]);
+  }
+
+  const missing = required.filter(([, v]) => !v);
+  if (missing.length) {
+    return res.status(400).json({ error: `Faltan campos obligatorios: ${missing.map(([k]) => k).join(", ")}` });
+  }
+  const correoValidation = await validateEmailAddress(correo);
+  if (!correoValidation.ok) {
+    return res.status(400).json({ error: correoValidation.error || "Correo no válido." });
+  }
+  const correoNormalizado = correoValidation.email;
+  const personaTipo = String(persona_tipo || "individual").toLowerCase();
+  if (!["individual", "juridica"].includes(personaTipo)) {
+    return res.status(400).json({ error: "persona_tipo no válido. Usa individual o jurídica." });
+  }
+  if (personaTipo === "juridica" && !String(representante_legal || "").trim()) {
+    return res.status(400).json({ error: "Para persona jurídica el representante legal es obligatorio." });
+  }
+  const numericValidationError = validateNumericSubmissionFields(
+    { documento_propietario, telefono, autorizado_documento, autorizado_telefono },
+    { requireMainPhone: true }
+  );
+  if (numericValidationError) {
+    return res.status(400).json({ error: numericValidationError });
+  }
+  if (!ALL_UNITS.includes(unidadClave)) {
+    return res.status(400).json({ error: "unidad_clave no valida." });
+  }
+  if (personaTipo === "juridica" && !acta_pdf_base64) {
+    return res.status(400).json({ error: "Para persona jurídica el acta notarial en PDF es obligatoria." });
+  }
+  if (personaTipo === "juridica" && !registro_mercantil_pdf_base64) {
+    return res.status(400).json({ error: "Para persona jurídica el registro mercantil en PDF es obligatorio." });
+  }
+
+  const now = new Date();
+  const fechaActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  let created;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const registroCodigo = await reserveSubmissionCode(client, unidadClave, now);
+    const result = await client.query(
+      `
+        INSERT INTO submissions (
+          fecha,
+          persona_tipo,
+          unidad_clave,
+          gestion_nombre,
+          registro_codigo,
+          nombre_propietario,
+          representante_legal,
+          documento_propietario,
+          direccion,
+          telefono,
+          correo,
+          nit,
+          nombre_orden_pago,
+          autorizado_nombre,
+          autorizado_documento,
+          autorizado_telefono,
+          matricula_tg,
+          matricula_tg_nueva,
+          uso,
+          fabricante,
+          numero_serie,
+          modelo,
+          anio_fabricacion,
+          colores,
+          tipo_internacion,
+          tipo_reservacion,
+          tipo_inscripcion,
+          tipo_certificado_prov,
+          tipo_reposicion,
+          tipo_cambio_prop,
+          tipo_cambio_datos,
+          tipo_certificacion,
+          especificaciones,
+          comentarios_revision,
+          dpi_pdf,
+          dpi_filename,
+          dpi_mime,
+          acta_pdf,
+          acta_filename,
+          acta_mime,
+          registro_mercantil_pdf,
+          registro_mercantil_filename,
+          registro_mercantil_mime,
+          created_by_user_id
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+          $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
+          $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,
+          $41,$42,$43,$44
+        )
+        RETURNING *
+      `,
+      [
+        fechaActual,
+        personaTipo,
+        unidadClave,
+        gestionNombre,
+        registroCodigo,
+        nombre_propietario,
+        representante_legal || null,
+        documento_propietario || null,
+        direccion || null,
+        telefono || null,
+        correoNormalizado,
+        nit || null,
+        nombre_orden_pago || null,
+        autorizado_nombre || null,
+        autorizado_documento || null,
+        autorizado_telefono || null,
+        matricula_tg || null,
+        matricula_tg_nueva || null,
+        uso || null,
+        fabricante || null,
+        numero_serie || null,
+        modelo || null,
+        anio_fabricacion || null,
+        colores || null,
+        Boolean(tipo_internacion),
+        Boolean(tipo_reservacion),
+        Boolean(tipo_inscripcion),
+        Boolean(tipo_certificado_prov),
+        Boolean(tipo_reposicion),
+        Boolean(tipo_cambio_prop),
+        Boolean(tipo_cambio_datos),
+        Boolean(tipo_certificacion),
+        especificaciones || null,
+        comentarios_revision || null,
+        dpi_pdf_base64 ? Buffer.from(dpi_pdf_base64, "base64") : null,
+        dpi_filename || null,
+        dpi_mime || null,
+        acta_pdf_base64 ? Buffer.from(acta_pdf_base64, "base64") : null,
+        acta_filename || null,
+        acta_mime || null,
+        registro_mercantil_pdf_base64 ? Buffer.from(registro_mercantil_pdf_base64, "base64") : null,
+        registro_mercantil_filename || null,
+        registro_mercantil_mime || null,
+        req.user?.sub || null
+      ]
+    );
+    await client.query("COMMIT");
+    created = result.rows[0];
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  try {
+    await registerSubmissionLog({
+      submissionId: created.id,
+      eventCode: "usuario_envio",
+      eventLabel: "Usuario envió el formulario",
+      eventDetail: `Unidad ${unidadClave}${gestionNombre ? ` - ${gestionNombre}` : ""}`,
+      actorUserId: req.user?.sub || null,
+      actorRole: req.user?.role || "user",
+      metadata: {
+        persona_tipo: personaTipo,
+        unidad_clave: unidadClave,
+        gestion_nombre: gestionNombre || null
+      }
+    });
+    res.status(201).json(created);
+
+    // Alerta por correo (no bloqueante)
+    sendAlertEmail({
+      subject: "Nuevo formulario TG",
+      html: `<p>Se recibio un nuevo formulario TG.</p>
+             <p><strong>Registro:</strong> ${created.registro_codigo || created.id}<br/>
+             <p><strong>Propietario:</strong> ${nombre_propietario || "N/D"}<br/>
+             <strong>Correo:</strong> ${correoNormalizado || "N/D"}<br/>
+             <strong>Matrícula TG:</strong> ${matricula_tg || "N/D"}</p>`
+    });
+  } catch (err) {
+    console.error("Error saving submission", err);
+    res.status(500).json({ error: "Failed to save submission" });
+  }
+});
+
+app.put("/api/submissions/:id", requireAuth, requireRole("analista", "admin", "supervisor"), async (_req, res) => {
+  return res.status(403).json({
+    error: "Solo el usuario puede modificar datos del formulario. Devuelve el formulario para corrección."
+  });
+});
+
+app.get("/api/submissions", requireAuth, requireRole("revisor", "analista", "aprobador", "admin", "supervisor"), async (req, res) => {
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = [];
+    const params = [];
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`s.unidad_clave = ANY($${params.length})`);
+    }
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_analista_id = $${params.length}`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_aprobador_id = $${params.length}`);
+    }
+    const result = await pool.query(`
+      SELECT
+        s.id, s.created_at, s.fecha, s.persona_tipo, s.unidad_clave, s.gestion_nombre, s.registro_codigo, s.nombre_propietario, s.representante_legal, s.documento_propietario, s.direccion, s.telefono, s.correo, s.nit, s.nombre_orden_pago,
+        s.autorizado_nombre, s.autorizado_documento, s.autorizado_telefono,
+        s.matricula_tg, s.matricula_tg_nueva, s.uso, s.fabricante, s.numero_serie, s.modelo, s.anio_fabricacion, s.colores,
+        s.tipo_internacion, s.tipo_reservacion, s.tipo_inscripcion, s.tipo_certificado_prov, s.tipo_reposicion,
+        s.tipo_cambio_prop, s.tipo_cambio_datos, s.tipo_certificacion, s.especificaciones, s.comentarios_revision,
+        s.dpi_filename, s.dpi_mime, (s.dpi_pdf IS NOT NULL) AS has_dpi,
+        s.acta_filename, s.acta_mime, (s.acta_pdf IS NOT NULL) AS has_acta,
+        s.registro_mercantil_filename, s.registro_mercantil_mime, (s.registro_mercantil_pdf IS NOT NULL) AS has_registro_mercantil,
+        s.analyst_pdf_filename,
+        s.analyst_pdf_mime,
+        s.analyst_pdf_uploaded_at,
+        s.analyst_pdf_uploaded_by_user_id,
+        (s.analyst_pdf IS NOT NULL) AS has_analyst_pdf,
+        s.receptor_opened_at,
+        s.approved_at,
+        s.approved_by_user_id,
+        s.returned_at,
+        s.returned_reason,
+        s.returned_by_user_id,
+        s.returned_to_analista_at,
+        s.returned_to_analista_reason,
+        s.returned_to_analista_by_user_id,
+        s.assigned_analista_id,
+        s.assigned_aprobador_id,
+        s.sent_to_aprobador_at,
+        a.email AS assigned_analista_email,
+        a.name AS assigned_analista_name,
+        ap.email AS assigned_aprobador_email,
+        ap.name AS assigned_aprobador_name
+      FROM submissions
+      s
+      LEFT JOIN users a ON a.id = s.assigned_analista_id
+      LEFT JOIN users ap ON ap.id = s.assigned_aprobador_id
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY created_at DESC
+    `, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error reading submissions", err);
+    res.status(500).json({ error: "Failed to fetch submissions" });
+  }
+});
+
+app.get("/api/submissions/:id/logs", requireAuth, requireRole("revisor", "analista", "aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+
+    const accessWhere = ["id = $1"];
+    const accessParams = [id];
+    if (isUnitRestricted) {
+      accessParams.push(unitAccess);
+      accessWhere.push(`unidad_clave = ANY($${accessParams.length})`);
+    }
+    if (isAnalyst) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`assigned_analista_id = $${accessParams.length}`);
+    }
+    if (isApprover) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`assigned_aprobador_id = $${accessParams.length}`);
+    }
+    const accessResult = await pool.query(
+      `SELECT id FROM submissions WHERE ${accessWhere.join(" AND ")}`,
+      accessParams
+    );
+    if (!accessResult.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado." });
+    }
+
+    const logs = await pool.query(
+      `SELECT
+         l.id,
+         l.submission_id,
+         l.event_code,
+         l.event_label,
+         l.event_detail,
+         l.actor_user_id,
+         l.actor_role,
+         l.metadata,
+         l.created_at,
+         u.name AS actor_name,
+         u.email AS actor_email
+       FROM submission_logs l
+       LEFT JOIN users u ON u.id = l.actor_user_id
+       WHERE l.submission_id = $1
+       ORDER BY l.created_at DESC, l.id DESC`,
+      [id]
+    );
+    return res.json(logs.rows);
+  } catch (err) {
+    console.error("Error reading submission logs", err);
+    return res.status(500).json({ error: "No se pudo obtener la bitácora." });
+  }
+});
+
+app.get("/api/supervisor/dashboard", requireAuth, requireRole("supervisor", "admin"), async (req, res) => {
+  try {
+    const requestedUnit = String(req.query?.unit || "").trim().toUpperCase();
+    const filters = [];
+    const params = [];
+    if (requestedUnit) {
+      if (!ALL_UNITS.includes(requestedUnit)) {
+        return res.status(400).json({ error: "Unidad no válida." });
+      }
+      params.push(requestedUnit);
+      filters.push(`s.unidad_clave = $${params.length}`);
+    }
+
+    const rowsResult = await pool.query(
+      `SELECT
+         s.id,
+         s.registro_codigo,
+         s.unidad_clave,
+         s.gestion_nombre,
+         s.nombre_propietario,
+         s.created_at,
+         s.receptor_opened_at,
+         s.sent_to_aprobador_at,
+         s.approved_at,
+         s.returned_at,
+         s.returned_to_analista_at,
+         s.assigned_analista_id,
+         s.assigned_aprobador_id,
+         a.name AS assigned_analista_name,
+         a.email AS assigned_analista_email,
+         ap.name AS assigned_aprobador_name,
+         ap.email AS assigned_aprobador_email
+       FROM submissions s
+       LEFT JOIN users a ON a.id = s.assigned_analista_id
+       LEFT JOIN users ap ON ap.id = s.assigned_aprobador_id
+       ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
+       ORDER BY s.created_at DESC`,
+      params
+    );
+
+    const dashboard = buildSupervisorDashboard(rowsResult.rows);
+    return res.json(dashboard);
+  } catch (err) {
+    console.error("Error building supervisor dashboard", err);
+    return res.status(500).json({ error: "No se pudo obtener el dashboard." });
+  }
+});
+
+app.get("/api/supervisor/report", requireAuth, requireRole("supervisor", "admin"), async (req, res) => {
+  try {
+    const requestedUnit = String(req.query?.unit || "").trim().toUpperCase();
+    const includeActive = String(req.query?.scope || "").trim().toLowerCase() === "active";
+    const filters = [];
+    const params = [];
+    if (requestedUnit) {
+      if (!ALL_UNITS.includes(requestedUnit)) {
+        return res.status(400).json({ error: "Unidad no válida." });
+      }
+      params.push(requestedUnit);
+      filters.push(`s.unidad_clave = $${params.length}`);
+    }
+
+    const rowsResult = await pool.query(
+      `SELECT
+         s.id,
+         s.registro_codigo,
+         s.unidad_clave,
+         s.gestion_nombre,
+         s.nombre_propietario,
+         s.created_at,
+         s.receptor_opened_at,
+         s.sent_to_aprobador_at,
+         s.approved_at,
+         s.returned_at,
+         s.returned_to_analista_at,
+         s.assigned_analista_id,
+         s.assigned_aprobador_id,
+         a.name AS assigned_analista_name,
+         a.email AS assigned_analista_email,
+         ap.name AS assigned_aprobador_name,
+         ap.email AS assigned_aprobador_email
+       FROM submissions s
+       LEFT JOIN users a ON a.id = s.assigned_analista_id
+       LEFT JOIN users ap ON ap.id = s.assigned_aprobador_id
+       ${filters.length ? `WHERE ${filters.join(" AND ")}` : ""}
+       ORDER BY s.created_at DESC`,
+      params
+    );
+
+    const dashboard = buildSupervisorDashboard(rowsResult.rows);
+    const selected = includeActive
+      ? dashboard.processes.filter((row) => row.estado_code !== "aprobado")
+      : dashboard.processes;
+    const csv = buildSupervisorCsv(selected);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=\"reporte-supervision-${stamp}.csv\"`);
+    return res.send(csv);
+  } catch (err) {
+    console.error("Error generating supervisor report", err);
+    return res.status(500).json({ error: "No se pudo generar el reporte." });
+  }
+});
+
+app.get("/api/my-submissions", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT
+         s.id,
+         s.created_at,
+         s.unidad_clave,
+         s.gestion_nombre,
+         s.registro_codigo,
+         s.nombre_propietario,
+         s.persona_tipo,
+         s.correo,
+         s.matricula_tg,
+         s.uso,
+         s.receptor_opened_at,
+         s.assigned_analista_id,
+         s.assigned_aprobador_id,
+         s.sent_to_aprobador_at,
+         s.approved_at,
+         (s.dpi_pdf IS NOT NULL) AS has_dpi,
+         s.returned_at,
+         s.returned_reason,
+         s.returned_by_user_id,
+         s.returned_to_analista_at,
+         s.returned_to_analista_reason,
+         s.returned_to_analista_by_user_id,
+         s.analyst_pdf_filename,
+         s.analyst_pdf_mime,
+         s.analyst_pdf_uploaded_at,
+         s.analyst_pdf_uploaded_by_user_id,
+         (s.analyst_pdf IS NOT NULL) AS has_analyst_pdf,
+         (s.acta_pdf IS NOT NULL) AS has_acta,
+         (s.registro_mercantil_pdf IS NOT NULL) AS has_registro_mercantil,
+         sf.rating_value AS feedback_rating,
+         sf.comment AS feedback_comment,
+         sf.created_at AS feedback_created_at,
+         a.name AS assigned_analista_name,
+         a.email AS assigned_analista_email,
+         ap.name AS assigned_aprobador_name,
+         ap.email AS assigned_aprobador_email
+       FROM submissions s
+       LEFT JOIN submission_feedback sf ON sf.submission_id = s.id AND sf.user_id = $1
+       LEFT JOIN users a ON a.id = s.assigned_analista_id
+       LEFT JOIN users ap ON ap.id = s.assigned_aprobador_id
+       WHERE s.created_by_user_id = $1
+          OR (s.created_by_user_id IS NULL AND LOWER(s.correo) = LOWER($2))
+       ORDER BY s.created_at DESC`,
+      [req.user?.sub, req.user?.email || ""]
+    );
+
+    const rows = result.rows.map((row) => {
+      const process = submissionProcessState(row);
+      return {
+        ...row,
+        process_code: process.code,
+        process_label: process.label,
+        process_step: process.step,
+        process_percent: process.percent
+      };
+    });
+    return res.json(rows);
+  } catch (err) {
+    console.error("Error reading my submissions", err);
+    return res.status(500).json({ error: "No se pudo obtener el seguimiento." });
+  }
+});
+
+app.get("/api/my-submissions/:id", requireAuth, requireRole("user"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT
+         id, created_at, fecha, persona_tipo, unidad_clave, gestion_nombre, registro_codigo, nombre_propietario, representante_legal, documento_propietario, direccion, telefono, correo,
+         nit, nombre_orden_pago, autorizado_nombre, autorizado_documento, autorizado_telefono,
+         matricula_tg, matricula_tg_nueva, uso, fabricante, numero_serie, modelo, anio_fabricacion, colores,
+         tipo_internacion, tipo_reservacion, tipo_inscripcion, tipo_certificado_prov, tipo_reposicion,
+         tipo_cambio_prop, tipo_cambio_datos, tipo_certificacion, especificaciones, comentarios_revision,
+         dpi_filename, dpi_mime, (dpi_pdf IS NOT NULL) AS has_dpi,
+         acta_filename, acta_mime, (acta_pdf IS NOT NULL) AS has_acta,
+         registro_mercantil_filename, registro_mercantil_mime, (registro_mercantil_pdf IS NOT NULL) AS has_registro_mercantil,
+         analyst_pdf_filename, analyst_pdf_mime, analyst_pdf_uploaded_at, analyst_pdf_uploaded_by_user_id,
+         (analyst_pdf IS NOT NULL) AS has_analyst_pdf,
+         returned_at, returned_reason, returned_to_analista_at, returned_to_analista_reason,
+         assigned_analista_id, assigned_aprobador_id, sent_to_aprobador_at, approved_at
+       FROM submissions
+       WHERE id = $1
+         AND (created_by_user_id = $2 OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($3)))`,
+      [id, req.user?.sub, req.user?.email || ""]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Formulario no encontrado." });
+    }
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error reading my submission detail", err);
+    return res.status(500).json({ error: "No se pudo obtener el formulario." });
+  }
+});
+
+app.post("/api/my-submissions/:id/feedback", requireAuth, requireRole("user"), async (req, res) => {
+  const { id } = req.params;
+  const ratingRaw = Number(req.body?.rating_value);
+  const commentRaw = req.body?.comment;
+  const comment = commentRaw === undefined || commentRaw === null ? null : String(commentRaw).trim();
+
+  if (!Number.isInteger(ratingRaw) || ratingRaw < 1 || ratingRaw > 5) {
+    return res.status(400).json({ error: "rating_value debe ser un entero entre 1 y 5." });
+  }
+  if (comment && comment.length > 500) {
+    return res.status(400).json({ error: "El comentario no puede exceder 500 caracteres." });
+  }
+
+  try {
+    const submissionResult = await pool.query(
+      `SELECT id, approved_at
+       FROM submissions
+       WHERE id = $1
+         AND (created_by_user_id = $2 OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($3)))`,
+      [id, req.user?.sub, req.user?.email || ""]
+    );
+    if (!submissionResult.rowCount) {
+      return res.status(404).json({ error: "Formulario no encontrado." });
+    }
+    if (!submissionResult.rows[0].approved_at) {
+      return res.status(400).json({ error: "Solo puedes calificar procesos aprobados." });
+    }
+
+    const saved = await pool.query(
+      `INSERT INTO submission_feedback (
+         submission_id,
+         user_id,
+         rating_value,
+         comment
+       )
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (submission_id, user_id)
+       DO UPDATE
+         SET rating_value = EXCLUDED.rating_value,
+             comment = EXCLUDED.comment,
+             updated_at = NOW()
+       RETURNING id, submission_id, user_id, rating_value, comment, created_at, updated_at`,
+      [id, req.user?.sub, ratingRaw, comment || null]
+    );
+
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "usuario_califica",
+      eventLabel: "Usuario calificó el proceso",
+      eventDetail: `Calificación: ${ratingRaw}/5`,
+      actorUserId: req.user?.sub || null,
+      actorRole: req.user?.role || "user",
+      metadata: {
+        rating_value: ratingRaw,
+        comment: comment || null
+      }
+    });
+
+    return res.status(201).json(saved.rows[0]);
+  } catch (err) {
+    console.error("Error saving submission feedback", err);
+    return res.status(500).json({ error: "No se pudo guardar la calificación." });
+  }
+});
+
+app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAdmin = role === "admin";
+    const params = [id];
+    let where = "id = $1";
+    if (!isAdmin) {
+      params.push(req.user?.sub);
+      params.push(req.user?.email || "");
+      where += " AND (created_by_user_id = $2 OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($3)))";
+    }
+
+    const result = await pool.query(
+      `SELECT
+         id,
+         created_at,
+         fecha,
+         approved_at,
+         unidad_clave,
+         gestion_nombre,
+         registro_codigo,
+         persona_tipo,
+         nombre_propietario,
+         representante_legal,
+         documento_propietario,
+         direccion,
+         telefono,
+         correo,
+         nit,
+         nombre_orden_pago,
+         autorizado_nombre,
+         autorizado_documento,
+         autorizado_telefono,
+         matricula_tg,
+         matricula_tg_nueva,
+         uso,
+         fabricante,
+         numero_serie,
+         modelo,
+         anio_fabricacion,
+         colores,
+         tipo_internacion,
+         tipo_reservacion,
+         tipo_inscripcion,
+         tipo_certificado_prov,
+         tipo_reposicion,
+         tipo_cambio_prop,
+         tipo_cambio_datos,
+         tipo_certificacion,
+         especificaciones,
+         comentarios_revision,
+         dpi_filename,
+         acta_filename,
+         registro_mercantil_filename,
+         (dpi_pdf IS NOT NULL) AS has_dpi,
+         (acta_pdf IS NOT NULL) AS has_acta,
+         (registro_mercantil_pdf IS NOT NULL) AS has_registro_mercantil
+       FROM submissions
+       WHERE ${where}`,
+      params
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Formulario no encontrado." });
+    }
+
+    const submission = result.rows[0];
+    if (!submission.approved_at) {
+      return res.status(400).json({ error: "El formulario aún no está aprobado." });
+    }
+
+    const pdfBuffer = await buildSubmissionPdfBuffer(submission);
+    const fileCode = String(submission.registro_codigo || `REG-${id}`).replace(/[^A-Za-z0-9-_]+/g, "-");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="formulario-tg-${fileCode}.pdf"`);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error("Error generating submission pdf", err);
+    return res.status(500).json({ error: "No se pudo generar el PDF." });
+  }
+});
+
+app.get("/api/my-submissions/:id/boleta", requireAuth, requireRole("user", "admin"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAdmin = role === "admin";
+    const params = [id];
+    let where = "id = $1";
+    if (!isAdmin) {
+      params.push(req.user?.sub);
+      params.push(req.user?.email || "");
+      where += " AND (created_by_user_id = $2 OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($3)))";
+    }
+
+    const result = await pool.query(
+      `SELECT
+         id,
+         registro_codigo,
+         approved_at,
+         analyst_pdf,
+         analyst_pdf_filename,
+         analyst_pdf_mime
+       FROM submissions
+       WHERE ${where}`,
+      params
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Formulario no encontrado." });
+    }
+
+    const submission = result.rows[0];
+    if (!submission.approved_at) {
+      return res.status(400).json({ error: "La boleta de pago solo está disponible cuando el proceso está aprobado." });
+    }
+    if (!submission.analyst_pdf) {
+      return res.status(404).json({ error: "Aún no hay boleta de pago cargada por el analista." });
+    }
+
+    const mime = submission.analyst_pdf_mime || "application/pdf";
+    const fallbackCode = String(submission.registro_codigo || `REG-${id}`).replace(/[^A-Za-z0-9-_]+/g, "-");
+    const filename = (submission.analyst_pdf_filename || `boleta-pago-${fallbackCode}.pdf`).replace(/"/g, "");
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send(submission.analyst_pdf);
+  } catch (err) {
+    console.error("Error generating boleta pdf", err);
+    return res.status(500).json({ error: "No se pudo descargar la boleta de pago." });
+  }
+});
+
+app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), async (req, res) => {
+  const { id } = req.params;
+  const {
+    persona_tipo,
+    dpi_pdf_base64,
+    dpi_filename,
+    dpi_mime,
+    acta_pdf_base64,
+    acta_filename,
+    acta_mime,
+    registro_mercantil_pdf_base64,
+    registro_mercantil_filename,
+    registro_mercantil_mime
+  } = req.body || {};
+
+  const allowed = [
+    "fecha",
+    "persona_tipo",
+    "nombre_propietario",
+    "representante_legal",
+    "documento_propietario",
+    "direccion",
+    "telefono",
+    "correo",
+    "nit",
+    "nombre_orden_pago",
+    "autorizado_nombre",
+    "autorizado_documento",
+    "autorizado_telefono",
+    "matricula_tg",
+    "matricula_tg_nueva",
+    "uso",
+    "fabricante",
+    "numero_serie",
+    "modelo",
+    "anio_fabricacion",
+    "colores",
+    "tipo_internacion",
+    "tipo_reservacion",
+    "tipo_inscripcion",
+    "tipo_certificado_prov",
+    "tipo_reposicion",
+    "tipo_cambio_prop",
+    "tipo_cambio_datos",
+    "tipo_certificacion",
+    "especificaciones"
+  ];
+
+  if (Object.prototype.hasOwnProperty.call(req.body || {}, "persona_tipo")) {
+    const tipo = String(persona_tipo || "").toLowerCase();
+    if (!["individual", "juridica"].includes(tipo)) {
+      return res.status(400).json({ error: "persona_tipo no válido. Usa individual o jurídica." });
+    }
+  }
+  const numericValidationError = validateNumericSubmissionFields(req.body || {}, { onlyProvided: true });
+  if (numericValidationError) {
+    return res.status(400).json({ error: numericValidationError });
+  }
+  const updatesCorreo = Object.prototype.hasOwnProperty.call(req.body || {}, "correo");
+  let correoNormalizado = null;
+  if (updatesCorreo) {
+    const correoValidation = await validateEmailAddress(req.body?.correo);
+    if (!correoValidation.ok) {
+      return res.status(400).json({ error: correoValidation.error || "Correo no válido." });
+    }
+    correoNormalizado = correoValidation.email;
+  }
+
+  try {
+    const existing = await pool.query(
+      `SELECT
+         id,
+         persona_tipo,
+         unidad_clave,
+         gestion_nombre,
+         representante_legal,
+         numero_serie,
+         assigned_analista_id,
+         assigned_aprobador_id,
+         returned_by_user_id,
+         (dpi_pdf IS NOT NULL) AS has_dpi,
+         (acta_pdf IS NOT NULL) AS has_acta,
+         (registro_mercantil_pdf IS NOT NULL) AS has_registro_mercantil
+       FROM submissions
+       WHERE id = $1
+         AND returned_at IS NOT NULL
+         AND (created_by_user_id = $2 OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($3)))`,
+      [id, req.user?.sub, req.user?.email || ""]
+    );
+    if (!existing.rowCount) {
+      return res.status(404).json({ error: "No hay un formulario devuelto para reenviar." });
+    }
+
+    const current = existing.rows[0];
+    const finalTipo = String((persona_tipo ?? current.persona_tipo) || "individual").toLowerCase();
+    const finalRepresentante = String((req.body?.representante_legal ?? current.representante_legal) || "").trim();
+    const finalNumeroSerie = String((req.body?.numero_serie ?? current.numero_serie) || "").trim();
+    const currentUnidad = String(current.unidad_clave || "GENERAL").toUpperCase();
+    const currentGestion = String(current.gestion_nombre || "");
+    const isRanDroneRequest = currentUnidad === "RAN" && /uav|rpa|distintivo|drone/i.test(currentGestion);
+    const hasDpiAfter = Boolean(dpi_pdf_base64) || Boolean(current.has_dpi);
+    const hasActaAfter = Boolean(acta_pdf_base64) || Boolean(current.has_acta);
+    const hasRegistroMercantilAfter = Boolean(registro_mercantil_pdf_base64) || Boolean(current.has_registro_mercantil);
+    let reassignedAnalystId = current.assigned_analista_id || null;
+
+    if (current.returned_by_user_id) {
+      const analystResult = await pool.query(
+        "SELECT id FROM users WHERE id = $1 AND role = 'analista'",
+        [current.returned_by_user_id]
+      );
+      if (analystResult.rowCount) {
+        reassignedAnalystId = current.returned_by_user_id;
+      }
+    }
+
+    if (!hasDpiAfter) {
+      return res.status(400).json({ error: "El DPI en PDF es obligatorio." });
+    }
+    if (finalTipo === "juridica" && !hasActaAfter) {
+      return res.status(400).json({ error: "Para persona jurídica el acta en PDF es obligatoria." });
+    }
+    if (finalTipo === "juridica" && !hasRegistroMercantilAfter) {
+      return res.status(400).json({ error: "Para persona jurídica el registro mercantil en PDF es obligatorio." });
+    }
+    if (finalTipo === "juridica" && !finalRepresentante) {
+      return res.status(400).json({ error: "Para persona jurídica el representante legal es obligatorio." });
+    }
+    if (!isRanDroneRequest && !finalNumeroSerie) {
+      return res.status(400).json({ error: "Número de serie es obligatorio." });
+    }
+
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(req.body || {}, key)) {
+        updates.push(`${key} = $${idx}`);
+        if (key === "correo") {
+          values.push(correoNormalizado);
+        } else {
+          values.push(req.body[key]);
+        }
+        idx++;
+      }
+    }
+
+    if (dpi_pdf_base64) {
+      updates.push(`dpi_pdf = $${idx}`);
+      values.push(Buffer.from(dpi_pdf_base64, "base64"));
+      idx++;
+      updates.push(`dpi_filename = $${idx}`);
+      values.push(dpi_filename || null);
+      idx++;
+      updates.push(`dpi_mime = $${idx}`);
+      values.push(dpi_mime || null);
+      idx++;
+    }
+
+    if (acta_pdf_base64) {
+      updates.push(`acta_pdf = $${idx}`);
+      values.push(Buffer.from(acta_pdf_base64, "base64"));
+      idx++;
+      updates.push(`acta_filename = $${idx}`);
+      values.push(acta_filename || null);
+      idx++;
+      updates.push(`acta_mime = $${idx}`);
+      values.push(acta_mime || null);
+      idx++;
+    }
+
+    if (registro_mercantil_pdf_base64) {
+      updates.push(`registro_mercantil_pdf = $${idx}`);
+      values.push(Buffer.from(registro_mercantil_pdf_base64, "base64"));
+      idx++;
+      updates.push(`registro_mercantil_filename = $${idx}`);
+      values.push(registro_mercantil_filename || null);
+      idx++;
+      updates.push(`registro_mercantil_mime = $${idx}`);
+      values.push(registro_mercantil_mime || null);
+      idx++;
+    }
+
+    updates.push(`assigned_analista_id = $${idx}`);
+    values.push(reassignedAnalystId);
+    idx++;
+    updates.push(`analyst_pdf = NULL`);
+    updates.push(`analyst_pdf_filename = NULL`);
+    updates.push(`analyst_pdf_mime = NULL`);
+    updates.push(`analyst_pdf_uploaded_at = NULL`);
+    updates.push(`analyst_pdf_uploaded_by_user_id = NULL`);
+    updates.push(`assigned_aprobador_id = NULL`);
+    updates.push(`sent_to_aprobador_at = NULL`);
+    updates.push(`approved_at = NULL`);
+    updates.push(`approved_by_user_id = NULL`);
+    updates.push(`returned_at = NULL`);
+    updates.push(`returned_reason = NULL`);
+    updates.push(`returned_by_user_id = NULL`);
+
+    values.push(id);
+    const result = await pool.query(
+      `UPDATE submissions
+       SET ${updates.join(", ")}
+       WHERE id = $${idx}
+         AND returned_at IS NOT NULL
+         AND (created_by_user_id = $${idx + 1} OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($${idx + 2})))
+       RETURNING *`,
+      [...values, req.user?.sub, req.user?.email || ""]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "No se pudo reenviar el formulario." });
+    }
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "usuario_reenvio",
+      eventLabel: "Usuario reenvió correcciones",
+      eventDetail: reassignedAnalystId
+        ? `Reasignado al analista #${reassignedAnalystId}`
+        : "Pendiente de nueva asignacion",
+      actorUserId: req.user?.sub || null,
+      actorRole: req.user?.role || "user",
+      metadata: {
+        persona_tipo: finalTipo,
+        reassigned_analista_id: reassignedAnalystId || null
+      }
+    });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error resubmitting submission", err);
+    return res.status(500).json({ error: "No se pudo reenviar el formulario." });
+  }
+});
+
+app.get("/api/submissions/:id/dpi", requireAuth, requireRole("revisor", "analista", "aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["id = $1"];
+    const params = [id];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`assigned_aprobador_id = $${params.length}`);
+    }
+    const result = await pool.query(
+      `SELECT dpi_pdf, dpi_filename, dpi_mime
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!result.rowCount || !result.rows[0].dpi_pdf) {
+      return res.status(404).json({ error: "DPI no encontrado" });
+    }
+    const row = result.rows[0];
+    const mime = row.dpi_mime || "application/pdf";
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `inline; filename="${row.dpi_filename || "dpi.pdf"}"`);
+    return res.send(row.dpi_pdf);
+  } catch (err) {
+    console.error("Error fetching dpi", err);
+    return res.status(500).json({ error: "No se pudo obtener el DPI" });
+  }
+});
+
+app.get("/api/submissions/:id/acta", requireAuth, requireRole("revisor", "analista", "aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["id = $1"];
+    const params = [id];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`assigned_aprobador_id = $${params.length}`);
+    }
+    const result = await pool.query(
+      `SELECT acta_pdf, acta_filename, acta_mime
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!result.rowCount || !result.rows[0].acta_pdf) {
+      return res.status(404).json({ error: "Acta notarial no encontrada" });
+    }
+    const row = result.rows[0];
+    const mime = row.acta_mime || "application/pdf";
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `inline; filename="${row.acta_filename || "acta-notarial.pdf"}"`);
+    return res.send(row.acta_pdf);
+  } catch (err) {
+    console.error("Error fetching acta", err);
+    return res.status(500).json({ error: "No se pudo obtener el acta notarial" });
+  }
+});
+
+app.get("/api/submissions/:id/registro-mercantil", requireAuth, requireRole("revisor", "analista", "aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["id = $1"];
+    const params = [id];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`assigned_aprobador_id = $${params.length}`);
+    }
+    const result = await pool.query(
+      `SELECT registro_mercantil_pdf, registro_mercantil_filename, registro_mercantil_mime
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!result.rowCount || !result.rows[0].registro_mercantil_pdf) {
+      return res.status(404).json({ error: "Registro mercantil no encontrado" });
+    }
+    const row = result.rows[0];
+    const mime = row.registro_mercantil_mime || "application/pdf";
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `inline; filename="${row.registro_mercantil_filename || "registro-mercantil.pdf"}"`);
+    return res.send(row.registro_mercantil_pdf);
+  } catch (err) {
+    console.error("Error fetching registro mercantil", err);
+    return res.status(500).json({ error: "No se pudo obtener el registro mercantil" });
+  }
+});
+
+app.get("/api/submissions/:id/boleta", requireAuth, requireRole("revisor", "analista", "aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["id = $1"];
+    const params = [id];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`assigned_aprobador_id = $${params.length}`);
+    }
+    const result = await pool.query(
+      `SELECT analyst_pdf, analyst_pdf_filename, analyst_pdf_mime
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!result.rowCount || !result.rows[0].analyst_pdf) {
+      return res.status(404).json({ error: "Boleta de pago no encontrada" });
+    }
+    const row = result.rows[0];
+    const mime = row.analyst_pdf_mime || "application/pdf";
+    res.setHeader("Content-Type", mime);
+    res.setHeader("Content-Disposition", `inline; filename="${row.analyst_pdf_filename || "boleta-pago.pdf"}"`);
+    return res.send(row.analyst_pdf);
+  } catch (err) {
+    console.error("Error fetching boleta", err);
+    return res.status(500).json({ error: "No se pudo obtener la boleta de pago" });
+  }
+});
+
+app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const { pdf_base64, filename, mime } = req.body || {};
+
+  if (!pdf_base64 || typeof pdf_base64 !== "string") {
+    return res.status(400).json({ error: "El PDF es obligatorio." });
+  }
+
+  const cleanedBase64 = pdf_base64.includes(",") ? pdf_base64.split(",").pop() : pdf_base64;
+  let pdfBuffer;
+  try {
+    pdfBuffer = Buffer.from(String(cleanedBase64 || ""), "base64");
+  } catch {
+    return res.status(400).json({ error: "PDF en formato base64 no válido." });
+  }
+  if (!pdfBuffer || !pdfBuffer.length) {
+    return res.status(400).json({ error: "PDF en formato base64 no válido." });
+  }
+
+  const safeMime = String(mime || "application/pdf").trim().toLowerCase();
+  if (!safeMime.includes("pdf")) {
+    return res.status(400).json({ error: "El archivo debe ser PDF." });
+  }
+
+  const safeFilename = String(filename || "boleta-pago.pdf")
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .trim()
+    .slice(0, 180) || "boleta-pago.pdf";
+
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+
+    const accessWhere = ["id = $1"];
+    const accessParams = [id];
+    if (isAnalyst) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`assigned_analista_id = $${accessParams.length}`);
+    }
+    if (isUnitRestricted) {
+      accessParams.push(unitAccess);
+      accessWhere.push(`unidad_clave = ANY($${accessParams.length})`);
+    }
+
+    const current = await pool.query(
+      `SELECT id, approved_at, sent_to_aprobador_at, assigned_aprobador_id
+       FROM submissions
+       WHERE ${accessWhere.join(" AND ")}`,
+      accessParams
+    );
+    if (!current.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al analista." });
+    }
+
+    const row = current.rows[0];
+    if (row.approved_at) {
+      return res.status(400).json({ error: "No se puede modificar la boleta porque el proceso ya está aprobado." });
+    }
+    if (row.sent_to_aprobador_at || row.assigned_aprobador_id) {
+      return res.status(400).json({ error: "No se puede modificar la boleta. El proceso ya fue enviado al aprobador." });
+    }
+
+    const result = await pool.query(
+      `UPDATE submissions
+       SET analyst_pdf = $1,
+           analyst_pdf_filename = $2,
+           analyst_pdf_mime = $3,
+           analyst_pdf_uploaded_by_user_id = $4,
+           analyst_pdf_uploaded_at = NOW()
+       WHERE id = $5
+       RETURNING id, analyst_pdf_filename, analyst_pdf_mime, analyst_pdf_uploaded_at, analyst_pdf_uploaded_by_user_id`,
+      [pdfBuffer, safeFilename, safeMime, req.user?.sub || null, id]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al analista." });
+    }
+
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "analista_sube_pdf",
+      eventLabel: "Analista subió PDF final",
+      eventDetail: safeFilename,
+      actorUserId: req.user?.sub || null,
+      actorRole: role
+    });
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error uploading analyst pdf", err);
+    return res.status(500).json({ error: "No se pudo cargar el PDF del analista." });
+  }
+});
+
+// Analista/admin/supervisor devuelven formulario al usuario para corrección
+app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const reason = String(req.body?.reason || "").trim();
+  if (!reason) {
+    return res.status(400).json({ error: "El motivo de devolución es obligatorio." });
+  }
+  const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+  const isAnalyst = role === "analista";
+  const isUnitRestricted = isUnitRestrictedRole(role);
+  const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+  try {
+    const where = ["id = $3"];
+    const params = [reason, req.user?.sub, id];
+    if (isAnalyst) {
+      where.push("assigned_analista_id = $2");
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    const result = await pool.query(
+      `UPDATE submissions
+       SET returned_at = NOW(),
+           returned_reason = $1,
+           returned_by_user_id = $2,
+           returned_to_analista_at = NULL,
+           returned_to_analista_reason = NULL,
+           returned_to_analista_by_user_id = NULL,
+           analyst_pdf = NULL,
+           analyst_pdf_filename = NULL,
+           analyst_pdf_mime = NULL,
+           analyst_pdf_uploaded_at = NULL,
+           analyst_pdf_uploaded_by_user_id = NULL,
+           assigned_aprobador_id = NULL,
+           sent_to_aprobador_at = NULL,
+           approved_at = NULL,
+           approved_by_user_id = NULL
+       WHERE ${where.join(" AND ")}
+       RETURNING id, returned_at, returned_reason, returned_by_user_id`,
+      params
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al aprobador." });
+    }
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "devolucion_usuario",
+      eventLabel: "Formulario devuelto al usuario",
+      eventDetail: reason,
+      actorUserId: req.user?.sub || null,
+      actorRole: role
+    });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error devolviendo formulario", err);
+    return res.status(500).json({ error: "No se pudo devolver el formulario." });
+  }
+});
+
+// Analista/admin/supervisor envian formulario al aprobador de la unidad
+app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const requestedAprobadorId = req.body?.aprobador_id ? Number(req.body.aprobador_id) : null;
+  if (requestedAprobadorId !== null && (!Number.isInteger(requestedAprobadorId) || requestedAprobadorId <= 0)) {
+    return res.status(400).json({ error: "aprobador_id no válido." });
+  }
+
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+
+    const where = ["id = $1"];
+    const params = [id];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    const submissionResult = await pool.query(
+      `SELECT id, unidad_clave, approved_at, analyst_pdf, analyst_pdf_filename
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!submissionResult.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al analista." });
+    }
+
+    const submission = submissionResult.rows[0];
+    if (submission.approved_at) {
+      return res.status(400).json({ error: "El formulario ya está aprobado." });
+    }
+    if (!submission.analyst_pdf) {
+      return res.status(400).json({ error: "Debes subir la boleta de pago de este proceso antes de enviarlo al aprobador." });
+    }
+    const submissionUnit = String(submission.unidad_clave || "GENERAL").toUpperCase();
+
+    let approverResult;
+    if (requestedAprobadorId) {
+      approverResult = await pool.query(
+        "SELECT id, name, email, unit_access FROM users WHERE id = $1 AND role = 'aprobador'",
+        [requestedAprobadorId]
+      );
+      if (!approverResult.rowCount) {
+        return res.status(400).json({ error: "El usuario seleccionado no es aprobador." });
+      }
+    } else {
+      approverResult = await pool.query(
+        `SELECT id, name, email, unit_access
+         FROM users
+         WHERE role = 'aprobador'
+           AND unit_access @> ARRAY[$1]::TEXT[]
+         ORDER BY created_at ASC, id ASC
+         LIMIT 1`,
+        [submissionUnit]
+      );
+      if (!approverResult.rowCount) {
+        return res.status(400).json({ error: "No existe un aprobador configurado para esta unidad." });
+      }
+    }
+
+    const approver = approverResult.rows[0];
+    const approverUnits = normalizeUnitAccess(approver.unit_access);
+    if (!approverUnits.includes(submissionUnit)) {
+      return res.status(400).json({ error: "El aprobador no tiene acceso a la unidad de este formulario." });
+    }
+
+    const updated = await pool.query(
+      `UPDATE submissions
+       SET assigned_aprobador_id = $1,
+           sent_to_aprobador_at = NOW(),
+           returned_to_analista_at = NULL,
+           returned_to_analista_reason = NULL,
+           returned_to_analista_by_user_id = NULL,
+           approved_at = NULL,
+           approved_by_user_id = NULL
+       WHERE id = $2
+       RETURNING id, assigned_aprobador_id, sent_to_aprobador_at`,
+      [approver.id, id]
+    );
+    if (!updated.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado." });
+    }
+
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "enviado_aprobador",
+      eventLabel: "Formulario enviado a aprobador",
+      eventDetail: approver.name || approver.email || `ID ${approver.id}`,
+      actorUserId: req.user?.sub || null,
+      actorRole: role,
+      metadata: {
+        aprobador_id: Number(approver.id),
+        aprobador_email: approver.email || null
+      }
+    });
+
+    return res.json({
+      id: updated.rows[0].id,
+      assigned_aprobador_id: updated.rows[0].assigned_aprobador_id,
+      sent_to_aprobador_at: updated.rows[0].sent_to_aprobador_at
+    });
+  } catch (err) {
+    console.error("Error enviando a aprobador", err);
+    return res.status(500).json({ error: "No se pudo enviar al aprobador." });
+  }
+});
+
+// Aprobador/admin/supervisor devuelven formulario al analista
+app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const reason = String(req.body?.reason || "").trim();
+  if (!reason) {
+    return res.status(400).json({ error: "El motivo de devolución al analista es obligatorio." });
+  }
+
+  const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+  const isApprover = role === "aprobador";
+  const isUnitRestricted = isUnitRestrictedRole(role);
+  const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+  try {
+    const where = ["id = $3"];
+    const params = [reason, req.user?.sub, id];
+    if (isApprover) {
+      where.push("assigned_aprobador_id = $2");
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    const result = await pool.query(
+      `UPDATE submissions
+       SET returned_to_analista_at = NOW(),
+           returned_to_analista_reason = $1,
+           returned_to_analista_by_user_id = $2,
+           assigned_aprobador_id = NULL,
+           sent_to_aprobador_at = NULL,
+           approved_at = NULL,
+           approved_by_user_id = NULL
+       WHERE ${where.join(" AND ")}
+       RETURNING id, returned_to_analista_at, returned_to_analista_reason, returned_to_analista_by_user_id`,
+      params
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al aprobador." });
+    }
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "devolucion_analista",
+      eventLabel: "Aprobador devolvió al analista",
+      eventDetail: reason,
+      actorUserId: req.user?.sub || null,
+      actorRole: role
+    });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error devolviendo al analista", err);
+    return res.status(500).json({ error: "No se pudo devolver el formulario al analista." });
+  }
+});
+
+// Aprobador/admin/supervisor marcan formulario como aprobado
+app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+  const isApprover = role === "aprobador";
+  const isUnitRestricted = isUnitRestrictedRole(role);
+  const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+  try {
+    const where = ["id = $2"];
+    if (isApprover) {
+      where.push("assigned_aprobador_id = $1");
+    }
+    const params = [req.user?.sub, id];
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    const result = await pool.query(
+      `UPDATE submissions
+       SET approved_at = NOW(),
+           approved_by_user_id = $1,
+           returned_to_analista_at = NULL,
+           returned_to_analista_reason = NULL,
+           returned_to_analista_by_user_id = NULL,
+           returned_at = NULL,
+           returned_reason = NULL,
+           returned_by_user_id = NULL
+       WHERE ${where.join(" AND ")}
+       RETURNING id, approved_at, approved_by_user_id`,
+      params
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al analista." });
+    }
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "aprobacion",
+      eventLabel: "Formulario aprobado",
+      eventDetail: `Aprobado por rol ${role}`,
+      actorUserId: req.user?.sub || null,
+      actorRole: role
+    });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error aprobando formulario", err);
+    return res.status(500).json({ error: "No se pudo aprobar el formulario." });
+  }
+});
+
+// Revisor/admin/supervisor marca formulario como abierto
+app.post("/api/submissions/:id/open", requireAuth, requireRole("revisor", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["id = $1"];
+    const params = [id];
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    const result = await pool.query(
+      `UPDATE submissions
+       SET receptor_opened_at = COALESCE(receptor_opened_at, NOW())
+       WHERE ${where.join(" AND ")}
+       RETURNING id, receptor_opened_at`,
+      params
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado" });
+    }
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "receptor_abre",
+      eventLabel: "Receptor abrió el formulario",
+      actorUserId: req.user?.sub || null,
+      actorRole: role
+    });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error marcando formulario como abierto", err);
+    return res.status(500).json({ error: "No se pudo marcar como abierto" });
+  }
+});
+
+// Revisor/admin/supervisor asigna analista
+app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const { analista_id } = req.body || {};
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const submissionParams = [id];
+    let submissionWhere = "id = $1";
+    if (isUnitRestricted) {
+      submissionParams.push(unitAccess);
+      submissionWhere += ` AND unidad_clave = ANY($2)`;
+    }
+    const submissionResult = await pool.query(
+      `SELECT id, unidad_clave FROM submissions WHERE ${submissionWhere}`,
+      submissionParams
+    );
+    if (!submissionResult.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado" });
+    }
+    const submissionUnit = String(submissionResult.rows[0].unidad_clave || "GENERAL").toUpperCase();
+
+    if (!analista_id) {
+      const cleared = await pool.query(
+        "UPDATE submissions SET assigned_analista_id = NULL, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL WHERE id = $1 RETURNING id",
+        [id]
+      );
+      if (!cleared.rowCount) {
+        return res.status(404).json({ error: "Registro no encontrado" });
+      }
+      await registerSubmissionLog({
+        submissionId: Number(id),
+        eventCode: "asignacion_removida",
+        eventLabel: "Se removio la asignacion de analista",
+        actorUserId: req.user?.sub || null,
+        actorRole: role
+      });
+      return res.json({ message: "Asignacion removida", submission_id: id });
+    }
+
+    // validate role analista
+    const userRow = await pool.query("SELECT id, role, unit_access, email, name FROM users WHERE id = $1", [analista_id]);
+    if (!userRow.rowCount || userRow.rows[0].role !== "analista") {
+      return res.status(400).json({ error: "El usuario no es analista." });
+    }
+    const analystUnits = normalizeUnitAccess(userRow.rows[0].unit_access);
+    if (!analystUnits.includes(submissionUnit)) {
+      return res.status(400).json({ error: "El analista no tiene acceso a la unidad de este formulario." });
+    }
+    const result = await pool.query(
+      "UPDATE submissions SET assigned_analista_id = $1, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL WHERE id = $2 RETURNING id",
+      [analista_id, id]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado" });
+    }
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "asignado_analista",
+      eventLabel: "Formulario asignado a analista",
+      eventDetail: userRow.rows[0].name || userRow.rows[0].email || `ID ${analista_id}`,
+      actorUserId: req.user?.sub || null,
+      actorRole: role,
+      metadata: {
+        analista_id: Number(analista_id),
+        analista_email: userRow.rows[0].email || null
+      }
+    });
+    return res.json({ message: "Asignado", submission_id: id, analista_id });
+  } catch (err) {
+    console.error("Error asignando analista", err);
+    return res.status(500).json({ error: "No se pudo asignar analista" });
+  }
+});
+
+// Lista analistas
+app.get("/api/analistas", requireAuth, requireRole("revisor", "admin", "supervisor"), async (req, res) => {
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const params = [];
+    let where = "role = 'analista'";
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where += ` AND unit_access && $1::TEXT[]`;
+    }
+    const result = await pool.query(
+      `SELECT id, email, name, unit_access FROM users WHERE ${where} ORDER BY email`,
+      params
+    );
+    res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));
+  } catch (err) {
+    console.error("Error reading analysts", err);
+    res.status(500).json({ error: "Failed to fetch analysts" });
+  }
+});
+
+// Admin: listar usuarios
+app.get("/api/users", requireAuth, requireRole("admin"), async (_req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, name, email, role, unit_access, created_at FROM users ORDER BY created_at DESC"
+    );
+    res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));
+  } catch (err) {
+    console.error("Error reading users", err);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
+});
+
+// Admin: crear usuario con rol especifico
+app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
+  const { name, email, password, role, unit_access } = req.body || {};
+  const normalizedRole = String(role || "").toLowerCase();
+  if (!email || !password || !role) {
+    return res.status(400).json({ error: "name/email/password/role son obligatorios" });
+  }
+  if (!ALLOWED_ROLES.includes(normalizedRole)) {
+    return res.status(400).json({ error: "Rol no válido" });
+  }
+  if (String(password).length < 8) {
+    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+  }
+  const emailValidation = await validateEmailAddress(email);
+  if (!emailValidation.ok) {
+    return res.status(400).json({ error: emailValidation.error || "Correo no válido." });
+  }
+  const normalizedEmail = emailValidation.email;
+  const isRestrictedRole = isUnitRestrictedRole(normalizedRole);
+  const normalizedUnitAccess = isRestrictedRole ? normalizeUnitAccess(unit_access) : [...ALL_UNITS];
+  if (isRestrictedRole && !normalizedUnitAccess.length) {
+    return res.status(400).json({ error: "Debes asignar al menos una unidad." });
+  }
+  try {
+    const existing = await pool.query("SELECT id FROM users WHERE LOWER(email) = LOWER($1)", [normalizedEmail]);
+    if (existing.rowCount) {
+      return res.status(409).json({ error: "El correo ya existe." });
+    }
+    const passwordHash = await bcrypt.hash(String(password), 10);
+    const created = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, unit_access, email_verified, email_verified_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, name, email, role, unit_access, created_at`,
+      [name || null, normalizedEmail, passwordHash, normalizedRole, normalizedUnitAccess, true, new Date()]
+    );
+    return res.status(201).json({
+      ...created.rows[0],
+      unit_access: normalizeUnitAccess(created.rows[0].unit_access)
+    });
+  } catch (err) {
+    console.error("Error creating user", err);
+    return res.status(500).json({ error: "No se pudo crear el usuario." });
+  }
+});
+
+// Admin: actualizar rol
+app.patch("/api/users/:id/role", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body || {};
+  const normalizedRole = String(role || "").toLowerCase();
+  if (!role || !ALLOWED_ROLES.includes(normalizedRole)) {
+    return res.status(400).json({ error: "Rol no válido" });
+  }
+  try {
+    const current = await pool.query("SELECT id, unit_access FROM users WHERE id = $1", [id]);
+    if (!current.rowCount) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    const shouldRestrict = isUnitRestrictedRole(normalizedRole);
+    const currentUnits = normalizeUnitAccess(current.rows[0].unit_access);
+    const nextUnits = shouldRestrict ? (currentUnits.length ? currentUnits : [...ALL_UNITS]) : [...ALL_UNITS];
+    const updated = await pool.query(
+      "UPDATE users SET role = $1, unit_access = $2 WHERE id = $3 RETURNING id, name, email, role, unit_access, created_at",
+      [normalizedRole, nextUnits, id]
+    );
+    return res.json({ ...updated.rows[0], unit_access: normalizeUnitAccess(updated.rows[0].unit_access) });
+  } catch (err) {
+    console.error("Error updating role", err);
+    return res.status(500).json({ error: "No se pudo actualizar el rol." });
+  }
+});
+
+// Admin: actualizar unidades por usuario
+app.patch("/api/users/:id/units", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params;
+  const requestedUnits = req.body?.unit_access;
+  const normalizedUnits = normalizeUnitAccess(requestedUnits);
+  if (!normalizedUnits.length) {
+    return res.status(400).json({ error: "Debes asignar al menos una unidad." });
+  }
+  try {
+    const existing = await pool.query("SELECT id, role FROM users WHERE id = $1", [id]);
+    if (!existing.rowCount) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    if (!isUnitRestrictedRole(existing.rows[0].role)) {
+      return res.status(400).json({ error: "Solo aplica para roles revisor, analista y aprobador." });
+    }
+    const updated = await pool.query(
+      "UPDATE users SET unit_access = $1 WHERE id = $2 RETURNING id, name, email, role, unit_access, created_at",
+      [normalizedUnits, id]
+    );
+    return res.json({ ...updated.rows[0], unit_access: normalizeUnitAccess(updated.rows[0].unit_access) });
+  } catch (err) {
+    console.error("Error updating units", err);
+    return res.status(500).json({ error: "No se pudieron actualizar las unidades." });
+  }
+});
+
+// Admin: eliminar usuario
+app.delete("/api/users/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+    res.json({ message: "Usuario eliminado" });
+  } catch (err) {
+    console.error("Error deleting user", err);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
+app.listen(PORT, async () => {
+  try {
+    await init();
+    console.log(`API ready on http://localhost:${PORT}`);
+  } catch (err) {
+    console.error("Database init failed", err);
+    process.exit(1);
+  }
+});

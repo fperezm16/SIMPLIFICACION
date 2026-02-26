@@ -1,0 +1,23 @@
+{
+  "name": "form-backend",
+  "version": "1.0.0",
+  "description": "Simple Express API for form submissions using PostgreSQL",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "migrate": "node scripts/migrate.js",
+    "migrate:new": "node scripts/new-migration.js"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.10.1",
+    "pdfkit": "^0.17.2",
+    "pg": "^8.11.5",
+    "puppeteer-core": "^24.37.5"
+  }
+}

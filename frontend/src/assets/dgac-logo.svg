@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 210" role="img" aria-labelledby="title desc">
+  <title id="title">DGAC</title>
+  <desc id="desc">Direccion General de Aeronautica Civil</desc>
+  <rect width="760" height="210" fill="none"/>
+  <g transform="translate(20 38)">
+    <rect x="0" y="0" width="162" height="98" fill="#1f4ea6"/>
+    <rect x="12" y="8" width="6" height="82" fill="#d5af2d"/>
+    <rect x="18" y="8" width="24" height="82" fill="#d5af2d"/>
+    <rect x="42" y="8" width="6" height="82" fill="#1f4ea6"/>
+    <rect x="48" y="8" width="6" height="82" fill="#d5af2d"/>
+    <path d="M54 48 L135 48 L135 54 L54 54 L85 67 L81 74 L44 56 L19 56 L19 46 L44 46 L81 27 L85 35 Z" fill="#d5af2d"/>
+  </g>
+  <g transform="translate(188 38)">
+    <text x="0" y="97" font-family="Sora, Arial, sans-serif" font-size="126" font-weight="800" fill="#1f4ea6" letter-spacing="-3">
+      DGAC
+    </text>
+    <text x="2" y="126" font-family="IBM Plex Sans, Arial, sans-serif" font-size="22" font-weight="700" fill="#d5af2d" letter-spacing="0.8">
+      DIRECCION GENERAL DE AERONAUTICA CIVIL
+    </text>
+  </g>
+</svg>
