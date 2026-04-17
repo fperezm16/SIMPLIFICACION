@@ -10,10 +10,9 @@ import { Submission } from './submission.model';
 type UnitGroup = { unit: string; rows: Submission[] };
 
 @Component({
-  selector: 'app-home-page',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
+    selector: 'app-home-page',
+    imports: [CommonModule, FormsModule],
+    template: `
     <section class="home">
       <header class="head">
         <div>
@@ -55,9 +54,16 @@ type UnitGroup = { unit: string; rows: Submission[] };
           <button
             type="button"
             class="download-btn boleta-btn"
-            *ngIf="row.approved_at"
+            *ngIf="canDownloadBoleta(row)"
             (click)="downloadBoletaPago(row)">
             Descargar boleta de pago
+          </button>
+          <button
+            type="button"
+            class="download-btn signed-btn"
+            *ngIf="row.approved_at && (row.has_signed_pdf || row.signed_pdf_filename)"
+            (click)="downloadSignedDocument(row)">
+            Descargar documento firmado
           </button>
           <button
             type="button"
@@ -80,17 +86,22 @@ type UnitGroup = { unit: string; rows: Submission[] };
 
       <div class="notice-overlay" *ngIf="approvedNoticeTarget">
         <div class="notice-modal" role="alertdialog" aria-modal="true">
-          <h3>Proceso finalizado</h3>
+          <h3>{{ noticeTitle(approvedNoticeTarget) }}</h3>
           <p>
-            Tu proceso <strong>{{ gestionDisplay(approvedNoticeTarget) }}</strong>
-            ({{ approvedNoticeTarget.registro_codigo || ('#' + approvedNoticeTarget.id) }}) ya fue aprobado.
+            {{ approvedNoticeIntro(approvedNoticeTarget) }}
           </p>
           <p>
-            Puedes descargar la boleta de pago y aproximarte a las instalaciones de la DGAC
-            a realizar el pago correspondiente.
+            {{ approvedNoticeMessage(approvedNoticeTarget) }}
           </p>
           <div class="notice-actions">
-            <button type="button" class="notice-download" (click)="downloadBoletaFromNotice()">
+            <button
+              type="button"
+              class="notice-download signed-btn"
+              *ngIf="approvedNoticeTarget && (approvedNoticeTarget.has_signed_pdf || approvedNoticeTarget.signed_pdf_filename)"
+              (click)="downloadSignedFromNotice()">
+              Descargar documento firmado
+            </button>
+            <button type="button" class="notice-download" *ngIf="approvedNoticeTarget && canDownloadBoleta(approvedNoticeTarget)" (click)="downloadBoletaFromNotice()">
               Descargar boleta de pago
             </button>
             <button type="button" class="notice-close" (click)="closeApprovedNotice()">
@@ -138,7 +149,7 @@ type UnitGroup = { unit: string; rows: Submission[] };
       </div>
     </section>
   `,
-  styles: [`
+    styles: [`
     .home {
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
@@ -173,6 +184,7 @@ type UnitGroup = { unit: string; rows: Submission[] };
     .fix-btn { margin-top: 8px; border: 1px solid #5eb4e4; background: #e6f6ff; color: #0a5c8f; border-radius: 999px; padding: 6px 11px; font-weight: 700; cursor: pointer; }
     .download-btn { margin-top: 8px; margin-left: 8px; border: 1px solid #67ba8a; background: #e5f8ec; color: #15633b; border-radius: 999px; padding: 6px 11px; font-weight: 700; cursor: pointer; }
     .boleta-btn { border-color: #7ab8df; background: #e8f5ff; color: #0b5e92; }
+    .signed-btn { border-color: #c4b5fd; background: #f5f3ff; color: #5b21b6; }
     .progress-row { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
     .progress { flex: 1; height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
     .fill { height: 100%; background: linear-gradient(90deg, #f59e0b 0%, #22c55e 100%); transition: width 320ms ease; }
@@ -430,9 +442,13 @@ export class HomePageComponent implements OnInit {
   progressPercent(row: Submission) {
     if (typeof row.process_percent === 'number') return row.process_percent;
     if (row.returned_at) return 45;
+    if (row.delivered_at) return 100;
+    if (this.isFinancialPaymentPasswordFlow(row) && (row.has_analyst_pdf || row.analyst_pdf_filename)) return 90;
+    if (this.isRanSubmission(row) && row.approved_at) return 95;
     if (row.approved_at) return 100;
     if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 90;
-    if (row.assigned_analista_id) return 75;
+    if (row.assigned_emisor_id || row.sent_to_emisor_at) return 82;
+    if (row.assigned_analista_id) return 68;
     if (row.receptor_opened_at) return 50;
     return 25;
   }
@@ -515,7 +531,7 @@ export class HomePageComponent implements OnInit {
   }
 
   downloadBoletaPago(row: Submission) {
-    if (!row.id || !row.approved_at) return;
+    if (!row.id || !this.canDownloadBoleta(row)) return;
     this.downloadError = '';
     this.http.get(`${this.apiBase}/my-submissions/${row.id}/boleta`, { responseType: 'blob' }).subscribe({
       next: (blob) => {
@@ -549,6 +565,45 @@ export class HomePageComponent implements OnInit {
           return;
         }
         this.downloadError = err?.error?.error || 'No se pudo descargar la boleta de pago.';
+      }
+    });
+  }
+
+  downloadSignedDocument(row: Submission) {
+    if (!row.id || !row.approved_at) return;
+    this.downloadError = '';
+    this.http.get(`${this.apiBase}/my-submissions/${row.id}/documento-firmado`, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        if (!blob || blob.size === 0) {
+          this.downloadError = 'No se pudo descargar el documento firmado.';
+          return;
+        }
+        if (blob.type && !blob.type.toLowerCase().includes('pdf')) {
+          this.readBlobText(blob).then((text) => {
+            this.downloadError = this.extractBackendError(text) || 'No se pudo descargar el documento firmado.';
+          });
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const fallback = row.id ? `REG-${row.id}` : 'REG-SIN-CODIGO';
+        const safeCode = String(row.registro_codigo || fallback).replace(/[^A-Za-z0-9-_]+/g, '-');
+        link.download = `documento-firmado-${safeCode}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      },
+      error: (err) => {
+        const source = err?.error;
+        if (source instanceof Blob) {
+          this.readBlobText(source).then((text) => {
+            this.downloadError = this.extractBackendError(text) || 'No se pudo descargar el documento firmado.';
+          });
+          return;
+        }
+        this.downloadError = err?.error?.error || 'No se pudo descargar el documento firmado.';
       }
     });
   }
@@ -617,11 +672,74 @@ export class HomePageComponent implements OnInit {
 
   private inferState(row: Submission) {
     if (row.returned_at) return 'Devuelto para corrección';
+    if (this.isFinancialPaymentPasswordFlow(row) && row.delivered_at) return 'Finalizado';
+    if (row.delivered_at) return 'Entregado al usuario';
+    if (this.isFinancialPaymentPasswordFlow(row) && (row.has_analyst_pdf || row.analyst_pdf_filename)) return 'Boleta disponible para pago';
+    if (this.isRanSubmission(row) && row.approved_at) return 'Aprobado - pendiente de entrega';
     if (row.approved_at) return 'Aprobado';
     if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 'En aprobación de unidad';
+    if (row.assigned_emisor_id || row.sent_to_emisor_at) return 'En revisión por emisor';
     if (row.assigned_analista_id) return 'Asignado a analista';
     if (row.receptor_opened_at) return 'Recibido por receptor';
     return 'Enviado';
+  }
+
+  approvedNoticeIntro(row: Submission) {
+    const gestion = this.gestionDisplay(row);
+    const codigo = row.registro_codigo || ('#' + row.id);
+    if (this.isPaymentBoletaNotice(row)) {
+      return `Tu boleta de pago del proceso ${gestion} (${codigo}) ya está disponible.`;
+    }
+    return `Tu proceso ${gestion} (${codigo}) ya fue aprobado.`;
+  }
+
+  approvedNoticeMessage(row: Submission) {
+    if (this.isPaymentBoletaNotice(row)) {
+      return 'Ya puedes descargar la boleta de pago y acercarte a las instalaciones de la DGAC a realizar el pago correspondiente.';
+    }
+    if (this.isRanSubmission(row)) {
+      return 'Ya puedes venir a realizar el pago correspondiente y recoger la certificación solicitada en las instalaciones de la DGAC.';
+    }
+    if (String(row.unidad_clave || '').toUpperCase() === 'FINANCIERO') {
+      return 'El proceso fue aprobado. Ya puedes descargar el documento firmado y la boleta de pago para continuar con la gestión.';
+    }
+    return 'Puedes descargar la boleta de pago y aproximarte a las instalaciones de la DGAC a realizar el pago correspondiente.';
+  }
+
+  noticeTitle(row: Submission) {
+    return this.isPaymentBoletaNotice(row) ? 'Boleta de pago disponible' : 'Proceso finalizado';
+  }
+
+  private isRanSubmission(row: Submission) {
+    return String(row.unidad_clave || this.inferUnit(row)).toUpperCase() === 'RAN';
+  }
+
+  canDownloadBoleta(row: Submission) {
+    if (!row?.id || !(row.has_analyst_pdf || row.analyst_pdf_filename)) return false;
+    return Boolean(row.approved_at || this.isFinancialPaymentPasswordFlow(row));
+  }
+
+  private isPaymentBoletaNotice(row: Submission | null | undefined) {
+    return Boolean(
+      row &&
+      this.isFinancialPaymentPasswordFlow(row) &&
+      this.canDownloadBoleta(row) &&
+      !row.approved_at &&
+      !row.delivered_at
+    );
+  }
+
+  private isFinancialPaymentPasswordFlow(row: Submission | null | undefined) {
+    if (!row || String(row.unidad_clave || this.inferUnit(row)).toUpperCase() !== 'FINANCIERO') return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    const groupCode = String(detail['gestion_grupo_codigo'] || '').trim();
+    const groupLabel = String(detail['gestion_grupo_label'] || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    return groupCode === 'otros_tramites' || groupLabel.includes('contrasena de pago');
   }
 
   private inferUnit(row: Submission) {
@@ -633,6 +751,8 @@ export class HomePageComponent implements OnInit {
 
   private formRouteForRow(row: Submission) {
     const unit = this.inferUnit(row);
+    if (unit === 'FINANCIERO') return '/financiero/solvencia-pago';
+    if (unit === 'AILA') return '/aila/permiso-trabajo';
     if (unit !== 'RAN') return '/formulario';
     const gestion = String(row.gestion_nombre || '').toLowerCase();
     if (!gestion && (row.tipo_inscripcion || row.tipo_reposicion || row.tipo_cambio_prop)) {
@@ -688,9 +808,10 @@ export class HomePageComponent implements OnInit {
   }
 
   closeApprovedNotice() {
-    if (this.approvedNoticeTarget?.id && this.approvedNoticeTarget?.approved_at) {
+    const noticeStamp = this.approvedNoticeTarget ? this.notificationStamp(this.approvedNoticeTarget) : '';
+    if (this.approvedNoticeTarget?.id && noticeStamp) {
       const seen = this.readApprovedNoticeSeen();
-      seen[String(this.approvedNoticeTarget.id)] = String(this.approvedNoticeTarget.approved_at);
+      seen[String(this.approvedNoticeTarget.id)] = noticeStamp;
       this.writeApprovedNoticeSeen(seen);
     }
     this.approvedNoticeTarget = null;
@@ -704,6 +825,13 @@ export class HomePageComponent implements OnInit {
     this.downloadBoletaPago(target);
   }
 
+  downloadSignedFromNotice() {
+    if (!this.approvedNoticeTarget) return;
+    const target = this.approvedNoticeTarget;
+    this.closeApprovedNotice();
+    this.downloadSignedDocument(target);
+  }
+
   private maybeOpenApprovedNotice() {
     if (this.approvedNoticeTarget) return;
     if ((this.auth.currentUser?.role || '').toLowerCase() !== 'user') return;
@@ -711,19 +839,36 @@ export class HomePageComponent implements OnInit {
     const pending = [...this.allRows]
       .filter((row) => {
         const id = Number(row.id);
-        const approvedAt = String(row.approved_at || '').trim();
-        if (!Number.isInteger(id) || id <= 0 || !approvedAt) return false;
-        return seen[String(id)] !== approvedAt;
+        const stamp = this.notificationStamp(row);
+        if (!Number.isInteger(id) || id <= 0 || !stamp) return false;
+        if (this.isRanSubmission(row) && row.delivered_at) return false;
+        return seen[String(id)] !== stamp;
       })
       .sort((a, b) => {
-        const ta = new Date(String(a.approved_at || '')).getTime();
-        const tb = new Date(String(b.approved_at || '')).getTime();
+        const ta = this.notificationTime(a);
+        const tb = this.notificationTime(b);
         return tb - ta;
       })[0];
 
     if (pending) {
       this.approvedNoticeTarget = pending;
     }
+  }
+
+  private notificationStamp(row: Submission) {
+    if (this.isPaymentBoletaNotice(row)) {
+      const uploadedAt = String(row.analyst_pdf_uploaded_at || '').trim();
+      const filename = String(row.analyst_pdf_filename || '').trim();
+      return `boleta:${uploadedAt || filename || row.id}`;
+    }
+    const approvedAt = String(row.approved_at || '').trim();
+    return approvedAt ? `aprobado:${approvedAt}` : '';
+  }
+
+  private notificationTime(row: Submission) {
+    const source = this.isPaymentBoletaNotice(row) ? row.analyst_pdf_uploaded_at : row.approved_at;
+    const value = new Date(String(source || '')).getTime();
+    return Number.isFinite(value) ? value : 0;
   }
 
   private readApprovedNoticeSeen(): Record<string, string> {

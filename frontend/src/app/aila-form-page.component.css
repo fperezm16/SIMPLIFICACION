@@ -1,0 +1,305 @@
+.page {
+  padding: 18px 0 40px;
+}
+
+.document {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-card);
+}
+
+.doc-header {
+  display: grid;
+  gap: 14px;
+  border-bottom: 2px solid #d9e7f2;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+}
+
+.logos {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
+.mciv-official-logo,
+.dgac-official-logo {
+  max-height: 82px;
+  max-width: 360px;
+  object-fit: contain;
+}
+
+.title {
+  text-align: center;
+  color: #0b2d49;
+}
+
+.title h1 {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: clamp(22px, 3vw, 32px);
+}
+
+.title p {
+  margin: 4px 0;
+  color: #39556e;
+}
+
+.mode-pill {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 7px 14px;
+  border: 1px solid #b6d9f0;
+  border-radius: 999px;
+  background: #eef8ff;
+  color: #0b4d7a;
+  font-weight: 700;
+}
+
+.required-legend,
+.field-hint,
+.edit-banner {
+  color: #52677c;
+  margin: 0;
+}
+
+.required-reference {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.section {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d7e6f1;
+  border-radius: 16px;
+  background: #fbfdff;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.section-title span {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0b8fd9;
+  color: #fff;
+  font-weight: 800;
+}
+
+.section-title h2,
+.admin-only h2 {
+  margin: 0;
+  color: #0b2d49;
+}
+
+.permit-options,
+.upload-grid,
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.option-card,
+.upload-block {
+  border: 1px solid #d3e5f2;
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+}
+
+.option-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 8px 12px;
+}
+
+.option-card small {
+  grid-column: 2;
+  color: #52677c;
+  line-height: 1.45;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  color: #173652;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  border: 1px solid #c6d8e6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 500;
+  color: #1f3345;
+  background: #fff;
+}
+
+input.ng-invalid.ng-touched {
+  border-color: #b91c1c;
+  background: #fff7f7;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.upload-block {
+  margin-top: 12px;
+}
+
+.upload-title {
+  display: block;
+  font-weight: 800;
+  color: #0b2d49;
+  margin-bottom: 6px;
+}
+
+.upload-inline {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 11px 14px;
+  border: 1px dashed #86bce1;
+  border-radius: 12px;
+  background: #f8fcff;
+  cursor: pointer;
+}
+
+.upload-inline input[type="file"] {
+  display: none;
+}
+
+.table-like {
+  display: grid;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.table-like .row {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-like .header {
+  color: #0b2d49;
+  font-weight: 800;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.people .row {
+  grid-template-columns: 42px 2fr 1fr 1fr;
+}
+
+.escorts .row {
+  grid-template-columns: 42px 2fr 1fr 1fr 1fr 1fr;
+}
+
+.items .row,
+.vehicles .row {
+  grid-template-columns: 42px 1fr 2fr;
+}
+
+.error {
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+button {
+  border: 1px solid #0b8fd9;
+  border-radius: 12px;
+  padding: 12px 22px;
+  background: linear-gradient(90deg, #0b8fd9, #31a8e8);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #eef4f8;
+  color: #173652;
+  border-color: #c6d8e6;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.status {
+  font-weight: 700;
+}
+
+.status.success {
+  color: #047857;
+}
+
+.status.error {
+  color: #b91c1c;
+}
+
+.admin-only {
+  background: #f8fafc;
+}
+
+@media (max-width: 820px) {
+  .document {
+    padding: 14px;
+  }
+
+  .logos,
+  .permit-options,
+  .upload-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .logos {
+    flex-direction: column;
+  }
+
+  .span-2 {
+    grid-column: span 1;
+  }
+
+  .people .row,
+  .escorts .row,
+  .items .row,
+  .vehicles .row {
+    min-width: 760px;
+  }
+}

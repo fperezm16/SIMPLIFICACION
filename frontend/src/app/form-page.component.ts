@@ -20,11 +20,10 @@ function digitsExactOrEmpty(length: number): ValidatorFn {
 }
 
 @Component({
-  selector: 'app-form-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './form-page.component.html',
-  styleUrls: ['./form-page.component.css']
+    selector: 'app-form-page',
+    imports: [CommonModule, ReactiveFormsModule],
+    templateUrl: './form-page.component.html',
+    styleUrls: ['./form-page.component.css']
 })
 export class FormPageComponent implements OnInit {
   private http = inject(HttpClient);
@@ -32,6 +31,7 @@ export class FormPageComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private auth = inject(AuthService);
+  private readonly maxPdfSizeBytes = 10 * 1024 * 1024;
 
   readonly apiBase = API_BASE;
   readonly usoOptionsGeneral = [
@@ -49,6 +49,7 @@ export class FormPageComponent implements OnInit {
   form = this.fb.group({
     fecha: [''],
     persona_tipo: ['individual', Validators.required],
+    origen_compra: [''],
     nombre_propietario: ['', [Validators.required, Validators.minLength(3)]],
     representante_legal: [''],
     documento_propietario: ['', [digitsExactOrEmpty(13)]],
@@ -88,6 +89,14 @@ export class FormPageComponent implements OnInit {
   actaError = '';
   registroMercantilFile: File | null = null;
   registroMercantilError = '';
+  rpaActaNombramientoFile: File | null = null;
+  rpaActaNombramientoError = '';
+  rpaRegistroRepresentanteFile: File | null = null;
+  rpaRegistroRepresentanteError = '';
+  rpaRegistroEntidadFile: File | null = null;
+  rpaRegistroEntidadError = '';
+  rpaDocumentoEstadoFile: File | null = null;
+  rpaDocumentoEstadoError = '';
   trackingLoading = false;
   mySubmissions: Submission[] = [];
   role = this.auth.currentUser?.role || 'user';
@@ -98,9 +107,17 @@ export class FormPageComponent implements OnInit {
   existingDpiName = '';
   existingActaName = '';
   existingRegistroMercantilName = '';
+  existingRpaActaNombramientoName = '';
+  existingRpaRegistroRepresentanteName = '';
+  existingRpaRegistroEntidadName = '';
+  existingRpaDocumentoEstadoName = '';
   existingHasDpi = false;
   existingHasActa = false;
   existingHasRegistroMercantil = false;
+  existingHasRpaActaNombramiento = false;
+  existingHasRpaRegistroRepresentante = false;
+  existingHasRpaRegistroEntidad = false;
+  existingHasRpaDocumentoEstado = false;
   formMode: 'general' | 'ran2' | 'ran8' | 'ranUav' = 'general';
   isRanMode = false;
   isRanForm2 = false;
@@ -144,6 +161,11 @@ export class FormPageComponent implements OnInit {
     return 'Valor no válido';
   }
 
+  isFieldRequired(field: string): boolean {
+    const control = this.form.get(field);
+    return Boolean(control?.hasValidator(Validators.required));
+  }
+
   onDigitsInput(event: Event, field: string, maxLength: number) {
     const input = event.target as HTMLInputElement | null;
     if (!input) return;
@@ -160,34 +182,65 @@ export class FormPageComponent implements OnInit {
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files[0];
-    this.dpiFile = file || null;
-    this.dpiError = '';
-    if (file && file.type !== 'application/pdf') {
-      this.dpiError = 'El archivo debe ser PDF.';
-      this.dpiFile = null;
-    }
+    const normalized = this.normalizePdfFile(file || null, 'El archivo debe ser PDF.');
+    this.dpiFile = normalized.file;
+    this.dpiError = normalized.error;
   }
 
   onActaSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files[0];
-    this.actaFile = file || null;
-    this.actaError = '';
-    if (file && file.type !== 'application/pdf') {
-      this.actaError = 'El acta notarial debe ser PDF.';
-      this.actaFile = null;
-    }
+    const normalized = this.normalizePdfFile(
+      file || null,
+      this.isRanUav ? 'El dictamen técnico debe ser PDF.' : 'El acta notarial debe ser PDF.'
+    );
+    this.actaFile = normalized.file;
+    this.actaError = normalized.error;
   }
 
   onRegistroMercantilSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files[0];
-    this.registroMercantilFile = file || null;
-    this.registroMercantilError = '';
-    if (file && file.type !== 'application/pdf') {
-      this.registroMercantilError = 'El registro mercantil debe ser PDF.';
-      this.registroMercantilFile = null;
-    }
+    const normalized = this.normalizePdfFile(
+      file || null,
+      this.isRanUav
+        ? 'La copia auténtica de factura o acta notarial debe ser PDF.'
+        : 'El registro mercantil debe ser PDF.'
+    );
+    this.registroMercantilFile = normalized.file;
+    this.registroMercantilError = normalized.error;
+  }
+
+  onRpaActaNombramientoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    const normalized = this.normalizePdfFile(file || null, 'El acta notarial debe estar en PDF.');
+    this.rpaActaNombramientoFile = normalized.file;
+    this.rpaActaNombramientoError = normalized.error;
+  }
+
+  onRpaRegistroRepresentanteSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    const normalized = this.normalizePdfFile(file || null, 'La certificación del representante legal debe estar en PDF.');
+    this.rpaRegistroRepresentanteFile = normalized.file;
+    this.rpaRegistroRepresentanteError = normalized.error;
+  }
+
+  onRpaRegistroEntidadSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    const normalized = this.normalizePdfFile(file || null, 'La certificación de la entidad debe estar en PDF.');
+    this.rpaRegistroEntidadFile = normalized.file;
+    this.rpaRegistroEntidadError = normalized.error;
+  }
+
+  onRpaDocumentoEstadoSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    const normalized = this.normalizePdfFile(file || null, 'El documento de entidad del Estado/ONG debe estar en PDF.');
+    this.rpaDocumentoEstadoFile = normalized.file;
+    this.rpaDocumentoEstadoError = normalized.error;
   }
 
   isJuridica() {
@@ -199,10 +252,24 @@ export class FormPageComponent implements OnInit {
     this.applyPersonaValidators();
     this.actaError = '';
     this.registroMercantilError = '';
-    if (tipo === 'individual') {
+    if (!this.requiresRpaJuridicaGuatemalaDocs()) {
+      this.clearRpaJuridicaGuatemalaDocs();
+    }
+    if (tipo === 'individual' && !this.isRanUav) {
       this.actaFile = null;
       this.registroMercantilFile = null;
     }
+  }
+
+  setOrigenCompra(origen: 'guatemala' | 'extranjero') {
+    this.form.patchValue({ origen_compra: origen }, { emitEvent: false });
+    if (!this.requiresRpaJuridicaGuatemalaDocs()) {
+      this.clearRpaJuridicaGuatemalaDocs();
+    }
+  }
+
+  hasOrigenCompraSeleccionado() {
+    return Boolean(String(this.form.value.origen_compra || '').trim());
   }
 
   onSubmit(): void {
@@ -210,11 +277,20 @@ export class FormPageComponent implements OnInit {
     this.dpiError = '';
     this.actaError = '';
     this.registroMercantilError = '';
+    this.rpaActaNombramientoError = '';
+    this.rpaRegistroRepresentanteError = '';
+    this.rpaRegistroEntidadError = '';
+    this.rpaDocumentoEstadoError = '';
     this.syncFechaHoy();
     const isResubmit = this.isEditingReturned();
+    const requiresExtraDocs = this.requiresExtraUploadDocs();
+    const requiresRpaJuridicaGuatemalaDocs = this.requiresRpaJuridicaGuatemalaDocs();
     const hasDpiReady = Boolean(this.dpiFile) || (isResubmit && this.existingHasDpi);
     const hasActaReady = Boolean(this.actaFile) || (isResubmit && this.existingHasActa);
     const hasRegistroMercantilReady = Boolean(this.registroMercantilFile) || (isResubmit && this.existingHasRegistroMercantil);
+    const hasRpaActaNombramientoReady = Boolean(this.rpaActaNombramientoFile) || (isResubmit && this.existingHasRpaActaNombramiento);
+    const hasRpaRegistroRepresentanteReady = Boolean(this.rpaRegistroRepresentanteFile) || (isResubmit && this.existingHasRpaRegistroRepresentante);
+    const hasRpaRegistroEntidadReady = Boolean(this.rpaRegistroEntidadFile) || (isResubmit && this.existingHasRpaRegistroEntidad);
 
     if (!hasDpiReady) {
       this.dpiError = 'Adjunta el DPI en PDF antes de guardar.';
@@ -225,8 +301,10 @@ export class FormPageComponent implements OnInit {
       this.dpiError = 'El archivo debe ser PDF.';
       return;
     }
-    if (this.isJuridica() && !hasActaReady) {
-      this.actaError = 'Adjunta el acta notarial en PDF para persona jurídica.';
+    if (requiresExtraDocs && !hasActaReady) {
+      this.actaError = this.isRanUav
+        ? 'Adjunta el Dictamen Técnico en PDF.'
+        : 'Adjunta el acta notarial en PDF para persona jurídica.';
       this.form.markAllAsTouched();
       return;
     }
@@ -234,13 +312,46 @@ export class FormPageComponent implements OnInit {
       this.actaError = 'El acta notarial debe ser PDF.';
       return;
     }
-    if (this.isJuridica() && !hasRegistroMercantilReady) {
-      this.registroMercantilError = 'Adjunta el registro mercantil en PDF para persona jurídica.';
+    if (requiresExtraDocs && !hasRegistroMercantilReady) {
+      this.registroMercantilError = this.isRanUav
+        ? 'Adjunta la Copia auténtica de Factura o Acta Notarial de Declaración Jurada en PDF.'
+        : 'Adjunta el registro mercantil en PDF para persona jurídica.';
       this.form.markAllAsTouched();
       return;
     }
     if (this.registroMercantilFile && this.registroMercantilFile.type !== 'application/pdf') {
       this.registroMercantilError = 'El registro mercantil debe ser PDF.';
+      return;
+    }
+    if (requiresRpaJuridicaGuatemalaDocs && !hasRpaActaNombramientoReady) {
+      this.rpaActaNombramientoError = 'Adjunta la copia simple del Acta Notarial de Nombramiento en PDF.';
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (this.rpaActaNombramientoFile && this.rpaActaNombramientoFile.type !== 'application/pdf') {
+      this.rpaActaNombramientoError = 'El acta notarial debe estar en PDF.';
+      return;
+    }
+    if (requiresRpaJuridicaGuatemalaDocs && !hasRpaRegistroRepresentanteReady) {
+      this.rpaRegistroRepresentanteError = 'Adjunta la certificación del representante legal en PDF.';
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (this.rpaRegistroRepresentanteFile && this.rpaRegistroRepresentanteFile.type !== 'application/pdf') {
+      this.rpaRegistroRepresentanteError = 'La certificación del representante legal debe estar en PDF.';
+      return;
+    }
+    if (requiresRpaJuridicaGuatemalaDocs && !hasRpaRegistroEntidadReady) {
+      this.rpaRegistroEntidadError = 'Adjunta la certificación de inscripción de la entidad en PDF.';
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (this.rpaRegistroEntidadFile && this.rpaRegistroEntidadFile.type !== 'application/pdf') {
+      this.rpaRegistroEntidadError = 'La certificación de la entidad debe estar en PDF.';
+      return;
+    }
+    if (this.rpaDocumentoEstadoFile && this.rpaDocumentoEstadoFile.type !== 'application/pdf') {
+      this.rpaDocumentoEstadoError = 'El documento de entidad del Estado/ONG debe estar en PDF.';
       return;
     }
 
@@ -250,14 +361,26 @@ export class FormPageComponent implements OnInit {
     }
     this.isSubmitting = true;
 
-    this.readAsBase64(this.dpiFile).then((dpiBase64) => {
-      if (!dpiBase64) {
+    Promise.all([
+      this.readAsBase64(this.dpiFile),
+      this.readAsBase64(this.actaFile),
+      this.readAsBase64(this.registroMercantilFile),
+      this.readAsBase64(this.rpaActaNombramientoFile),
+      this.readAsBase64(this.rpaRegistroRepresentanteFile),
+      this.readAsBase64(this.rpaRegistroEntidadFile),
+      this.readAsBase64(this.rpaDocumentoEstadoFile)
+    ]).then(([
+      dpiBase64,
+      actaBase64,
+      registroMercantilBase64,
+      rpaActaNombramientoBase64,
+      rpaRegistroRepresentanteBase64,
+      rpaRegistroEntidadBase64,
+      rpaDocumentoEstadoBase64
+    ]) => {
+      if (!dpiBase64 && !isResubmit) {
         throw new Error('No se pudo leer el DPI.');
       }
-      return this.readAsBase64(this.actaFile).then((actaBase64) => ({ dpiBase64, actaBase64 }));
-    }).then(({ dpiBase64, actaBase64 }) => {
-      return this.readAsBase64(this.registroMercantilFile).then((registroMercantilBase64) => ({ dpiBase64, actaBase64, registroMercantilBase64 }));
-    }).then(({ dpiBase64, actaBase64, registroMercantilBase64 }) => {
       const formPayload = this.buildFormPayload();
       const payload: Record<string, unknown> = {
         ...formPayload,
@@ -271,15 +394,35 @@ export class FormPageComponent implements OnInit {
         payload['dpi_filename'] = this.dpiFile.name;
         payload['dpi_mime'] = this.dpiFile.type;
       }
-      if (this.isJuridica() && actaBase64 && this.actaFile) {
+      if (requiresExtraDocs && actaBase64 && this.actaFile) {
         payload['acta_pdf_base64'] = actaBase64;
         payload['acta_filename'] = this.actaFile.name;
         payload['acta_mime'] = this.actaFile.type;
       }
-      if (this.isJuridica() && registroMercantilBase64 && this.registroMercantilFile) {
+      if (requiresExtraDocs && registroMercantilBase64 && this.registroMercantilFile) {
         payload['registro_mercantil_pdf_base64'] = registroMercantilBase64;
         payload['registro_mercantil_filename'] = this.registroMercantilFile.name;
         payload['registro_mercantil_mime'] = this.registroMercantilFile.type;
+      }
+      if (requiresRpaJuridicaGuatemalaDocs && rpaActaNombramientoBase64 && this.rpaActaNombramientoFile) {
+        payload['rpa_acta_nombramiento_pdf_base64'] = rpaActaNombramientoBase64;
+        payload['rpa_acta_nombramiento_filename'] = this.rpaActaNombramientoFile.name;
+        payload['rpa_acta_nombramiento_mime'] = this.rpaActaNombramientoFile.type;
+      }
+      if (requiresRpaJuridicaGuatemalaDocs && rpaRegistroRepresentanteBase64 && this.rpaRegistroRepresentanteFile) {
+        payload['rpa_registro_representante_pdf_base64'] = rpaRegistroRepresentanteBase64;
+        payload['rpa_registro_representante_filename'] = this.rpaRegistroRepresentanteFile.name;
+        payload['rpa_registro_representante_mime'] = this.rpaRegistroRepresentanteFile.type;
+      }
+      if (requiresRpaJuridicaGuatemalaDocs && rpaRegistroEntidadBase64 && this.rpaRegistroEntidadFile) {
+        payload['rpa_registro_entidad_pdf_base64'] = rpaRegistroEntidadBase64;
+        payload['rpa_registro_entidad_filename'] = this.rpaRegistroEntidadFile.name;
+        payload['rpa_registro_entidad_mime'] = this.rpaRegistroEntidadFile.type;
+      }
+      if (requiresRpaJuridicaGuatemalaDocs && rpaDocumentoEstadoBase64 && this.rpaDocumentoEstadoFile) {
+        payload['rpa_documento_estado_pdf_base64'] = rpaDocumentoEstadoBase64;
+        payload['rpa_documento_estado_filename'] = this.rpaDocumentoEstadoFile.name;
+        payload['rpa_documento_estado_mime'] = this.rpaDocumentoEstadoFile.type;
       }
 
       const request$ = this.editingReturnedId
@@ -297,7 +440,7 @@ export class FormPageComponent implements OnInit {
           };
           this.form.markAsPristine();
           this.form.markAsUntouched();
-          this.form.reset({ uso: 'privado', persona_tipo: 'individual', representante_legal: '' });
+          this.form.reset({ uso: 'privado', persona_tipo: 'individual', representante_legal: '', origen_compra: '' });
           this.applyPersonaValidators();
           this.applySolicitudMode();
           this.resetReturnedEditState();
@@ -305,6 +448,7 @@ export class FormPageComponent implements OnInit {
           this.dpiFile = null;
           this.actaFile = null;
           this.registroMercantilFile = null;
+          this.clearRpaJuridicaGuatemalaDocs();
           this.isSubmitting = false;
           if (this.showTracking) {
             this.fetchMySubmissions();
@@ -350,12 +494,21 @@ export class FormPageComponent implements OnInit {
         this.existingHasDpi = Boolean(detail.has_dpi || detail.dpi_filename);
         this.existingHasActa = Boolean(detail.has_acta || detail.acta_filename);
         this.existingHasRegistroMercantil = Boolean(detail.has_registro_mercantil || detail.registro_mercantil_filename);
+        this.existingHasRpaActaNombramiento = Boolean(detail.has_rpa_acta_nombramiento || detail.rpa_acta_nombramiento_filename);
+        this.existingHasRpaRegistroRepresentante = Boolean(detail.has_rpa_registro_representante || detail.rpa_registro_representante_filename);
+        this.existingHasRpaRegistroEntidad = Boolean(detail.has_rpa_registro_entidad || detail.rpa_registro_entidad_filename);
+        this.existingHasRpaDocumentoEstado = Boolean(detail.has_rpa_documento_estado || detail.rpa_documento_estado_filename);
         this.existingDpiName = detail.dpi_filename || '';
         this.existingActaName = detail.acta_filename || '';
         this.existingRegistroMercantilName = detail.registro_mercantil_filename || '';
+        this.existingRpaActaNombramientoName = detail.rpa_acta_nombramiento_filename || '';
+        this.existingRpaRegistroRepresentanteName = detail.rpa_registro_representante_filename || '';
+        this.existingRpaRegistroEntidadName = detail.rpa_registro_entidad_filename || '';
+        this.existingRpaDocumentoEstadoName = detail.rpa_documento_estado_filename || '';
         this.form.patchValue({
           fecha: this.todayDate,
           persona_tipo: detail.persona_tipo || 'individual',
+          origen_compra: detail.origen_compra || '',
           nombre_propietario: detail.nombre_propietario || '',
           representante_legal: detail.representante_legal || '',
           documento_propietario: detail.documento_propietario || '',
@@ -391,6 +544,7 @@ export class FormPageComponent implements OnInit {
         this.dpiFile = null;
         this.actaFile = null;
         this.registroMercantilFile = null;
+        this.clearRpaJuridicaGuatemalaDocs();
         this.loadingReturnedEdit = false;
         this.clearEditReturnedQueryParam();
         this.status = { type: 'success', message: 'Edita los datos requeridos y vuelve a enviar.' };
@@ -407,12 +561,13 @@ export class FormPageComponent implements OnInit {
     if (!this.isEditingReturned()) return;
     this.form.markAsPristine();
     this.form.markAsUntouched();
-    this.form.reset({ uso: 'privado', persona_tipo: 'individual', representante_legal: '' });
+    this.form.reset({ uso: 'privado', persona_tipo: 'individual', representante_legal: '', origen_compra: '' });
     this.applyPersonaValidators();
     this.applySolicitudMode();
     this.dpiFile = null;
     this.actaFile = null;
     this.registroMercantilFile = null;
+    this.clearRpaJuridicaGuatemalaDocs();
     this.resetReturnedEditState();
     this.clearEditReturnedQueryParam();
     this.status = null;
@@ -421,7 +576,11 @@ export class FormPageComponent implements OnInit {
   processStep(row: Submission): number {
     if (row.process_step) return row.process_step;
     if (row.returned_at) return 2;
+    if (row.delivered_at) return 5;
+    if (this.isRanSubmission(row) && row.approved_at) return 4;
     if (row.approved_at) return 4;
+    if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 4;
+    if (row.assigned_emisor_id || row.sent_to_emisor_at) return 3;
     if (row.assigned_analista_id) return 3;
     if (row.receptor_opened_at) return 2;
     return 1;
@@ -430,7 +589,11 @@ export class FormPageComponent implements OnInit {
   processLabel(row: Submission): string {
     if (row.process_label) return row.process_label;
     if (row.returned_at) return 'Devuelto para corrección';
+    if (row.delivered_at) return 'Entregado al usuario';
+    if (this.isRanSubmission(row) && row.approved_at) return 'Aprobado - pendiente de entrega';
     if (row.approved_at) return 'Aprobado';
+    if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 'En aprobación de unidad';
+    if (row.assigned_emisor_id || row.sent_to_emisor_at) return 'En revisión por emisor';
     if (row.assigned_analista_id) return 'Asignado a analista';
     if (row.receptor_opened_at) return 'Recibido por receptor';
     return 'Enviado';
@@ -439,11 +602,22 @@ export class FormPageComponent implements OnInit {
   processPercent(row: Submission): number {
     if (row.process_percent) return row.process_percent;
     if (row.returned_at) return 45;
-    return this.processStep(row) * 25;
+    if (row.delivered_at) return 100;
+    if (this.isRanSubmission(row) && row.approved_at) return 95;
+    if (row.approved_at) return 100;
+    if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 90;
+    if (row.assigned_emisor_id || row.sent_to_emisor_at) return 82;
+    if (row.assigned_analista_id) return 68;
+    if (row.receptor_opened_at) return 50;
+    return 25;
   }
 
   isStepDone(row: Submission, step: number): boolean {
     return this.processStep(row) >= step;
+  }
+
+  private isRanSubmission(row: Submission): boolean {
+    return String(row.unidad_clave || '').toUpperCase() === 'RAN';
   }
 
   private syncFechaHoy() {
@@ -467,6 +641,19 @@ export class FormPageComponent implements OnInit {
       reader.onerror = () => reject(new Error('No se pudo leer archivo'));
       reader.readAsDataURL(file);
     });
+  }
+
+  private normalizePdfFile(file: File | null, typeError: string) {
+    if (!file) {
+      return { file: null, error: '' };
+    }
+    if (file.type !== 'application/pdf') {
+      return { file: null, error: typeError };
+    }
+    if (file.size > this.maxPdfSizeBytes) {
+      return { file: null, error: 'El PDF no puede superar los 10 MB.' };
+    }
+    return { file, error: '' };
   }
 
   currentUsoOptions() {
@@ -525,7 +712,7 @@ export class FormPageComponent implements OnInit {
 
   ownerDocumentLabel() {
     if (this.isRanUav) {
-      return 'No. de Documento Personal de Identificación (Persona Individual o Representante Legal):';
+      return 'No. de Documento Personal de Identificación o Pasaporte:';
     }
     if (this.isJuridica()) {
       return 'No. de Documento Personal de Identificación o Pasaporte:';
@@ -535,8 +722,67 @@ export class FormPageComponent implements OnInit {
 
   addressLabel() {
     return this.isRanUav
-      ? 'Dirección a consignar en el Certificado de Distintivo:'
-      : 'Dirección a consignar en el Certificado de matrícula:';
+      ? 'Dirección:'
+      : 'Dirección:';
+  }
+
+  matriculaLabel() {
+    return this.isRanForm8 ? 'Matrícula o distintivo TG/UAV-TG:' : 'Matrícula TG:';
+  }
+
+  matriculaPlaceholder() {
+    return this.isRanForm8 ? '' : 'TG-';
+  }
+
+  requiresExtraUploadDocs() {
+    return this.isJuridica() || this.isRanUav;
+  }
+
+  isOrigenGuatemala() {
+    return String(this.form.value.origen_compra || '').trim().toLowerCase() === 'guatemala';
+  }
+
+  requiresRpaJuridicaGuatemalaDocs() {
+    return this.isRanUav && this.isJuridica() && this.isOrigenGuatemala();
+  }
+
+  dpiUploadTitle() {
+    if (this.requiresRpaJuridicaGuatemalaDocs()) {
+      return '2. Adjuntar copia simple del DPI del Representante Legal de la entidad propietaria/arrendataria';
+    }
+    return this.isRanUav ? '2. Adjuntar copia simple del DPI' : 'Adjuntar copia simple del DPI';
+  }
+
+  actaUploadTitle() {
+    return this.isRanUav
+      ? '1. Dictamen Técnico emitido por el Departamento de Vigilancia de la Seguridad Operacional -DVSO-'
+      : 'Copia simple del Acta de nombramiento del representante legal de la entidad propietaria/arrendataria, debidamente inscrita en el Registro Mercantil.';
+  }
+
+  actaUploadDescription() {
+    return this.isRanUav
+      ? 'Carga el Dictamen Técnico en formato PDF.'
+      : 'Carga el acta notarial de la persona jurídica en formato PDF.';
+  }
+
+  actaUploadPlaceholder() {
+    return this.isRanUav ? 'Seleccionar PDF del Dictamen Técnico...' : 'Seleccionar PDF del Acta de Nombramiento...';
+  }
+
+  registroUploadTitle() {
+    return this.isRanUav ? '3. Copia auténtica de Factura o Acta Notarial de Declaración Jurada' : '';
+  }
+
+  registroUploadDescription() {
+    return this.isRanUav
+      ? 'Carga la copia auténtica de Factura o Acta Notarial de Declaración Jurada en formato PDF.'
+      : 'Carga el registro mercantil de la entidad en formato PDF.';
+  }
+
+  registroUploadPlaceholder() {
+    return this.isRanUav
+      ? 'Seleccionar PDF de Factura o Acta Notarial...'
+      : 'Seleccionar PDF del Registro Mercantil...';
   }
 
   droneSolicitudRows() {
@@ -609,10 +855,40 @@ export class FormPageComponent implements OnInit {
       numeroSerieControl.updateValueAndValidity({ emitEvent: false });
     }
 
+    const documentoPropietarioControl = this.form.get('documento_propietario');
+    if (documentoPropietarioControl) {
+      const validators = (this.isRanForm2 || this.isRanForm8 || this.isRanUav)
+        ? [Validators.required, digitsExactOrEmpty(13)]
+        : [digitsExactOrEmpty(13)];
+      documentoPropietarioControl.setValidators(validators);
+      documentoPropietarioControl.updateValueAndValidity({ emitEvent: false });
+    }
+
     const direccionControl = this.form.get('direccion');
     if (direccionControl) {
       direccionControl.setValidators(this.isRanForm8 ? [] : [Validators.required, Validators.minLength(5)]);
       direccionControl.updateValueAndValidity({ emitEvent: false });
+    }
+
+    const origenCompraControl = this.form.get('origen_compra');
+    if (origenCompraControl) {
+      origenCompraControl.setValidators(this.isRanUav ? [Validators.required] : []);
+      if (!this.isRanUav) {
+        origenCompraControl.setValue('', { emitEvent: false });
+      }
+      origenCompraControl.updateValueAndValidity({ emitEvent: false });
+    }
+
+    const nitControl = this.form.get('nit');
+    if (nitControl) {
+      nitControl.setValidators((this.isRanForm2 || this.isRanForm8 || this.isRanUav) ? [Validators.required] : []);
+      nitControl.updateValueAndValidity({ emitEvent: false });
+    }
+
+    const nombreOrdenPagoControl = this.form.get('nombre_orden_pago');
+    if (nombreOrdenPagoControl) {
+      nombreOrdenPagoControl.setValidators(this.isRanForm2 ? [Validators.required] : []);
+      nombreOrdenPagoControl.updateValueAndValidity({ emitEvent: false });
     }
 
     this.applySolicitudMode();
@@ -623,6 +899,8 @@ export class FormPageComponent implements OnInit {
         colores: '',
         ubicacion_inspeccion: ''
       }, { emitEvent: false });
+    } else {
+      this.clearRpaJuridicaGuatemalaDocs();
     }
     if (this.isRanForm8) {
       this.form.patchValue({
@@ -677,14 +955,25 @@ export class FormPageComponent implements OnInit {
   }
 
   ranModeLabel() {
-    if (this.isRanForm2) return 'Unidad RAN - Reserva, Prórroga o Cesión de Matrícula';
-    if (this.isRanForm8) return 'Unidad RAN - Certificación';
-    if (this.isRanUav) return 'Unidad RAN - UAV / RPA Distintivo';
+    if (this.isRanForm2) return 'Reserva, Prórroga o Cesión de Matrícula';
+    if (this.isRanForm8) return 'Certificación';
+    if (this.isRanUav) return 'UAV / RPA Distintivo';
     return '';
   }
 
   isEditingReturned() {
     return this.editingReturnedId !== null;
+  }
+
+  private clearRpaJuridicaGuatemalaDocs() {
+    this.rpaActaNombramientoFile = null;
+    this.rpaActaNombramientoError = '';
+    this.rpaRegistroRepresentanteFile = null;
+    this.rpaRegistroRepresentanteError = '';
+    this.rpaRegistroEntidadFile = null;
+    this.rpaRegistroEntidadError = '';
+    this.rpaDocumentoEstadoFile = null;
+    this.rpaDocumentoEstadoError = '';
   }
 
   private resetReturnedEditState() {
@@ -693,9 +982,17 @@ export class FormPageComponent implements OnInit {
     this.existingDpiName = '';
     this.existingActaName = '';
     this.existingRegistroMercantilName = '';
+    this.existingRpaActaNombramientoName = '';
+    this.existingRpaRegistroRepresentanteName = '';
+    this.existingRpaRegistroEntidadName = '';
+    this.existingRpaDocumentoEstadoName = '';
     this.existingHasDpi = false;
     this.existingHasActa = false;
     this.existingHasRegistroMercantil = false;
+    this.existingHasRpaActaNombramiento = false;
+    this.existingHasRpaRegistroRepresentante = false;
+    this.existingHasRpaRegistroEntidad = false;
+    this.existingHasRpaDocumentoEstado = false;
   }
 
   private clearEditReturnedQueryParam() {

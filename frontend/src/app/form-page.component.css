@@ -192,15 +192,43 @@
 .section h2 {
   margin: 0 0 7px;
   font-size: 19px;
-  text-transform: uppercase;
+  text-transform: none;
+  font-weight: 700;
   color: #123654;
 }
 
 .section h3 {
   margin: 0 0 10px;
   font-size: 15px;
-  text-transform: uppercase;
+  text-transform: none;
+  font-weight: 700;
   color: #194466;
+}
+
+.required-reference {
+  display: inline-block;
+  margin-left: 4px;
+  color: #b42318;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.required-legend {
+  margin: 12px 0 0;
+  color: #526983;
+  font-size: 13px;
+}
+
+.limit-reference {
+  font-weight: 700;
+  color: #123654;
+}
+
+.field-hint {
+  margin: 0 0 8px;
+  color: #526983;
+  font-size: 13px;
 }
 
 .persona-toggle {

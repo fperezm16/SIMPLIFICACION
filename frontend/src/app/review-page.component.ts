@@ -6,10 +6,9 @@ import { Submission } from './submission.model';
 import { API_BASE } from './api.config';
 
 @Component({
-  selector: 'app-review-page',
-  standalone: true,
-  imports: [CommonModule, ReviewPanelComponent],
-  template: `
+    selector: 'app-review-page',
+    imports: [CommonModule, ReviewPanelComponent],
+    template: `
     <section class="review-page">
       <header class="head">
         <div>
@@ -21,7 +20,7 @@ import { API_BASE } from './api.config';
       <app-review-panel [data]="submissions" [apiBase]="apiBase" (updated)="fetch()"></app-review-panel>
     </section>
   `,
-  styles: [`
+    styles: [`
     .review-page {
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);

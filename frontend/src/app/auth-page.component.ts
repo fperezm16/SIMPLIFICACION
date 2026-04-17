@@ -1,16 +1,15 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 type Status = { type: 'success' | 'error'; message: string } | null;
 
 @Component({
-  selector: 'app-auth-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  template: `
+    selector: 'app-auth-page',
+    imports: [CommonModule, ReactiveFormsModule],
+    template: `
     <section class="auth-shell">
       <div class="auth-card">
         <div class="tabs">
@@ -69,7 +68,7 @@ type Status = { type: 'success' | 'error'; message: string } | null;
       </div>
     </section>
   `,
-  styles: [`
+    styles: [`
     .auth-shell { max-width: 520px; margin: 40px auto; padding: 0 16px; }
     .auth-card {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(247, 252, 255, 0.95));

@@ -1,4 +1,6 @@
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 import { FormPageComponent } from './form-page.component';
@@ -9,6 +11,8 @@ describe('AppComponent shell', () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
         provideRouter([
           { path: '', component: FormPageComponent },
           { path: 'revision', component: ReviewPageComponent }

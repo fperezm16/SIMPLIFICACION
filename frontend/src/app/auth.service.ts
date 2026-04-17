@@ -7,7 +7,7 @@ export interface AuthUser {
   id: number;
   email: string;
   name?: string | null;
-  role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'aprobador' | 'user' | string;
+  role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'emisor' | 'aprobador' | 'user' | string;
 }
 
 export interface RegisterResponse {

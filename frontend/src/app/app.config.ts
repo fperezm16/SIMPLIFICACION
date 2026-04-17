@@ -13,6 +13,8 @@ import { HomePageComponent } from './home-page.component';
 import { formGuard } from './form.guard';
 import { SupervisorPageComponent } from './supervisor-page.component';
 import { supervisorGuard } from './supervisor.guard';
+import { FinancialFormPageComponent } from './financial-form-page.component';
+import { AilaFormPageComponent } from './aila-form-page.component';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -24,6 +26,8 @@ export const appConfig: ApplicationConfig = {
       { path: 'ran/formulario-2', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ran2' } },
       { path: 'ran/formulario-8', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ran8' } },
       { path: 'ran/formulario-drones', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ranUav' } },
+      { path: 'aila/permiso-trabajo', component: AilaFormPageComponent, canActivate: [formGuard] },
+      { path: 'financiero/solvencia-pago', component: FinancialFormPageComponent, canActivate: [formGuard] },
       { path: 'revision', component: ReviewPageComponent, canActivate: [revisorGuard] },
       { path: 'supervision', component: SupervisorPageComponent, canActivate: [supervisorGuard] },
       { path: 'admin', component: AdminPageComponent, canActivate: [adminGuard] },

@@ -4,10 +4,9 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from './auth.service';
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
-  template: `
+    selector: 'app-root',
+    imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+    template: `
     <div class="shell">
       <header class="shell__header">
         <div class="brand">
@@ -16,7 +15,7 @@ import { AuthService } from './auth.service';
         <div class="header__right">
           <nav class="nav" *ngIf="auth.user$ | async as user; else guestNav">
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
-            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'aprobador' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
+            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">
@@ -31,8 +30,18 @@ import { AuthService } from './auth.service';
                     <a routerLink="/ran/formulario-drones" routerLinkActive="active-link">UAV / RPA - Distintivo</a>
                   </div>
                 </div>
-                <a href="#" (click)="$event.preventDefault()">AILA</a>
-                <a href="#" (click)="$event.preventDefault()">FINANCIERO</a>
+                <div class="units-submenu">
+                  <button type="button" class="submenu-trigger">AILA</button>
+                  <div class="units-submenu-panel">
+                    <a routerLink="/aila/permiso-trabajo" routerLinkActive="active-link">Permiso de trabajos e ingreso/egreso</a>
+                  </div>
+                </div>
+                <div class="units-submenu">
+                  <button type="button" class="submenu-trigger">FINANCIERO</button>
+                  <div class="units-submenu-panel">
+                    <a routerLink="/financiero/solvencia-pago" routerLinkActive="active-link">Solicitud de solvencia de pago</a>
+                  </div>
+                </div>
               </div>
             </div>
           </nav>
@@ -55,7 +64,7 @@ import { AuthService } from './auth.service';
       </main>
     </div>
   `,
-  styles: [`
+    styles: [`
     .shell { max-width: 1240px; margin: 0 auto; padding: 6px; }
     .shell__header {
       display: flex;
@@ -137,7 +146,7 @@ import { AuthService } from './auth.service';
       display: none;
       position: absolute;
       top: 0;
-      left: calc(100% + 8px);
+      left: 100%;
       min-width: 220px;
       background: linear-gradient(180deg, #082b45, #133350);
       border-radius: 12px;
@@ -145,8 +154,7 @@ import { AuthService } from './auth.service';
       padding: 8px;
       box-shadow: 0 18px 42px rgba(8, 37, 61, 0.35);
     }
-    .units-submenu:hover .units-submenu-panel,
-    .units-submenu:focus-within .units-submenu-panel { display: block; }
+    .units-submenu:hover > .units-submenu-panel { display: block; }
     .shell__body { margin-top: 16px; }
     .header__right { display: flex; align-items: center; gap: 12px; }
     .chip {

@@ -1,0 +1,316 @@
+﻿<div class="page">
+  <div class="document">
+    <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <header class="doc-header">
+        <div class="logos">
+          <div class="logo-block">
+            <img class="mciv-official-logo" src="assets/mciv-oficial.png" alt="Ministerio de Comunicaciones, Infraestructura y Vivienda">
+          </div>
+          <div class="logo-block right">
+            <img class="dgac-official-logo" src="assets/dgac-oficial.png" alt="Direcci&oacute;n General de Aeron&aacute;utica Civil">
+          </div>
+        </div>
+        <div class="title">
+          <h1>Solicitud solvencia de pago</h1>
+          <p>Departamento Financiero</p>
+          <p>Unidad Control de Ingresos</p>
+          <span class="mode-pill">Unidad FINANCIERO</span>
+        </div>
+        <div class="meta-row">
+          <label class="inline-label">Fecha:
+            <input type="date" formControlName="fecha" class="line-input fixed-date" [attr.min]="todayDate" [attr.max]="todayDate" readonly>
+          </label>
+        </div>
+        <p class="edit-banner" *ngIf="isEditingReturned()">
+          Corrigiendo formulario devuelto #{{ editingReturnedId }}. Al guardar se reenviar&aacute; al analista.
+        </p>
+        <p class="required-legend"><span class="required-reference">*</span> Campo obligatorio</p>
+      </header>
+
+      <section class="section finance-top">
+        <div class="finance-grid">
+          <label>NIT <span class="required-reference">*</span>
+            <input formControlName="nit" class="line-input" type="text">
+            <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
+          </label>
+          <label>Nombre de la Empresa <span class="required-reference">*</span>
+            <input formControlName="nombre_empresa" class="line-input" type="text">
+            <small class="error" *ngIf="getFieldError('nombre_empresa')">{{ getFieldError('nombre_empresa') }}</small>
+          </label>
+          <label>Correo Electr&oacute;nico <span class="required-reference">*</span>
+            <input formControlName="correo" class="line-input" type="email">
+            <small class="error" *ngIf="getFieldError('correo')">{{ getFieldError('correo') }}</small>
+          </label>
+          <label>N&uacute;mero de Tel&eacute;fono <span class="required-reference">*</span>
+            <input
+              formControlName="telefono"
+              class="line-input"
+              type="text"
+              maxlength="8"
+              inputmode="numeric"
+              (input)="onDigitsInput($event, 'telefono', 8)">
+            <small class="error" *ngIf="getFieldError('telefono')">{{ getFieldError('telefono') }}</small>
+          </label>
+          <label>Nombre del Solicitante <span class="required-reference">*</span>
+            <input formControlName="nombre_solicitante" class="line-input" type="text">
+            <small class="error" *ngIf="getFieldError('nombre_solicitante')">{{ getFieldError('nombre_solicitante') }}</small>
+          </label>
+          <label>DPI del Solicitante <span class="required-reference">*</span>
+            <input
+              formControlName="dpi_solicitante"
+              class="line-input"
+              type="text"
+              maxlength="13"
+              inputmode="numeric"
+              (input)="onDigitsInput($event, 'dpi_solicitante', 13)">
+            <small class="error" *ngIf="getFieldError('dpi_solicitante')">{{ getFieldError('dpi_solicitante') }}</small>
+          </label>
+          <div class="full-row upload-block">
+            <span class="upload-title">Carta de Representaci&oacute;n <span class="required-reference">*</span></span>
+            <p class="field-hint">Adjunta la carta de representaci&oacute;n en PDF. Tama&ntilde;o m&aacute;ximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="upload-inline">
+              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onCartaRepresentacionSelected($event)">
+              <span>{{ cartaRepresentacionFile?.name || existingCartaRepresentacionFilename || 'Seleccionar PDF de Carta de Representación...' }}</span>
+            </label>
+            <small class="error" *ngIf="cartaRepresentacionError">{{ cartaRepresentacionError }}</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section finance-section">
+        <h2>Seleccione la Gesti&oacute;n que desea realizar:</h2>
+        <div class="finance-select-row">
+          <label>Gesti&oacute;n <span class="required-reference">*</span>
+            <select
+              formControlName="gestion_codigo"
+              class="line-input finance-select"
+              (change)="onGestionSelectionChange($event)">
+              <option value="">Selecciona una gesti&oacute;n</option>
+              <option *ngFor="let option of groupOptions" [value]="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <small class="error" *ngIf="getFieldError('gestion_codigo')">{{ getFieldError('gestion_codigo') }}</small>
+          </label>
+        </div>
+
+        <div class="finance-option" *ngIf="currentGroup() as group">
+          <div class="selected-gestion">
+            <span class="selected-gestion-label">Gesti&oacute;n seleccionada:</span>
+            <strong>{{ group.label }}</strong>
+          </div>
+
+          <div class="sub-options process-group">
+            <p class="field-hint">Selecciona el proceso correspondiente <span class="required-reference">*</span></p>
+            <div class="process-item" *ngFor="let process of currentProcesses()">
+              <label class="checkbox-line">
+                <input type="checkbox" [checked]="isProcesoSelected(process.value)" (change)="toggleProcesoSelection(process.value)">
+                <span>{{ process.label }}</span>
+              </label>
+
+              <div class="option-body process-fields" *ngIf="isProcesoSelected(process.value)">
+                <div class="finance-grid two-col" *ngIf="process.value === 'renovacion_arrendamiento' || process.value === 'gestion_tia'">
+                  <label>&Aacute;rea <span class="required-reference">*</span>
+                    <input formControlName="area" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('area')">{{ getFieldError('area') }}</small>
+                  </label>
+                  <label>Nomenclatura del &Aacute;rea <span class="required-reference">*</span>
+                    <input formControlName="nomenclatura_area" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('nomenclatura_area')">{{ getFieldError('nomenclatura_area') }}</small>
+                  </label>
+                  <label *ngIf="process.value === 'gestion_tia'">A&ntilde;o <span class="required-reference">*</span>
+                    <input formControlName="anio" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('anio')">{{ getFieldError('anio') }}</small>
+                  </label>
+                </div>
+
+                <div class="finance-grid two-col" *ngIf="process.value === 'derecho_inspeccion'">
+                  <label>Matr&iacute;cula <span class="required-reference">*</span>
+                    <input formControlName="matricula" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('matricula')">{{ getFieldError('matricula') }}</small>
+                  </label>
+                  <label>Peso en KG <span class="required-reference">*</span>
+                    <input formControlName="peso_kg" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('peso_kg')">{{ getFieldError('peso_kg') }}</small>
+                  </label>
+                </div>
+
+                <div class="finance-grid two-col" *ngIf="
+                  process.value === 'cancelacion_matricula' ||
+                  process.value === 'certificado_operador_aereo' ||
+                  process.value === 'cambio_datos_certificados' ||
+                  process.value === 'autorizacion_vuelo_ferry' ||
+                  process.value === 'permiso_especial_vuelo' ||
+                  process.value === 'solvencia_aeronavegabilidad' ||
+                  process.value === 'solvencia_financiera_aeronave'
+                ">
+                  <label>Matr&iacute;cula <span class="required-reference">*</span>
+                    <input formControlName="matricula" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('matricula')">{{ getFieldError('matricula') }}</small>
+                  </label>
+                  <label class="full-row" *ngIf="
+                    process.value === 'cambio_datos_certificados' ||
+                    process.value === 'certificado_operador_aereo'
+                  ">Observaciones
+                    <textarea formControlName="otros_detalle" class="textarea" rows="4" placeholder="Escribe las observaciones del proceso..."></textarea>
+                  </label>
+                </div>
+
+                <div class="finance-grid two-col" *ngIf="process.value === 'derecho_aproximacion'">
+                  <label>Peso m&aacute;ximo de despegue en KGS de la aeronave <span class="required-reference">*</span>
+                    <input formControlName="peso_kg" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('peso_kg')">{{ getFieldError('peso_kg') }}</small>
+                  </label>
+                  <div class="upload-block document-card full-row inline-document-card">
+                    <span class="upload-title">Documento que indique cu&aacute;ntos KGS pesa la aeronave <span class="required-reference">*</span></span>
+                    <p class="field-hint">Sube el documento en formato PDF. M&aacute;ximo 10 MB.</p>
+                    <label class="upload-inline">
+                      <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPesoAeronavePdfSelected($event)">
+                      <span>{{ pesoAeronaveFileLabel() }}</span>
+                    </label>
+                    <small class="error" *ngIf="pesoAeronaveError">{{ pesoAeronaveError }}</small>
+                  </div>
+                  <label>Matr&iacute;cula <span class="required-reference">*</span>
+                    <input formControlName="matricula" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('matricula')">{{ getFieldError('matricula') }}</small>
+                  </label>
+                  <label class="full-row">En caso de cancelar despu&eacute;s del 01 de febrero, colocar fecha de pago para realizar el c&aacute;lculo de mora
+                    <input formControlName="fecha_pago_mora" class="line-input" type="date">
+                  </label>
+                </div>
+
+                <div class="finance-grid two-col" *ngIf="process.value === 'inspeccion_taller'">
+                  <label>Nombre de Taller <span class="required-reference">*</span>
+                    <input formControlName="nombre_taller" class="line-input" type="text">
+                    <small class="error" *ngIf="getFieldError('nombre_taller')">{{ getFieldError('nombre_taller') }}</small>
+                  </label>
+                  <label class="full-row">Observaciones
+                    <textarea formControlName="otros_detalle" class="textarea" rows="4" placeholder="Escribe las observaciones de la inspección de taller..."></textarea>
+                  </label>
+                </div>
+
+                <div class="sub-options" *ngIf="process.value === 'certificado_operativo'">
+                  <p class="field-hint">Selecciona una opci&oacute;n <span class="required-reference">*</span></p>
+                  <label class="checkbox-line">
+                    <input type="checkbox" [checked]="isCertificadoOperativoSubtipo('certificaciones')" (change)="toggleCertificadoOperativoSubtipo('certificaciones')">
+                    <span>Certificaciones</span>
+                  </label>
+                  <div class="nested-body" *ngIf="isCertificadoOperativoSubtipo('certificaciones')">
+                    <p class="field-hint">Selecciona al menos un idioma <span class="required-reference">*</span></p>
+                    <div class="checkbox-pair">
+                      <label class="checkbox-line">
+                        <input type="checkbox" [checked]="form.value.idioma_ingles" (change)="toggleIdioma('idioma_ingles')">
+                        <span>Ingl&eacute;s Q50.00</span>
+                      </label>
+                      <label class="checkbox-line">
+                        <input type="checkbox" [checked]="form.value.idioma_espanol" (change)="toggleIdioma('idioma_espanol')">
+                        <span>Espa&ntilde;ol Q50.00</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <label class="checkbox-line">
+                    <input type="checkbox" [checked]="isCertificadoOperativoSubtipo('calcomania')" (change)="toggleCertificadoOperativoSubtipo('calcomania')">
+                    <span>Calcoman&iacute;a De Circulaci&oacute;n</span>
+                  </label>
+                  <div class="nested-body" *ngIf="isCertificadoOperativoSubtipo('calcomania')">
+                    <div class="finance-grid two-col">
+                      <label>N&uacute;mero de Placa <span class="required-reference">*</span>
+                        <input formControlName="numero_placa" class="line-input" type="text">
+                        <small class="error" *ngIf="getFieldError('numero_placa')">{{ getFieldError('numero_placa') }}</small>
+                      </label>
+                      <label>Tipo de veh&iacute;culo
+                        <input formControlName="tipo_vehiculo" class="line-input" type="text">
+                      </label>
+                      <label>Color de veh&iacute;culo
+                        <input formControlName="color_vehiculo" class="line-input" type="text">
+                      </label>
+                      <label>Marca de veh&iacute;culo
+                        <input formControlName="marca_vehiculo" class="line-input" type="text">
+                      </label>
+                    </div>
+                  </div>
+
+                  <label class="checkbox-line">
+                    <input type="checkbox" [checked]="isCertificadoOperativoSubtipo('otros')" (change)="toggleCertificadoOperativoSubtipo('otros')">
+                    <span>Otros (especifique):</span>
+                  </label>
+                  <div class="nested-body" *ngIf="isCertificadoOperativoSubtipo('otros')">
+                    <label>Detalle <span class="required-reference">*</span>
+                      <input formControlName="otros_detalle" class="line-input" type="text">
+                      <small class="error" *ngIf="getFieldError('otros_detalle')">{{ getFieldError('otros_detalle') }}</small>
+                    </label>
+                  </div>
+
+                  <small class="error" *ngIf="getFieldError('certificado_operativo_subtipo')">{{ getFieldError('certificado_operativo_subtipo') }}</small>
+                </div>
+
+                <div class="amount-options" *ngIf="process.amountOptions?.length">
+                  <p class="field-hint">Selecciona un monto <span class="required-reference">*</span></p>
+                  <label class="checkbox-line" *ngFor="let amount of process.amountOptions">
+                    <input type="checkbox" [checked]="isMontoSelected(amount)" (change)="toggleMonto(amount)">
+                    <span>{{ amount }}</span>
+                  </label>
+                  <small class="error" *ngIf="getFieldError('monto_referencia')">{{ getFieldError('monto_referencia') }}</small>
+                </div>
+              </div>
+            </div>
+            <small class="error" *ngIf="getFieldError('proceso_codigo')">{{ getFieldError('proceso_codigo') }}</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section finance-section" *ngIf="form.value.gestion_codigo">
+        <h2>Documentos adjuntos del trámite</h2>
+        <p class="field-hint">Adjunta cada documento en formato PDF. Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+        <div class="finance-grid two-col documents-grid">
+          <div
+            class="upload-block document-card"
+            *ngFor="let document of financialExtraFileDefinitions"
+            [class.full-row]="document.key === 'declaraguateCirculacion'"
+            [hidden]="!shouldShowFinancialExtraFile(document)"
+          >
+            <span class="upload-title">
+              {{ document.title }}
+              <span class="required-reference" *ngIf="isFinancialExtraFileRequired(document)">*</span>
+            </span>
+            <p class="field-hint">{{ document.hint }}</p>
+            <ng-container *ngIf="document.key === 'declaraguateCirculacion'; else singleFinancialPdf">
+              <div class="declaraguate-list">
+                <div class="declaraguate-item" *ngFor="let slot of declaraguateSlots">
+                  <label class="upload-inline declaraguate-upload">
+                    <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onDeclaraguatePdfSelected($event, slot)">
+                    <span class="upload-index">Formulario {{ slot + 1 }}</span>
+                    <span class="upload-name">{{ declaraguateFileLabel(slot) }}</span>
+                  </label>
+                  <small class="error" *ngIf="financialDeclaraguateFileErrors[slot]">
+                    {{ financialDeclaraguateFileErrors[slot] }}
+                  </small>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #singleFinancialPdf>
+              <label class="upload-inline">
+                <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onFinancialExtraPdfSelected($event, document.key)">
+                <span>{{ financialExtraFileLabel(document) }}</span>
+              </label>
+              <small class="error" *ngIf="financialExtraFileErrors[document.key]">{{ financialExtraFileErrors[document.key] }}</small>
+            </ng-template>
+          </div>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Enviando...' : 'Guardar' }}
+        </button>
+        <button type="button" class="secondary" *ngIf="isEditingReturned()" (click)="cancelReturnedEdit()" [disabled]="isSubmitting">
+          Cancelar correcci&oacute;n
+        </button>
+        <div class="status" *ngIf="status" [class.success]="status.type === 'success'" [class.error]="status.type === 'error'">
+          {{ status.message }}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

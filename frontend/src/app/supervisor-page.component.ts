@@ -57,10 +57,9 @@ type StatusLegendItem = {
 };
 
 @Component({
-  selector: 'app-supervisor-page',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
+    selector: 'app-supervisor-page',
+    imports: [CommonModule, FormsModule],
+    template: `
     <section class="supervisor">
       <header class="head">
         <div>
@@ -254,7 +253,7 @@ type StatusLegendItem = {
       </section>
     </section>
   `,
-  styles: [`
+    styles: [`
     .supervisor {
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);

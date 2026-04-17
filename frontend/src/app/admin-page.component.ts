@@ -14,10 +14,9 @@ type UserRow = {
 };
 
 @Component({
-  selector: 'app-admin-page',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
+    selector: 'app-admin-page',
+    imports: [CommonModule, FormsModule],
+    template: `
     <section class="card">
       <header class="head">
         <div>
@@ -120,7 +119,7 @@ type UserRow = {
       </ng-template>
     </section>
   `,
-  styles: [`
+    styles: [`
     .card {
       padding: 18px;
       border: 1px solid var(--border);
@@ -157,9 +156,9 @@ type UserRow = {
 export class AdminPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
-  readonly roles = ['user', 'revisor', 'analista', 'aprobador', 'admin', 'supervisor'];
+  readonly roles = ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'admin', 'supervisor'];
   readonly unitOptions = ['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO'];
-  private readonly unitRoles = new Set(['revisor', 'analista', 'aprobador']);
+  private readonly unitRoles = new Set(['revisor', 'analista', 'emisor', 'aprobador']);
 
   users: UserRow[] = [];
   loading = false;
@@ -289,7 +288,7 @@ export class AdminPageComponent implements OnInit {
     this.error = '';
     this.message = '';
     if (!this.isUnitRole(u.role)) {
-      this.error = 'Solo aplica para revisor, analista o aprobador.';
+      this.error = 'Solo aplica para revisor, analista, emisor o aprobador.';
       return;
     }
     const units = this.normalizeUnits(u.unit_access);

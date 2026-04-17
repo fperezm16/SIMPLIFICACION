@@ -23,65 +23,76 @@
         <p class="edit-banner" *ngIf="isEditingReturned()">
           Corrigiendo formulario devuelto #{{ editingReturnedId }}. Al guardar se reenviará al analista.
         </p>
+        <p class="required-legend"><span class="required-reference">*</span> Campo obligatorio</p>
       </header>
 
       <section class="section">
         <h2>{{ sectionATitle() }}</h2>
-        <div class="persona-toggle">
+        <p class="field-hint" *ngIf="isRanUav">Origen de compra <span class="required-reference">*</span></p>
+        <div class="persona-toggle" *ngIf="isRanUav">
+          <button type="button" [class.active]="form.value.origen_compra === 'guatemala'" (click)="setOrigenCompra('guatemala')">Comprado en Guatemala</button>
+          <button type="button" [class.active]="form.value.origen_compra === 'extranjero'" (click)="setOrigenCompra('extranjero')">Comprado en el extranjero</button>
+        </div>
+        <small class="error" *ngIf="isRanUav && getFieldError('origen_compra')">{{ getFieldError('origen_compra') }}</small>
+        <p class="muted" *ngIf="isRanUav && !hasOrigenCompraSeleccionado()">Selecciona una opción para continuar.</p>
+
+        <div class="persona-toggle" *ngIf="!isRanUav || hasOrigenCompraSeleccionado()">
           <button type="button" [class.active]="!isJuridica()" (click)="setPersonaTipo('individual')">Persona individual</button>
           <button type="button" [class.active]="isJuridica()" (click)="setPersonaTipo('juridica')">Persona jurídica</button>
         </div>
-        <h3>Datos del propietario</h3>
+        <h3 *ngIf="!isRanUav || hasOrigenCompraSeleccionado()">Datos del propietario</h3>
 
         <ol class="fields fixed-numerals" *ngIf="!isRanUav">
           <li data-num="1">
             <div class="dual" *ngIf="isJuridica(); else ownerIndividualGeneral">
-              <label>Nombre de Entidad:
-                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Razón social de la entidad">
+              <label>Nombre de Entidad: <span class="required-reference" *ngIf="isFieldRequired('nombre_propietario')">*</span>
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Razón social de la entidad" [required]="isRanForm2">
                 <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
               </label>
-              <label>Representante Legal / Arrendatario:
+              <label>Representante Legal / Arrendatario: <span class="required-reference" *ngIf="isFieldRequired('representante_legal')">*</span>
                 <input formControlName="representante_legal" class="line-input" type="text" placeholder="Nombre completo del representante">
                 <small class="error" *ngIf="getFieldError('representante_legal')">{{ getFieldError('representante_legal') }}</small>
               </label>
             </div>
             <ng-template #ownerIndividualGeneral>
-              <label>Nombre de Empresa, Propietario:
-                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Nombre completo o razón social">
+              <label>Nombre de Empresa, Propietario: <span class="required-reference" *ngIf="isFieldRequired('nombre_propietario')">*</span>
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Nombre completo o razón social" [required]="isRanForm2">
               </label>
               <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
             </ng-template>
           </li>
           <li data-num="2">
-            <label>{{ ownerDocumentLabel() }}
+            <label>{{ ownerDocumentLabel() }} <span class="required-reference" *ngIf="isFieldRequired('documento_propietario')">*</span>
               <input
                 formControlName="documento_propietario"
                 class="line-input"
                 type="text"
                 maxlength="13"
                 inputmode="numeric"
+                [required]="isRanForm2 || isRanForm8"
                 (input)="onDigitsInput($event, 'documento_propietario', 13)">
             </label>
             <small class="error" *ngIf="getFieldError('documento_propietario')">{{ getFieldError('documento_propietario') }}</small>
           </li>
           <li [attr.data-num]="addressNumber()" *ngIf="shouldShowAddressBlock()">
-            <label>{{ addressLabel() }}
+            <label>{{ addressLabel() }} <span class="required-reference" *ngIf="isFieldRequired('direccion')">*</span>
               <input formControlName="direccion" class="line-input" type="text" placeholder="Dirección completa">
             </label>
             <small class="error" *ngIf="getFieldError('direccion')">{{ getFieldError('direccion') }}</small>
           </li>
           <li class="dual">
-            <label>Teléfono (8 dígitos):
+            <label>Teléfono (8 dígitos): <span class="required-reference" *ngIf="isFieldRequired('telefono')">*</span>
               <input
                 formControlName="telefono"
                 class="line-input"
                 type="text"
                 maxlength="8"
                 inputmode="numeric"
+                [required]="isRanForm2 || isRanForm8"
                 (input)="onDigitsInput($event, 'telefono', 8)">
               <small class="error" *ngIf="getFieldError('telefono')">{{ getFieldError('telefono') }}</small>
             </label>
-            <label>Correo Electrónico:
+            <label>Correo Electrónico: <span class="required-reference" *ngIf="isFieldRequired('correo')">*</span>
               <input formControlName="correo" class="line-input" type="email">
               <small class="error" *ngIf="getFieldError('correo')">{{ getFieldError('correo') }}</small>
             </label>
@@ -89,11 +100,13 @@
           <li [attr.data-num]="nitBlockNumber()">
             <div class="note-line">NIT y nombre a consignar en orden de pago:</div>
             <div class="dual">
-              <label>NIT:
-                <input formControlName="nit" class="line-input" type="text">
+              <label>NIT: <span class="required-reference" *ngIf="isFieldRequired('nit')">*</span>
+                <input formControlName="nit" class="line-input" type="text" [required]="isRanForm2 || isRanForm8 || isRanUav">
+                <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
               </label>
-              <label>Nombre para orden de pago:
-                <input formControlName="nombre_orden_pago" class="line-input" type="text">
+              <label>Nombre para orden de pago: <span class="required-reference" *ngIf="isFieldRequired('nombre_orden_pago')">*</span>
+                <input formControlName="nombre_orden_pago" class="line-input" type="text" [required]="isRanForm2">
+                <small class="error" *ngIf="getFieldError('nombre_orden_pago')">{{ getFieldError('nombre_orden_pago') }}</small>
               </label>
             </div>
           </li>
@@ -127,50 +140,52 @@
           </li>
         </ol>
 
-        <ol class="fields fixed-numerals" *ngIf="isRanUav">
+        <ol class="fields fixed-numerals" *ngIf="isRanUav && hasOrigenCompraSeleccionado()">
           <li data-num="1">
             <div class="dual" *ngIf="isJuridica(); else ownerIndividualUav">
-              <label>Nombre de Entidad:
-                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Razón social de la entidad">
+              <label>Nombre de Entidad: <span class="required-reference" *ngIf="isFieldRequired('nombre_propietario')">*</span>
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Razón social de la entidad" [required]="isRanForm2">
                 <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
               </label>
-              <label>Representante Legal / Arrendatario:
+              <label>Representante Legal / Arrendatario: <span class="required-reference" *ngIf="isFieldRequired('representante_legal')">*</span>
                 <input formControlName="representante_legal" class="line-input" type="text" placeholder="Nombre completo del representante">
                 <small class="error" *ngIf="getFieldError('representante_legal')">{{ getFieldError('representante_legal') }}</small>
               </label>
             </div>
             <ng-template #ownerIndividualUav>
-              <label>Nombre de Empresa, Propietario:
-                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Nombre completo o razón social">
+              <label>Nombre de Empresa, Propietario: <span class="required-reference" *ngIf="isFieldRequired('nombre_propietario')">*</span>
+                <input formControlName="nombre_propietario" class="line-input" type="text" placeholder="Nombre completo o razón social" [required]="isRanForm2">
               </label>
               <small class="error" *ngIf="getFieldError('nombre_propietario')">{{ getFieldError('nombre_propietario') }}</small>
             </ng-template>
           </li>
           <li data-num="2">
-            <label>{{ ownerDocumentLabel() }}
+            <label>{{ ownerDocumentLabel() }} <span class="required-reference" *ngIf="isFieldRequired('documento_propietario')">*</span>
               <input
                 formControlName="documento_propietario"
                 class="line-input"
                 type="text"
                 maxlength="13"
                 inputmode="numeric"
+                [required]="isRanForm2"
                 (input)="onDigitsInput($event, 'documento_propietario', 13)">
             </label>
             <small class="error" *ngIf="getFieldError('documento_propietario')">{{ getFieldError('documento_propietario') }}</small>
           </li>
           <li data-num="3">
             <div class="dual">
-              <label>Teléfonos (8 dígitos):
+              <label>Teléfono (8 dígitos): <span class="required-reference" *ngIf="isFieldRequired('telefono')">*</span>
                 <input
                   formControlName="telefono"
                   class="line-input"
                   type="text"
                   maxlength="8"
                   inputmode="numeric"
+                  [required]="isRanForm2"
                   (input)="onDigitsInput($event, 'telefono', 8)">
                 <small class="error" *ngIf="getFieldError('telefono')">{{ getFieldError('telefono') }}</small>
               </label>
-              <label>Correo Electrónico:
+              <label>Correo Electrónico: <span class="required-reference" *ngIf="isFieldRequired('correo')">*</span>
                 <input formControlName="correo" class="line-input" type="email">
                 <small class="error" *ngIf="getFieldError('correo')">{{ getFieldError('correo') }}</small>
               </label>
@@ -179,16 +194,18 @@
           <li data-num="4">
             <div class="note-line">N.I.T y nombre a consignar en orden de pago:</div>
             <div class="dual">
-              <label>NIT:
-                <input formControlName="nit" class="line-input" type="text">
+              <label>NIT: <span class="required-reference" *ngIf="isFieldRequired('nit')">*</span>
+                <input formControlName="nit" class="line-input" type="text" [required]="isRanForm2 || isRanForm8 || isRanUav">
+                <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
               </label>
-              <label>Nombre para orden de pago:
-                <input formControlName="nombre_orden_pago" class="line-input" type="text">
+              <label>Nombre para orden de pago: <span class="required-reference" *ngIf="isFieldRequired('nombre_orden_pago')">*</span>
+                <input formControlName="nombre_orden_pago" class="line-input" type="text" [required]="isRanForm2">
+                <small class="error" *ngIf="getFieldError('nombre_orden_pago')">{{ getFieldError('nombre_orden_pago') }}</small>
               </label>
             </div>
           </li>
           <li data-num="5">
-            <label>{{ addressLabel() }}
+            <label>{{ addressLabel() }} <span class="required-reference" *ngIf="isFieldRequired('direccion')">*</span>
               <input formControlName="direccion" class="line-input" type="text" placeholder="Dirección completa">
             </label>
             <small class="error" *ngIf="getFieldError('direccion')">{{ getFieldError('direccion') }}</small>
@@ -228,8 +245,8 @@
         <h2>{{ sectionBTitle() }}</h2>
         <ol class="fields" *ngIf="!isRanUav">
           <li class="dual">
-            <label>Matrícula TG/UAV-TG:
-              <input formControlName="matricula_tg" class="line-input short" type="text" placeholder="TG-">
+            <label>{{ matriculaLabel() }} <span class="required-reference" *ngIf="isFieldRequired('matricula_tg')">*</span>
+              <input formControlName="matricula_tg" class="line-input short" type="text" [placeholder]="matriculaPlaceholder()">
             </label>
             <label *ngIf="!isRanForm8">Nueva Matrícula TG (por cambio):
               <input formControlName="matricula_tg_nueva" class="line-input short" type="text" placeholder="TG-">
@@ -238,7 +255,7 @@
           </li>
           <li>
             <div class="uso-options">
-              <span>Uso:</span>
+              <span>Uso: <span class="required-reference" *ngIf="isFieldRequired('uso')">*</span></span>
               <label *ngFor="let opt of currentUsoOptions()">
                 <input type="radio" [value]="opt.value" formControlName="uso"> {{ opt.label }}
               </label>
@@ -249,7 +266,7 @@
             <label>Nombre del Fabricante:
               <input formControlName="fabricante" class="line-input" type="text">
             </label>
-            <label>Número de Serie:
+            <label>Número de Serie: <span class="required-reference" *ngIf="isFieldRequired('numero_serie')">*</span>
               <input formControlName="numero_serie" class="line-input" type="text">
               <small class="error" *ngIf="getFieldError('numero_serie')">{{ getFieldError('numero_serie') }}</small>
             </label>
@@ -293,7 +310,7 @@
           </li>
           <li data-num="5">
             <div class="uso-options">
-              <span>Uso:</span>
+              <span>Uso: <span class="required-reference" *ngIf="isFieldRequired('uso')">*</span></span>
               <label *ngFor="let opt of currentUsoOptions()">
                 <input type="radio" [value]="opt.value" formControlName="uso"> {{ opt.label }}
               </label>
@@ -305,50 +322,7 @@
         <p class="note" *ngIf="!isRanUav">Nota: los datos deben consignarse tal y como aparecen en las placas de datos de la aeronave.</p>
       </section>
 
-      <section class="section" *ngIf="showSolicitudSection()">
-        <h2>C. Tipo de solicitud</h2>
-        <div class="check-grid" *ngIf="!isRanUav">
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_internacion">
-            <span>1. Internación de la Aeronave (0125)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_reservacion">
-            <span>2. Reservación de Matrícula (0105)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_inscripcion">
-            <span>3. Inscripción en e-DRAN (0100)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_certificado_prov">
-            <span>4. Certificado de Matrícula Provisional (0200)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_reposicion">
-            <span>5. Reposición de Certificado (0200)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_cambio_prop">
-            <span>6. Cambio de Propietario (0400)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_cambio_datos">
-            <span>7. Cambio de datos en Certificados (0105)</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" formControlName="tipo_certificacion">
-            <span>8. Certificación (050)</span>
-          </label>
-        </div>
-
-        <div class="check-grid" *ngIf="isRanUav">
-          <label class="check-item" *ngFor="let row of droneSolicitudRows()">
-            <input type="checkbox" [formControlName]="row.key">
-            <span>{{ row.label }}</span>
-          </label>
-        </div>
-
+      <section class="section">
         <div class="spec">
           <label>{{ isRanUav ? '6. Especificaciones u Observaciones de la solicitud:' : 'Especificaciones o Motivos de la Solicitud:' }}
             <textarea rows="3" formControlName="especificaciones" class="line-input textarea"></textarea>
@@ -357,38 +331,124 @@
       </section>
 
       <section class="section upload">
-        <h2>Adjuntar DPI (obligatorio)</h2>
-        <p class="muted">Carga el DPI del solicitante en formato PDF antes de guardar.</p>
-        <label class="file-label">
-          <input type="file" accept="application/pdf" (change)="onFileSelected($event)">
-          <span>{{ dpiFile?.name || 'Seleccionar PDF...' }}</span>
-        </label>
-        <small class="muted" *ngIf="isEditingReturned() && existingDpiName && !dpiFile">DPI actual: {{ existingDpiName }}</small>
-        <small class="error" *ngIf="dpiError">{{ dpiError }}</small>
-
-        <div class="extra-upload" *ngIf="isJuridica()">
-          <h2>Acta de Nombramiento del Representante Legal de la Entidad Propietaria/Arrendataria (obligatorio)</h2>
-          <p class="muted">Carga el acta notarial de la persona jurídica en formato PDF.</p>
+        <ng-container *ngIf="isRanUav; else defaultUploads">
+          <h2>{{ actaUploadTitle() }} <span class="required-reference" *ngIf="requiresExtraUploadDocs()">*</span></h2>
+          <p class="muted">{{ actaUploadDescription() }}</p>
+          <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
           <label class="file-label">
-            <input type="file" accept="application/pdf" (change)="onActaSelected($event)">
-            <span>{{ actaFile?.name || 'Seleccionar PDF del Acta de Nombramiento...' }}</span>
+            <input type="file" accept="application/pdf" [required]="requiresExtraUploadDocs()" (change)="onActaSelected($event)">
+            <span>{{ actaFile?.name || actaUploadPlaceholder() }}</span>
           </label>
-          <small class="muted" *ngIf="isEditingReturned() && existingActaName && !actaFile">Acta actual: {{ existingActaName }}</small>
+          <small class="muted" *ngIf="isEditingReturned() && existingActaName && !actaFile">Dictamen técnico actual: {{ existingActaName }}</small>
           <small class="error" *ngIf="actaError">{{ actaError }}</small>
 
-          <h2>Registro Mercantil General de la República (obligatorio)</h2>
-          <p class="muted">Carga el registro mercantil de la entidad en formato PDF.</p>
+          <h2>{{ dpiUploadTitle() }} <span class="required-reference">*</span></h2>
+          <p class="muted" *ngIf="requiresRpaJuridicaGuatemalaDocs()">Carga el DPI del representante legal en formato PDF.</p>
+          <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
           <label class="file-label">
-            <input type="file" accept="application/pdf" (change)="onRegistroMercantilSelected($event)">
-            <span>{{ registroMercantilFile?.name || 'Seleccionar PDF del Registro Mercantil...' }}</span>
+            <input type="file" accept="application/pdf" (change)="onFileSelected($event)">
+            <span>{{ dpiFile?.name || 'Seleccionar PDF...' }}</span>
           </label>
-          <small class="muted" *ngIf="isEditingReturned() && existingRegistroMercantilName && !registroMercantilFile">Registro mercantil actual: {{ existingRegistroMercantilName }}</small>
+          <small class="muted" *ngIf="isEditingReturned() && existingDpiName && !dpiFile">DPI actual: {{ existingDpiName }}</small>
+          <small class="error" *ngIf="dpiError">{{ dpiError }}</small>
+
+          <h2>{{ registroUploadTitle() }} <span class="required-reference" *ngIf="requiresExtraUploadDocs()">*</span></h2>
+          <p class="muted">{{ registroUploadDescription() }}</p>
+          <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+          <label class="file-label">
+            <input type="file" accept="application/pdf" [required]="requiresExtraUploadDocs()" (change)="onRegistroMercantilSelected($event)">
+            <span>{{ registroMercantilFile?.name || registroUploadPlaceholder() }}</span>
+          </label>
+          <small class="muted" *ngIf="isEditingReturned() && existingRegistroMercantilName && !registroMercantilFile">Documento actual: {{ existingRegistroMercantilName }}</small>
           <small class="error" *ngIf="registroMercantilError">{{ registroMercantilError }}</small>
-        </div>
+
+          <ng-container *ngIf="requiresRpaJuridicaGuatemalaDocs()">
+            <h2>4. Copia simple del Acta Notarial de Nombramiento del representante legal de la entidad propietaria/arrendataria <span class="required-reference">*</span></h2>
+            <p class="muted">Carga la copia simple del Acta Notarial de Nombramiento en formato PDF.</p>
+            <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="file-label">
+              <input type="file" accept="application/pdf" [required]="requiresRpaJuridicaGuatemalaDocs()" (change)="onRpaActaNombramientoSelected($event)">
+              <span>{{ rpaActaNombramientoFile?.name || 'Seleccionar PDF del Acta Notarial...' }}</span>
+            </label>
+            <small class="muted" *ngIf="isEditingReturned() && existingRpaActaNombramientoName && !rpaActaNombramientoFile">
+              Documento actual: {{ existingRpaActaNombramientoName }}
+            </small>
+            <small class="error" *ngIf="rpaActaNombramientoError">{{ rpaActaNombramientoError }}</small>
+
+            <h2>5. Certificación de la inscripción del Representante Legal en el Registro Mercantil <span class="required-reference">*</span></h2>
+            <p class="muted">Carga la certificación de inscripción del representante legal en formato PDF.</p>
+            <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="file-label">
+              <input type="file" accept="application/pdf" [required]="requiresRpaJuridicaGuatemalaDocs()" (change)="onRpaRegistroRepresentanteSelected($event)">
+              <span>{{ rpaRegistroRepresentanteFile?.name || 'Seleccionar PDF de certificación del representante legal...' }}</span>
+            </label>
+            <small class="muted" *ngIf="isEditingReturned() && existingRpaRegistroRepresentanteName && !rpaRegistroRepresentanteFile">
+              Documento actual: {{ existingRpaRegistroRepresentanteName }}
+            </small>
+            <small class="error" *ngIf="rpaRegistroRepresentanteError">{{ rpaRegistroRepresentanteError }}</small>
+
+            <h2>6. Certificación de la inscripción de la entidad en el Registro Mercantil <span class="required-reference">*</span></h2>
+            <p class="muted">Carga la certificación de inscripción de la entidad en formato PDF.</p>
+            <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="file-label">
+              <input type="file" accept="application/pdf" [required]="requiresRpaJuridicaGuatemalaDocs()" (change)="onRpaRegistroEntidadSelected($event)">
+              <span>{{ rpaRegistroEntidadFile?.name || 'Seleccionar PDF de certificación de la entidad...' }}</span>
+            </label>
+            <small class="muted" *ngIf="isEditingReturned() && existingRpaRegistroEntidadName && !rpaRegistroEntidadFile">
+              Documento actual: {{ existingRpaRegistroEntidadName }}
+            </small>
+            <small class="error" *ngIf="rpaRegistroEntidadError">{{ rpaRegistroEntidadError }}</small>
+
+            <h2>7. En caso de ser una entidad del Estado/Organización no Gubernamental, adjuntar documento que acredite la calidad con que actúa, debidamente inscrito en el Registro Mercantil</h2>
+            <p class="muted">Este documento aplica solo cuando corresponda.</p>
+            <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="file-label">
+              <input type="file" accept="application/pdf" (change)="onRpaDocumentoEstadoSelected($event)">
+              <span>{{ rpaDocumentoEstadoFile?.name || 'Seleccionar PDF del documento de acreditación...' }}</span>
+            </label>
+            <small class="muted" *ngIf="isEditingReturned() && existingRpaDocumentoEstadoName && !rpaDocumentoEstadoFile">
+              Documento actual: {{ existingRpaDocumentoEstadoName }}
+            </small>
+            <small class="error" *ngIf="rpaDocumentoEstadoError">{{ rpaDocumentoEstadoError }}</small>
+          </ng-container>
+        </ng-container>
+
+        <ng-template #defaultUploads>
+          <h2>{{ dpiUploadTitle() }} <span class="required-reference">*</span></h2>
+          <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+          <label class="file-label">
+            <input type="file" accept="application/pdf" (change)="onFileSelected($event)">
+            <span>{{ dpiFile?.name || 'Seleccionar PDF...' }}</span>
+          </label>
+          <small class="muted" *ngIf="isEditingReturned() && existingDpiName && !dpiFile">DPI actual: {{ existingDpiName }}</small>
+          <small class="error" *ngIf="dpiError">{{ dpiError }}</small>
+
+          <div class="extra-upload" *ngIf="requiresExtraUploadDocs()">
+            <h2>{{ actaUploadTitle() }} <span class="required-reference">*</span></h2>
+            <p class="muted">{{ actaUploadDescription() }}</p>
+            <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="file-label">
+              <input type="file" accept="application/pdf" [required]="requiresExtraUploadDocs()" (change)="onActaSelected($event)">
+              <span>{{ actaFile?.name || actaUploadPlaceholder() }}</span>
+            </label>
+            <small class="muted" *ngIf="isEditingReturned() && existingActaName && !actaFile">Acta actual: {{ existingActaName }}</small>
+            <small class="error" *ngIf="actaError">{{ actaError }}</small>
+
+            <p class="muted">{{ registroUploadDescription() }}</p>
+            <p class="field-hint">Registro mercantil <span class="required-reference">*</span></p>
+            <p class="field-hint">Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
+            <label class="file-label">
+              <input type="file" accept="application/pdf" [required]="requiresExtraUploadDocs()" (change)="onRegistroMercantilSelected($event)">
+              <span>{{ registroMercantilFile?.name || registroUploadPlaceholder() }}</span>
+            </label>
+            <small class="muted" *ngIf="isEditingReturned() && existingRegistroMercantilName && !registroMercantilFile">Registro mercantil actual: {{ existingRegistroMercantilName }}</small>
+            <small class="error" *ngIf="registroMercantilError">{{ registroMercantilError }}</small>
+          </div>
+        </ng-template>
       </section>
 
       <section class="section" *ngIf="isRanForm2 || isRanForm8">
-        <h2>Observaciones del solicitante (opcional)</h2>
+        <h2>C. Observaciones del solicitante (opcional)</h2>
         <label>Si necesitas agregar información adicional:
           <textarea rows="3" formControlName="especificaciones" class="line-input textarea" placeholder="Escribe tus observaciones aquí..."></textarea>
         </label>
@@ -413,5 +473,4 @@
     </footer>
   </div>
 </div>
-
 

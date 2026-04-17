@@ -1,0 +1,205 @@
+@import './form-page.component.css';
+
+.finance-top,
+.finance-section {
+  border-top: none;
+  padding-top: 0;
+}
+
+.finance-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.finance-grid.two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.documents-grid {
+  align-items: start;
+  gap: 14px;
+}
+
+.full-row {
+  grid-column: 1 / -1;
+}
+
+.upload-block {
+  display: grid;
+  gap: 8px;
+}
+
+.document-card {
+  align-self: start;
+  border: 1px solid #d6e6f2;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: #fbfdff;
+  box-shadow: 0 10px 24px rgba(18, 54, 84, 0.05);
+}
+
+.inline-document-card {
+  box-shadow: none;
+  background: #f8fcff;
+}
+
+.upload-title {
+  font-weight: 600;
+  color: #123654;
+}
+
+.finance-option {
+  border: 1px solid #d6e6f2;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: #fdfefe;
+  box-shadow: var(--shadow-soft);
+}
+
+.main-option {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.finance-select-row {
+  margin-bottom: 16px;
+}
+
+.finance-select {
+  appearance: auto;
+  background: #fff;
+}
+
+.selected-gestion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 15px;
+}
+
+.selected-gestion-label {
+  color: #526983;
+}
+
+.option-index {
+  width: 22px;
+  display: inline-block;
+}
+
+.checkbox-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkbox-line input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.option-body,
+.nested-body {
+  margin-top: 12px;
+  padding-left: 28px;
+}
+
+.sub-options {
+  display: grid;
+  gap: 10px;
+}
+
+.process-group {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed #d6e6f2;
+}
+
+.process-item {
+  display: grid;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e4eef6;
+}
+
+.process-item:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.process-fields {
+  margin-top: 0;
+}
+
+.checkbox-pair,
+.amount-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.upload-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px dashed #a9cce4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  cursor: pointer;
+  width: 100%;
+  min-height: 46px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.upload-inline:hover {
+  border-color: #159bd3;
+  background: #f3fbff;
+}
+
+.upload-inline input[type='file'] {
+  display: none;
+}
+
+.declaraguate-upload {
+  width: 100%;
+  max-width: none;
+}
+
+.declaraguate-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.declaraguate-item {
+  display: grid;
+  gap: 5px;
+}
+
+.upload-index {
+  flex: 0 0 auto;
+  font-weight: 700;
+  color: #123654;
+}
+
+.upload-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #0d2238;
+}
+
+@media (max-width: 800px) {
+  .finance-grid.two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .option-body,
+  .nested-body {
+    padding-left: 0;
+  }
+}

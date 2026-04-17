@@ -85,6 +85,7 @@ Para desplegar actualizaciones en PoC:
 - Formulario general: `/formulario`
 - Formulario RAN "Reserva, Prorroga o Cesion de Matricula": `/ran/formulario-2`
 - Formulario RAN "Certificacion": `/ran/formulario-8`
+- Formulario FINANCIERO "Solicitud de solvencia de pago": `/financiero/solvencia-pago`
 - Revision: `/revision`
 - Supervision: `/supervision`
 - Admin: `/admin`

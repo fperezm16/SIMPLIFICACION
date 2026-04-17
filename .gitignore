@@ -29,3 +29,7 @@ Thumbs.db
 
 # temporary artifacts
 backend/test-pdf-output.pdf
+entrega/*.zip
+entrega/ver_front_nube/
+backups/*.backup
+backups/*.sql

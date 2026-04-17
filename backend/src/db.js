@@ -1,9 +1,30 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
+function shouldUseInsecureSsl(connectionString = "") {
+  const sslFlag = String(process.env.DB_SSL_NO_VERIFY || "").trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(sslFlag)) return true;
+
+  try {
+    const hostname = new URL(connectionString).hostname.toLowerCase();
+    return hostname.includes("amazonaws.com");
+  } catch {
+    return false;
+  }
+}
+
+function buildPoolConfig() {
+  const connectionString = process.env.DATABASE_URL;
+  const config = { connectionString };
+
+  if (shouldUseInsecureSsl(connectionString || "")) {
+    config.ssl = { rejectUnauthorized: false };
+  }
+
+  return config;
+}
+
+const pool = new Pool(buildPoolConfig());
 
 async function init() {
   // Users table for auth
@@ -35,6 +56,7 @@ async function init() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       fecha DATE,
       persona_tipo TEXT NOT NULL DEFAULT 'individual',
+      origen_compra TEXT,
       unidad_clave TEXT NOT NULL DEFAULT 'GENERAL',
       gestion_nombre TEXT,
       registro_codigo TEXT,
@@ -67,28 +89,64 @@ async function init() {
       tipo_cambio_datos BOOLEAN DEFAULT FALSE,
       tipo_certificacion BOOLEAN DEFAULT FALSE,
       especificaciones TEXT,
+      detalle_formulario JSONB,
       comentarios_revision TEXT,
       dpi_pdf BYTEA,
       dpi_filename TEXT,
       dpi_mime TEXT,
+      financial_declaraguate_2_pdf BYTEA,
+      financial_declaraguate_2_filename TEXT,
+      financial_declaraguate_2_mime TEXT,
+      financial_declaraguate_3_pdf BYTEA,
+      financial_declaraguate_3_filename TEXT,
+      financial_declaraguate_3_mime TEXT,
+      financial_declaraguate_4_pdf BYTEA,
+      financial_declaraguate_4_filename TEXT,
+      financial_declaraguate_4_mime TEXT,
+      financial_declaraguate_5_pdf BYTEA,
+      financial_declaraguate_5_filename TEXT,
+      financial_declaraguate_5_mime TEXT,
       acta_pdf BYTEA,
       acta_filename TEXT,
       acta_mime TEXT,
       registro_mercantil_pdf BYTEA,
       registro_mercantil_filename TEXT,
       registro_mercantil_mime TEXT,
+      rpa_acta_nombramiento_pdf BYTEA,
+      rpa_acta_nombramiento_filename TEXT,
+      rpa_acta_nombramiento_mime TEXT,
+      rpa_registro_representante_pdf BYTEA,
+      rpa_registro_representante_filename TEXT,
+      rpa_registro_representante_mime TEXT,
+      rpa_registro_entidad_pdf BYTEA,
+      rpa_registro_entidad_filename TEXT,
+      rpa_registro_entidad_mime TEXT,
+      rpa_documento_estado_pdf BYTEA,
+      rpa_documento_estado_filename TEXT,
+      rpa_documento_estado_mime TEXT,
+      carta_representacion_pdf BYTEA,
+      carta_representacion_filename TEXT,
+      carta_representacion_mime TEXT,
       analyst_pdf BYTEA,
       analyst_pdf_filename TEXT,
       analyst_pdf_mime TEXT,
       analyst_pdf_uploaded_at TIMESTAMPTZ,
       analyst_pdf_uploaded_by_user_id INTEGER,
       assigned_analista_id INTEGER,
+      assigned_emisor_id INTEGER,
       assigned_aprobador_id INTEGER,
+      sent_to_emisor_at TIMESTAMPTZ,
       sent_to_aprobador_at TIMESTAMPTZ,
+      signed_pdf BYTEA,
+      signed_pdf_filename TEXT,
+      signed_pdf_mime TEXT,
+      signed_pdf_uploaded_at TIMESTAMPTZ,
       receptor_opened_at TIMESTAMPTZ,
       created_by_user_id INTEGER,
       approved_at TIMESTAMPTZ,
       approved_by_user_id INTEGER,
+      delivered_at TIMESTAMPTZ,
+      delivered_by_user_id INTEGER,
       returned_at TIMESTAMPTZ,
       returned_reason TEXT,
       returned_by_user_id INTEGER,
@@ -163,6 +221,7 @@ async function init() {
     "CREATE INDEX IF NOT EXISTS users_email_verification_token_idx ON users(email_verification_token) WHERE email_verification_token IS NOT NULL",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fecha DATE",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS persona_tipo TEXT NOT NULL DEFAULT 'individual'",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS origen_compra TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS unidad_clave TEXT NOT NULL DEFAULT 'GENERAL'",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS gestion_nombre TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS registro_codigo TEXT",
@@ -195,28 +254,64 @@ async function init() {
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tipo_cambio_datos BOOLEAN DEFAULT FALSE",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS tipo_certificacion BOOLEAN DEFAULT FALSE",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS especificaciones TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS detalle_formulario JSONB",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS comentarios_revision TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS dpi_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS dpi_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS dpi_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_2_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_2_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_2_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_3_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_3_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_3_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_4_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_4_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_4_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_5_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_5_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS financial_declaraguate_5_mime TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS acta_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS acta_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS acta_mime TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS registro_mercantil_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS registro_mercantil_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS registro_mercantil_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_acta_nombramiento_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_acta_nombramiento_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_acta_nombramiento_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_registro_representante_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_registro_representante_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_registro_representante_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_registro_entidad_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_registro_entidad_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_registro_entidad_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_documento_estado_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_documento_estado_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_documento_estado_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS carta_representacion_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS carta_representacion_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS carta_representacion_mime TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS analyst_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS analyst_pdf_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS analyst_pdf_mime TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS analyst_pdf_uploaded_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS analyst_pdf_uploaded_by_user_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS assigned_analista_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS assigned_emisor_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS assigned_aprobador_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS sent_to_emisor_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS sent_to_aprobador_at TIMESTAMPTZ",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signed_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signed_pdf_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signed_pdf_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signed_pdf_uploaded_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS receptor_opened_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS delivered_by_user_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS returned_reason TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS returned_by_user_id INTEGER",
@@ -249,11 +344,39 @@ async function init() {
        IF NOT EXISTS (
          SELECT 1
          FROM pg_constraint
+         WHERE conname = 'submissions_assigned_emisor_fkey'
+       ) THEN
+         ALTER TABLE submissions
+           ADD CONSTRAINT submissions_assigned_emisor_fkey
+           FOREIGN KEY (assigned_emisor_id)
+           REFERENCES users(id)
+           ON DELETE SET NULL;
+       END IF;
+     END $$`,
+    `DO $$
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1
+         FROM pg_constraint
          WHERE conname = 'submissions_analyst_pdf_uploaded_by_fkey'
        ) THEN
          ALTER TABLE submissions
            ADD CONSTRAINT submissions_analyst_pdf_uploaded_by_fkey
            FOREIGN KEY (analyst_pdf_uploaded_by_user_id)
+           REFERENCES users(id)
+           ON DELETE SET NULL;
+       END IF;
+     END $$`,
+    `DO $$
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1
+         FROM pg_constraint
+         WHERE conname = 'submissions_delivered_by_user_fkey'
+       ) THEN
+         ALTER TABLE submissions
+           ADD CONSTRAINT submissions_delivered_by_user_fkey
+           FOREIGN KEY (delivered_by_user_id)
            REFERENCES users(id)
            ON DELETE SET NULL;
        END IF;

@@ -1,0 +1,242 @@
+﻿<div class="page">
+  <div class="document">
+    <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <header class="doc-header">
+        <div class="logos">
+          <img class="mciv-official-logo" src="assets/mciv-oficial.png" alt="Ministerio de Comunicaciones">
+          <img class="dgac-official-logo" src="assets/dgac-oficial.png" alt="Dirección General de Aeronáutica Civil">
+        </div>
+        <div class="title">
+          <h1>Formulario de solicitud para trabajos de infraestructura</h1>
+          <p>Ingreso y egreso de herramienta, mercadería y mobiliario</p>
+          <p>Aeropuerto Internacional "La Aurora"</p>
+          <span class="mode-pill">Unidad AILA</span>
+        </div>
+        <p class="edit-banner" *ngIf="isEditingReturned()">
+          Corrigiendo formulario devuelto #{{ editingReturnedId }}. Al guardar se reenviará al analista.
+        </p>
+        <p class="required-legend"><span class="required-reference">*</span> Campo obligatorio</p>
+      </header>
+
+      <section class="section">
+        <div class="section-title"><span>1</span><h2>Clasifique tipo de permiso</h2></div>
+        <div class="permit-options">
+          <label class="option-card">
+            <input type="radio" formControlName="tipo_permiso" value="generico">
+            <strong>Permiso genérico</strong>
+            <small>Solicitudes de mantenimiento, infraestructura, ingreso o egreso de herramienta, mercadería y mobiliario que deben gestionarse con 72 horas de anticipación.</small>
+          </label>
+          <label class="option-card">
+            <input type="radio" formControlName="tipo_permiso" value="urgente">
+            <strong>Permiso urgente</strong>
+            <small>Solicitud que requiere atención inmediata por continuidad operativa o seguridad de personas e instalaciones.</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>2</span><h2>Datos del permiso</h2></div>
+        <div class="form-grid">
+          <label>Fecha de solicitud
+            <input type="date" formControlName="fecha" [attr.min]="todayDate" [attr.max]="todayDate" readonly>
+          </label>
+          <label>Empresa / Arrendatario <span class="required-reference">*</span>
+            <input formControlName="empresa_arrendatario" type="text">
+            <small class="error" *ngIf="getFieldError('empresa_arrendatario')">{{ getFieldError('empresa_arrendatario') }}</small>
+          </label>
+          <label>Área de destino a visitar <span class="required-reference">*</span>
+            <input formControlName="area_destino" type="text">
+            <small class="error" *ngIf="getFieldError('area_destino')">{{ getFieldError('area_destino') }}</small>
+          </label>
+          <label>Motivo de la visita <span class="required-reference">*</span>
+            <input formControlName="motivo_visita" type="text">
+            <small class="error" *ngIf="getFieldError('motivo_visita')">{{ getFieldError('motivo_visita') }}</small>
+          </label>
+          <label>Fecha de ingreso <span class="required-reference">*</span>
+            <input formControlName="fecha_ingreso" type="date">
+            <small class="error" *ngIf="getFieldError('fecha_ingreso')">{{ getFieldError('fecha_ingreso') }}</small>
+          </label>
+          <label>Días solicitados <span class="required-reference">*</span>
+            <input formControlName="dias_solicitados" type="text">
+            <small class="error" *ngIf="getFieldError('dias_solicitados')">{{ getFieldError('dias_solicitados') }}</small>
+          </label>
+          <label>No. telefónico para notificaciones <span class="required-reference">*</span>
+            <input formControlName="telefono_notificaciones" type="text" maxlength="8" inputmode="numeric" (input)="onDigitsInput($event, 'telefono_notificaciones', 8)">
+            <small class="error" *ngIf="getFieldError('telefono_notificaciones')">{{ getFieldError('telefono_notificaciones') }}</small>
+          </label>
+          <label>Hora de ingreso <span class="required-reference">*</span>
+            <input formControlName="hora_ingreso" type="time">
+            <small class="error" *ngIf="getFieldError('hora_ingreso')">{{ getFieldError('hora_ingreso') }}</small>
+          </label>
+          <label class="span-2">Correo electrónico para notificaciones <span class="required-reference">*</span>
+            <input formControlName="correo_notificaciones" type="email">
+            <small class="error" *ngIf="getFieldError('correo_notificaciones')">{{ getFieldError('correo_notificaciones') }}</small>
+          </label>
+        </div>
+        <div class="upload-grid">
+          <div class="upload-block">
+            <span class="upload-title">Carta de solicitud en hoja membretada <span class="required-reference">*</span></span>
+            <p class="field-hint">Firmada por la persona registrada en la Unidad de Emisión de Tarjetas de Identificación. Máximo 10 MB por PDF.</p>
+            <label class="upload-inline">
+              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'cartaSolicitud')">
+              <span>{{ fileLabel('cartaSolicitud', 'Seleccionar PDF de carta de solicitud...') }}</span>
+            </label>
+            <small class="error" *ngIf="fileErrors.cartaSolicitud">{{ fileErrors.cartaSolicitud }}</small>
+          </div>
+          <div class="upload-block">
+            <span class="upload-title">Factura reciente de arrendamiento / solvencia <span class="required-reference">*</span></span>
+            <p class="field-hint">Adjunta la factura o solvencia reciente. Máximo 10 MB por PDF.</p>
+            <label class="upload-inline">
+              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'facturaSolvencia')">
+              <span>{{ fileLabel('facturaSolvencia', 'Seleccionar PDF de factura o solvencia...') }}</span>
+            </label>
+            <small class="error" *ngIf="fileErrors.facturaSolvencia">{{ fileErrors.facturaSolvencia }}</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>3</span><h2>Personas a ingresar</h2></div>
+        <p class="field-hint">
+          Puedes agregar más casillas si ingresarán más de ocho personas. Por cada 8 personas debes registrar 1 escolta.
+        </p>
+        <div class="table-like people">
+          <div class="row header"><span>#</span><span>Nombres y apellidos completos como DPI</span><span>No. DPI / Pasaporte</span><span>Nacionalidad</span></div>
+          <div class="row" *ngFor="let idx of peopleRows">
+            <span>{{ idx }}</span>
+            <input [formControlName]="'persona' + idx + '_nombre'" type="text">
+            <input [formControlName]="'persona' + idx + '_documento'" type="text">
+            <input [formControlName]="'persona' + idx + '_nacionalidad'" type="text">
+          </div>
+        </div>
+        <small class="error" *ngIf="getFieldError('persona1_nombre') || getFieldError('persona1_documento') || getFieldError('persona1_nacionalidad')">
+          La primera persona es obligatoria.
+        </small>
+        <small class="error" *ngIf="hasPeopleRowErrors()">
+          Completa nombre, documento y nacionalidad de cada persona ingresada.
+        </small>
+        <div class="table-actions">
+          <button type="button" class="secondary" (click)="addPersonRow()" [disabled]="isSubmitting">Agregar persona</button>
+          <button type="button" class="secondary" *ngIf="peopleRows.length > minPeopleRows" (click)="removeLastPersonRow()" [disabled]="isSubmitting">Quitar última casilla</button>
+          <span class="field-hint">Personas ingresadas: {{ filledPeopleCount() }} · Escoltas requeridos: {{ requiredEscortCount() }}</span>
+        </div>
+        <div class="upload-block">
+          <span class="upload-title">DPI, fe de edad o pasaporte de las personas <span class="required-reference">*</span></span>
+          <p class="field-hint">Adjuntar imagen en PDF en copia simple a color.</p>
+          <label class="upload-inline">
+            <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'personasDocumentos')">
+            <span>{{ fileLabel('personasDocumentos', 'Seleccionar PDF de documentos de personas...') }}</span>
+          </label>
+          <small class="error" *ngIf="fileErrors.personasDocumentos">{{ fileErrors.personasDocumentos }}</small>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>4</span><h2>Datos de escolta</h2></div>
+        <p class="field-hint">
+          Debes registrar {{ requiredEscortCount() }} escolta(s) según la cantidad de personas ingresadas. Los escoltas marcados con <span class="required-reference">*</span> son obligatorios.
+        </p>
+        <div class="table-like escorts">
+          <div class="row header"><span>#</span><span>Nombre y apellido según T.I.A.</span><span>No. teléfono</span><span>No. T.I.A.</span><span>Vencimiento T.I.A.</span><span>No. contraseña</span></div>
+          <div class="row" *ngFor="let idx of escortRows">
+            <span>{{ idx }} <span class="required-reference" *ngIf="isEscortRequired(idx)">*</span></span>
+            <input [formControlName]="'escolta' + idx + '_nombre'" type="text">
+            <input [formControlName]="'escolta' + idx + '_telefono'" type="text" maxlength="8" inputmode="numeric" (input)="onDigitsInput($event, 'escolta' + idx + '_telefono', 8)">
+            <input [formControlName]="'escolta' + idx + '_tia'" type="text">
+            <input [formControlName]="'escolta' + idx + '_vencimiento_tia'" type="date">
+            <input [formControlName]="'escolta' + idx + '_contrasena'" type="text">
+          </div>
+        </div>
+        <small class="error" *ngIf="getFieldError('escolta1_nombre') || getFieldError('escolta1_telefono') || getFieldError('escolta1_tia') || getFieldError('escolta1_vencimiento_tia')">
+          Los datos del primer escolta son obligatorios.
+        </small>
+        <small class="error" *ngIf="hasEscortRowErrors()">
+          Completa nombre, teléfono, T.I.A. y vencimiento de cada escolta obligatorio.
+        </small>
+        <div class="upload-grid">
+          <div class="upload-block">
+            <span class="upload-title">Tarjeta de Identificación Aeroportuaria <span class="required-reference">*</span></span>
+            <label class="upload-inline">
+              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'tiaEscoltas')">
+              <span>{{ fileLabel('tiaEscoltas', 'Seleccionar PDF de T.I.A....') }}</span>
+            </label>
+            <small class="error" *ngIf="fileErrors.tiaEscoltas">{{ fileErrors.tiaEscoltas }}</small>
+          </div>
+          <div class="upload-block">
+            <span class="upload-title">Contraseña del escolta</span>
+            <p class="field-hint">Adjuntar si la T.I.A. está vencida y en trámite.</p>
+            <label class="upload-inline">
+              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'contrasenaEscoltas')">
+              <span>{{ fileLabel('contrasenaEscoltas', 'Seleccionar PDF de contraseña...') }}</span>
+            </label>
+            <small class="error" *ngIf="fileErrors.contrasenaEscoltas">{{ fileErrors.contrasenaEscoltas }}</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>5</span><h2>Herramienta, mercadería y/o mobiliario</h2></div>
+        <div class="table-like items">
+          <div class="row header"><span>#</span><span>Cantidad</span><span>Descripción</span></div>
+          <div class="row" *ngFor="let idx of itemRows">
+            <span>{{ idx }}</span>
+            <input [formControlName]="'herramienta' + idx + '_cantidad'" type="text">
+            <input [formControlName]="'herramienta' + idx + '_descripcion'" type="text">
+          </div>
+        </div>
+        <div class="table-actions">
+          <button type="button" class="secondary" (click)="addItemRow()" [disabled]="isSubmitting">Agregar casilla</button>
+          <button type="button" class="secondary" *ngIf="itemRows.length > minItemRows" (click)="removeLastItemRow()" [disabled]="isSubmitting">Quitar última casilla</button>
+          <span class="field-hint">Casillas disponibles: {{ itemRows.length }}</span>
+        </div>
+        <div class="upload-block">
+          <span class="upload-title">Fotografías de herramienta, mercadería y/o mobiliario</span>
+          <p class="field-hint">Obligatorio si ingresas información en esta sección.</p>
+          <label class="upload-inline">
+            <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'herramientasFotos')">
+            <span>{{ fileLabel('herramientasFotos', 'Seleccionar PDF de fotografías...') }}</span>
+          </label>
+          <small class="error" *ngIf="fileErrors.herramientasFotos">{{ fileErrors.herramientasFotos }}</small>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-title"><span>6</span><h2>Ingreso de vehículo</h2></div>
+        <div class="table-like vehicles">
+          <div class="row header"><span>#</span><span>No. placa</span><span>Tipo vehículo</span></div>
+          <div class="row" *ngFor="let idx of vehicleRows">
+            <span>{{ idx }}</span>
+            <input [formControlName]="'vehiculo' + idx + '_placa'" type="text">
+            <input [formControlName]="'vehiculo' + idx + '_tipo'" type="text">
+          </div>
+        </div>
+        <div class="upload-block">
+          <span class="upload-title">Tarjeta de circulación de cada vehículo</span>
+          <p class="field-hint">Obligatorio si ingresas vehículos.</p>
+          <label class="upload-inline">
+            <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'vehiculosTarjeta')">
+            <span>{{ fileLabel('vehiculosTarjeta', 'Seleccionar PDF de tarjeta de circulación...') }}</span>
+          </label>
+          <small class="error" *ngIf="fileErrors.vehiculosTarjeta">{{ fileErrors.vehiculosTarjeta }}</small>
+        </div>
+      </section>
+
+      <section class="section admin-only">
+        <h2>Uso exclusivo administración aeroportuaria</h2>
+        <p>Las secciones de escolta por Administración Aeroportuaria, trabajos mayores, firmas y consultas AVSEC serán completadas por la administración durante la revisión interna.</p>
+      </section>
+
+      <div class="actions">
+        <button type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Enviando...' : 'Guardar' }}
+        </button>
+        <button type="button" class="secondary" *ngIf="isEditingReturned()" (click)="cancelReturnedEdit()" [disabled]="isSubmitting">
+          Cancelar corrección
+        </button>
+        <div class="status" *ngIf="status" [class.success]="status.type === 'success'" [class.error]="status.type === 'error'">
+          {{ status.message }}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
