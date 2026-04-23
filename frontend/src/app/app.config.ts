@@ -19,6 +19,8 @@ import { AilaFormPageComponent } from './aila-form-page.component';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter([
+      
+      {path: 'pago-test', loadComponent: () => import('./payment-test/payment-test.component').then(m => m.PaymentTestComponent)},
       { path: 'auth', component: AuthPageComponent },
       { path: '', component: HomePageComponent, canActivate: [authGuard] },
       { path: 'formulario', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'general' } },

@@ -10,7 +10,8 @@ const { validateEmailAddress } = require("./email-validator");
 const { sendAlertEmail } = require("./mailer");
 const { authRouter, requireAuth, requireRole } = require("./auth");
 require("dotenv").config();
-
+//Modulo de pagos
+const paymentRoutes = require('../routes/paymentRoutes');
 const app = express();
 const PORT = process.env.PORT || 4000;
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
@@ -1362,9 +1363,19 @@ function buildSupervisorCsv(processes = []) {
   return `\uFEFF${lines.join("\n")}`;
 }
 
-app.use(cors());
+
+app.use(cors({
+  origin: "http://localhost:4200",
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
 app.use(express.json({ limit: "100mb" }));
+app.use("/api/payments", paymentRoutes);
 app.use("/api/auth", authRouter);
+
+
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -1441,7 +1452,8 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     rpa_documento_estado_mime,
     carta_representacion_pdf_base64,
     carta_representacion_filename,
-    carta_representacion_mime
+    carta_representacion_mime,
+    payment_id
   } = req.body;
 
   const unidadClave = String(unidad_clave || "GENERAL").toUpperCase();
@@ -1664,6 +1676,29 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
 
   const now = new Date();
   const fechaActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+ 
+// Valida que el pago exista y esté aprobado
+  if (payment_id) {
+    const paymentCheck = await pool.query(
+      `SELECT * FROM payments WHERE id = $1`,
+     [payment_id]
+    );
+
+   if (!paymentCheck.rowCount) {
+      return res.status(400).json({
+        error: "El pago indicado no existe."
+      });
+    }
+
+  const payment = paymentCheck.rows[0];
+
+  if (payment.status !== "approved") {
+    return res.status(400).json({
+      error: "El pago no está aprobado."
+    });
+  }
+}
+
 
   let created;
   const client = await pool.connect();
@@ -1733,7 +1768,8 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
           carta_representacion_pdf,
           carta_representacion_filename,
           carta_representacion_mime,
-          created_by_user_id
+          created_by_user_id,
+          payment_id
         )
         VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
@@ -1741,7 +1777,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
           $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
           $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,
           $41,$42,$43,$44,$45,$46,$47,$48,$49,$50,
-          $51,$52,$53,$54,$55,$56,$57,$58,$59,$60,$61
+          $51,$52,$53,$54,$55,$56,$57,$58,$59,$60,$61,$62
         )
         RETURNING *
       `,
@@ -1806,7 +1842,8 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
         cartaRepresentacionPdfBuffer,
         carta_representacion_filename || null,
         carta_representacion_mime || null,
-        req.user?.sub || null
+        req.user?.sub || null,
+        payment_id || null
       ]
     );
     if (isFinancialRequest) {
