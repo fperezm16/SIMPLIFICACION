@@ -6,6 +6,7 @@ export interface Analyst {
   id: number;
   email: string;
   name?: string | null;
+  unit_access?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -14,5 +15,13 @@ export class AnalystsService {
 
   list() {
     return this.http.get<Analyst[]>(`${API_BASE}/analistas`);
+  }
+
+  listApprovers() {
+    return this.http.get<Analyst[]>(`${API_BASE}/aprobadores`);
+  }
+
+  listEmitters() {
+    return this.http.get<Analyst[]>(`${API_BASE}/emisores`);
   }
 }

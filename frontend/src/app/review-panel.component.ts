@@ -20,6 +20,29 @@ type SubmissionLog = {
   created_at: string;
 };
 
+type TableDocumentKey =
+  | 'dpi'
+  | 'financialDeclaraguate1'
+  | 'financialDeclaraguate2'
+  | 'financialDeclaraguate3'
+  | 'financialDeclaraguate4'
+  | 'financialDeclaraguate5'
+  | 'acta'
+  | 'carta'
+  | 'registro'
+  | 'rpaActaNombramiento'
+  | 'rpaRegistroRepresentante'
+  | 'rpaRegistroEntidad'
+  | 'rpaDocumentoEstado'
+  | 'boleta'
+  | 'signed';
+
+type TableDocument = {
+  key: TableDocumentKey;
+  label: string;
+  filename?: string | null;
+};
+
 @Component({
     selector: 'app-review-panel',
     imports: [CommonModule, FormsModule],
@@ -45,68 +68,48 @@ type SubmissionLog = {
         <span class="chip bad">No abierto</span>
       </div>
 
-      <div class="table-wrap" *ngIf="filtered().length; else empty">
-        <table>
-          <thead>
-            <tr>
-              <th>Propietario</th>
-              <th>Registro</th>
-              <th>Correo</th>
-              <th>Teléfono</th>
-              <th>Matrícula TG</th>
-              <th>Tipo persona</th>
-              <th>Formulario</th>
-              <th>Fecha envío</th>
-              <th>Estado</th>
-              <th>Analista</th>
-              <th>Emisor</th>
-              <th>Aprobador</th>
-              <th>DPI</th>
-              <th>Acta</th>
-              <th>Registro Mercantil</th>
-              <th>Boleta</th>
-              <th>Documento firmado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let row of filtered()" [class]="statusClass(row)">
-              <td>{{ row.nombre_propietario || 'N/D' }}</td>
-              <td>{{ row.registro_codigo || ('#' + row.id) }}</td>
-              <td>{{ row.correo || 'N/D' }}</td>
-              <td>{{ row.telefono || 'N/D' }}</td>
-              <td>{{ row.matricula_tg || 'N/D' }}</td>
-              <td>{{ row.persona_tipo === 'juridica' ? 'Jurídica' : 'Individual' }}</td>
-              <td class="pill small">{{ formularioLabel(row) }}</td>
-              <td>{{ row.created_at | date:'short' }}</td>
-              <td><span class="state-pill" [class]="stateClass(row)">{{ stateLabel(row) }}</span></td>
-              <td>{{ row.assigned_analista_name || row.assigned_analista_email || 'Sin asignar' }}</td>
-              <td>{{ row.assigned_emisor_name || row.assigned_emisor_email || 'Sin asignar' }}</td>
-              <td>{{ row.assigned_aprobador_name || row.assigned_aprobador_email || 'Sin asignar' }}</td>
-              <td>
-                <button class="link" *ngIf="row.has_dpi || row.dpi_filename" (click)="viewDpi(row)">Ver PDF</button>
-                <span class="muted" *ngIf="!(row.has_dpi || row.dpi_filename)">No adjunto</span>
-              </td>
-              <td>
-                <button class="link" *ngIf="row.has_acta || row.acta_filename" (click)="viewActa(row)">Ver PDF</button>
-                <span class="muted" *ngIf="!(row.has_acta || row.acta_filename)">No adjunto</span>
-              </td>
-              <td>
-                <button class="link" *ngIf="row.has_registro_mercantil || row.registro_mercantil_filename" (click)="viewRegistroMercantil(row)">Ver PDF</button>
-                <span class="muted" *ngIf="!(row.has_registro_mercantil || row.registro_mercantil_filename)">No adjunto</span>
-              </td>
-              <td>
-                <button class="link" *ngIf="row.has_analyst_pdf || row.analyst_pdf_filename" (click)="viewBoleta(row)">Ver PDF</button>
-                <span class="muted" *ngIf="!(row.has_analyst_pdf || row.analyst_pdf_filename)">No adjunta</span>
-              </td>
-              <td>
-                <button class="link" *ngIf="row.has_signed_pdf || row.signed_pdf_filename" (click)="viewSignedPdf(row)">Ver PDF</button>
-                <span class="muted" *ngIf="!(row.has_signed_pdf || row.signed_pdf_filename)">No adjunto</span>
-              </td>
-              <td><button class="link" (click)="select(row)">Abrir</button></td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="process-list" *ngIf="filtered().length; else empty">
+        <article class="process-card" *ngFor="let row of filtered()" [class]="statusClass(row)">
+          <div class="process-main">
+            <div class="process-title-block">
+              <div class="process-title">
+                <strong>{{ row.nombre_propietario || 'N/D' }}</strong>
+                <span class="registry-chip">{{ row.registro_codigo || ('#' + row.id) }}</span>
+              </div>
+              <div class="process-subtitle">
+                {{ row.correo || 'N/D' }} · Tel. {{ row.telefono || 'N/D' }}
+              </div>
+            </div>
+            <div class="process-actions">
+              <span class="pill small">{{ formularioLabel(row) }}</span>
+              <span class="state-pill" [class]="stateClass(row)">{{ stateLabel(row) }}</span>
+              <button class="open-btn" type="button" (click)="select(row)">Abrir</button>
+            </div>
+          </div>
+
+          <div class="process-meta">
+            <span><strong>Referencia</strong>{{ tableReference(row) }}</span>
+            <span><strong>Tipo persona</strong>{{ row.persona_tipo === 'juridica' ? 'Jurídica' : 'Individual' }}</span>
+            <span><strong>Fecha envío</strong>{{ row.created_at | date:'short' }}</span>
+            <span><strong>Analista</strong>{{ row.assigned_analista_name || row.assigned_analista_email || 'Sin asignar' }}</span>
+            <span *ngIf="showsEmitterField(row)"><strong>Emisor</strong>{{ stageAssignee(row, 'emisor') }}</span>
+            <span><strong>Aprobador</strong>{{ stageAssignee(row, 'aprobador') }}</span>
+          </div>
+
+          <div class="documents-row">
+            <span class="documents-label">Documentos</span>
+            <div class="doc-list" *ngIf="tableDocuments(row).length; else noCardDocs">
+              <button
+                type="button"
+                class="doc-link"
+                *ngFor="let doc of tableDocuments(row)"
+                (click)="openTableDocument(row, doc.key)">
+                {{ doc.label }}
+              </button>
+            </div>
+            <ng-template #noCardDocs><span class="muted">Sin documentos</span></ng-template>
+          </div>
+        </article>
       </div>
       <ng-template #empty>
         <div class="empty">No hay registros para mostrar.</div>
@@ -224,6 +227,24 @@ type SubmissionLog = {
           <label>Aprobador asignado
             <input [value]="selected.assigned_aprobador_name || selected.assigned_aprobador_email || 'Sin asignar'" disabled />
           </label>
+          <label *ngIf="canSendSelectedToApprover()">Asignar a aprobador
+            <select [(ngModel)]="edit.assigned_aprobador_id" [disabled]="sendingToApprover || !approversForSelected().length">
+              <option [ngValue]="null">Asignar automáticamente</option>
+              <option *ngFor="let a of approversForSelected()" [ngValue]="a.id">
+                {{ a.name || a.email }} ({{ a.email }})
+              </option>
+            </select>
+            <small class="muted" *ngIf="!approversForSelected().length">No hay aprobadores configurados para esta unidad.</small>
+          </label>
+          <label *ngIf="canSendSelectedToEmitter() && showsEmitterField(selected)">Asignar a emisor
+            <select [(ngModel)]="edit.assigned_emisor_id" [disabled]="sendingToEmitter || !emittersForSelected().length">
+              <option [ngValue]="null">Asignar automáticamente</option>
+              <option *ngFor="let e of emittersForSelected()" [ngValue]="e.id">
+                {{ e.name || e.email }} ({{ e.email }})
+              </option>
+            </select>
+            <small class="muted" *ngIf="!emittersForSelected().length">No hay emisores configurados para esta unidad.</small>
+          </label>
           <label *ngIf="showsEmitterField(selected)">Emisor asignado
             <input [value]="selected.assigned_emisor_name || selected.assigned_emisor_email || 'Sin asignar'" disabled />
           </label>
@@ -300,13 +321,13 @@ type SubmissionLog = {
             </div>
             <div class="dpi-box" *ngIf="canShowBoletaPanel(selected)">
               <div class="dpi-head">
-                <span>Boleta de pago (este proceso):</span>
-                <span class="muted" *ngIf="!(selected.has_analyst_pdf || selected.analyst_pdf_filename)">No adjunta</span>
+                <span>{{ processPdfPanelTitle(selected) }}:</span>
+                <span class="muted" *ngIf="!(selected.has_analyst_pdf || selected.analyst_pdf_filename)">No adjunto</span>
               </div>
               <button class="link" type="button" *ngIf="selected.has_analyst_pdf || selected.analyst_pdf_filename" (click)="viewBoleta(selected)">Ver PDF</button>
               <label class="upload-inline" *ngIf="canUploadAnalystPdf(selected)">
                 <input type="file" accept="application/pdf" [disabled]="uploadingAnalystPdf || boletaLockedForAnalyst()" (change)="onAnalystPdfSelected($event)">
-                <span>{{ uploadingAnalystPdf ? 'Cargando boleta de pago...' : (analystPdfFile?.name || 'Seleccionar boleta de pago...') }}</span>
+                <span>{{ uploadingAnalystPdf ? analystPdfUploadingLabel(selected) : (analystPdfFile?.name || analystPdfSelectLabel(selected)) }}</span>
               </label>
               <button
                 type="button"
@@ -317,10 +338,10 @@ type SubmissionLog = {
                 {{ uploadingAnalystPdf ? 'Cargando...' : 'Subir PDF' }}
               </button>
               <small class="muted" *ngIf="selected.analyst_pdf_filename && !analystPdfFile">
-                Boleta actual: {{ selected.analyst_pdf_filename }}
+                {{ analystPdfCurrentLabel(selected) }}: {{ selected.analyst_pdf_filename }}
               </small>
               <small class="muted" *ngIf="canUploadAnalystPdf(selected) && boletaLockedForAnalyst()">
-                Enviado a la siguiente etapa. Solo se habilita de nuevo si el proceso regresa al analista.
+                Enviado a la siguiente etapa. Solo se habilita de nuevo si el proceso regresa a la etapa anterior.
               </small>
               <small class="muted" *ngIf="selected.analyst_pdf_uploaded_at">
                 Ultima carga: {{ selected.analyst_pdf_uploaded_at | date:'short' }}
@@ -359,7 +380,7 @@ type SubmissionLog = {
           <button *ngIf="canEdit || canAssign" (click)="save()" [disabled]="saving">
             {{ primaryActionLabel() }}
           </button>
-          <button *ngIf="canSendSelectedToEmitter() && !selected?.approved_at" class="send-approver" (click)="sendToEmitter()" [disabled]="saving || sendingToEmitter || boletaLockedForAnalyst() || !(selected.has_analyst_pdf || selected.analyst_pdf_filename)">
+          <button *ngIf="canSendSelectedToEmitter() && !selected?.approved_at" class="send-approver" (click)="sendToEmitter()" [disabled]="saving || sendingToEmitter">
             {{ sendingToEmitter ? 'Enviando...' : 'Enviar a emisor' }}
           </button>
           <button *ngIf="canSendSelectedToApprover() && !selected?.approved_at" class="send-approver" (click)="sendToApprover()" [disabled]="saving || sendingToApprover">
@@ -386,35 +407,108 @@ type SubmissionLog = {
     styles: [`
     .review-card {
       margin-top: 20px;
-      padding: 16px;
-      border: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 251, 255, 0.95));
+      padding: 20px;
+      border: 1px solid rgba(147, 197, 253, 0.55);
+      background:
+        radial-gradient(circle at top left, rgba(14, 165, 233, 0.08), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 251, 255, 0.96));
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-card);
     }
-    .review-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    .review-head h3 { margin: 0; }
-    .review-head p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-    .filters { font-size: 14px; }
+    .review-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 14px; }
+    .review-head h3 { margin: 0; font-size: 24px; letter-spacing: -0.02em; }
+    .review-head p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    .filters { font-size: 14px; display: flex; align-items: center; gap: 8px; }
     .status-legend { display: flex; gap: 8px; margin: 8px 0 10px; }
     .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
     .chip.ok { background: #dcfce7; border-color: #86efac; }
     .chip.warn { background: #fef9c3; border-color: #fde047; }
     .chip.bad { background: #fee2e2; border-color: #fca5a5; }
-    select { margin-left: 6px; padding: 4px 8px; }
-    .table-wrap { overflow: auto; max-height: 340px; border: 1px solid var(--border); background: white; border-radius: 12px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8); }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left; }
-    th { background: #edf6fd; position: sticky; top: 0; color: #18466d; font-weight: 700; }
-    tbody tr.state-assigned td { background: #dcfce7; }
-    tbody tr.state-pending td { background: #fef9c3; }
-    tbody tr.state-unopened td { background: #fee2e2; }
-    tbody tr.state-returned td { background: #fee2e2; }
+    select { margin-left: 6px; padding: 8px 12px; min-width: 220px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
+    .process-list { display: grid; gap: 12px; max-height: 520px; overflow: auto; padding: 4px 6px 4px 0; }
+    .process-card {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #d7e6f2;
+      border-left: 5px solid #93c5fd;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+    }
+    .process-card.state-assigned { border-left-color: #22c55e; background: #f3fff7; }
+    .process-card.state-pending { border-left-color: #f59e0b; background: #fffdf0; }
+    .process-card.state-unopened,
+    .process-card.state-returned { border-left-color: #ef4444; background: #fff7f7; }
+    .process-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .process-title-block { min-width: 0; }
+    .process-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 16px; color: #0f2d47; }
+    .process-subtitle { margin-top: 4px; color: #52657a; font-size: 13px; overflow-wrap: anywhere; }
+    .registry-chip {
+      display: inline-flex;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      border: 1px solid #93c5fd;
+      color: #075985;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .process-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .open-btn {
+      border: 1px solid #0284c7;
+      border-radius: 999px;
+      background: #0ea5e9;
+      color: #fff;
+      padding: 7px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 16px rgba(14, 165, 233, 0.18);
+    }
+    .process-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+      padding: 10px;
+      border-radius: 12px;
+      background: #f8fbfe;
+      border: 1px solid #e2edf6;
+    }
+    .process-meta span { display: grid; gap: 2px; font-size: 13px; color: #0f172a; min-width: 0; overflow-wrap: anywhere; }
+    .process-meta strong { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #64748b; }
+    .documents-row {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding-top: 10px;
+      border-top: 1px dashed #d7e6f2;
+    }
+    .documents-label { color: #18466d; font-weight: 800; font-size: 13px; }
     .empty { padding: 12px; color: var(--muted); }
     .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); background: #eef2ff; }
     .small { font-size: 12px; }
     .link { background: none; border: none; color: #2563eb; cursor: pointer; }
     .muted { color: var(--muted); font-size: 12px; }
+    .doc-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .doc-link {
+      border: 1px solid #93c5fd;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .doc-link:hover { background: #dbeafe; }
+    @media (max-width: 780px) {
+      .review-head,
+      .process-main { flex-direction: column; }
+      .process-actions { justify-content: flex-start; }
+      .documents-row { grid-template-columns: 1fr; }
+      select { min-width: 0; width: 100%; }
+    }
     .state-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
     .state-enviado { background: #fee2e2; border-color: #fca5a5; }
     .state-recepcion { background: #fef9c3; border-color: #fde047; }
@@ -474,6 +568,11 @@ export class ReviewPanelComponent implements OnChanges {
   private analystsService = inject(AnalystsService);
   private auth = inject(AuthService);
   private readonly maxPdfSizeBytes = 10 * 1024 * 1024;
+  private readonly financialDeclaraguateProcessCodes = new Set([
+    'cancelacion_matricula',
+    'solvencia_aeronavegabilidad',
+    'solvencia_financiera_aeronave'
+  ]);
 
   filterFormulario = '';
   selected: Submission | null = null;
@@ -493,6 +592,8 @@ export class ReviewPanelComponent implements OnChanges {
   signedPdfFile: File | null = null;
   signedPdfError = '';
   analysts: Analyst[] = [];
+  emitters: Analyst[] = [];
+  approvers: Analyst[] = [];
   logs: SubmissionLog[] = [];
   logsLoading = false;
   role = this.auth.currentUser?.role || 'user';
@@ -501,7 +602,7 @@ export class ReviewPanelComponent implements OnChanges {
   canApprove = this.role === 'aprobador' || this.role === 'admin' || this.role === 'supervisor';
   canSendToEmitter = this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor';
   canSendToApprover = this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor';
-  canDeliverRole = this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor';
+  canDeliverRole = this.role === 'revisor';
   canAssign = this.role === 'revisor' || this.role === 'admin' || this.role === 'supervisor';
   canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === 'admin' || this.role === 'supervisor';
   canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor';
@@ -589,7 +690,7 @@ export class ReviewPanelComponent implements OnChanges {
 
   showsEmitterField(row: Submission | null) {
     if (!row) return false;
-    return String(row.unidad_clave || '').toUpperCase() === 'FINANCIERO';
+    return this.isFinancialSubmission(row) && !this.isFinancialPaymentPasswordFlow(row);
   }
 
   isFinancialSubmission(row: Submission | null) {
@@ -615,6 +716,36 @@ export class ReviewPanelComponent implements OnChanges {
     return String(row.unidad_clave || '').toUpperCase() === 'AILA';
   }
 
+  isRpaExtranjeroIndividual(row: Submission | null) {
+    if (!row) return false;
+    const unit = String(row.unidad_clave || '').toUpperCase();
+    const form = String(row.gestion_nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const isRpa = unit === 'RAN' && (
+      form.includes('uav') ||
+      form.includes('rpa') ||
+      form.includes('drone') ||
+      form.includes('distintivo')
+    );
+    return isRpa &&
+      String(row.persona_tipo || '').toLowerCase() === 'individual' &&
+      String(row.origen_compra || '').toLowerCase() === 'extranjero';
+  }
+
+  isRpaExtranjeroJuridica(row: Submission | null) {
+    if (!row) return false;
+    const unit = String(row.unidad_clave || '').toUpperCase();
+    const form = String(row.gestion_nombre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const isRpa = unit === 'RAN' && (
+      form.includes('uav') ||
+      form.includes('rpa') ||
+      form.includes('drone') ||
+      form.includes('distintivo')
+    );
+    return isRpa &&
+      String(row.persona_tipo || '').toLowerCase() === 'juridica' &&
+      String(row.origen_compra || '').toLowerCase() === 'extranjero';
+  }
+
   financialValue(row: Submission | null, key: string) {
     if (!row?.detalle_formulario || typeof row.detalle_formulario !== 'object') return '';
     const value = (row.detalle_formulario as Record<string, unknown>)[key];
@@ -625,6 +756,15 @@ export class ReviewPanelComponent implements OnChanges {
   financialProcessLabel(row: Submission | null) {
     if (!row) return '';
     return this.financialValue(row, 'proceso_label') || String(row.gestion_nombre || '').trim();
+  }
+
+  financialProcessCode(row: Submission | null) {
+    if (!row) return '';
+    return this.financialValue(row, 'proceso_codigo') || this.financialValue(row, 'gestion_codigo');
+  }
+
+  shouldShowFinancialDeclaraguates(row: Submission | null) {
+    return this.financialDeclaraguateProcessCodes.has(this.financialProcessCode(row));
   }
 
   financialCertificadoOperativoLabel(row: Submission | null) {
@@ -702,6 +842,12 @@ export class ReviewPanelComponent implements OnChanges {
       };
       return labels[key] || key;
     }
+    if (key === 'rpaDocumentoEstado' && this.isRpaExtranjeroIndividual(row)) {
+      return 'Importación o DUCA con pago';
+    }
+    if (key === 'carta' && this.isRpaExtranjeroJuridica(row)) {
+      return 'Póliza de importación o DUCA con pago';
+    }
     const labels: Record<string, string> = {
       dpi: 'DPI adjunto',
       acta: 'Acta notarial',
@@ -716,7 +862,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   financialDeclaraguateDocuments(row: Submission | null) {
-    if (!row) return [];
+    if (!row || !this.shouldShowFinancialDeclaraguates(row)) return [];
     return [
       { number: 1, filename: row.dpi_filename || '', has: Boolean(row.has_dpi || row.dpi_filename) },
       { number: 2, filename: row.financial_declaraguate_2_filename || '', has: Boolean(row.has_financial_declaraguate_2 || row.financial_declaraguate_2_filename) },
@@ -724,6 +870,107 @@ export class ReviewPanelComponent implements OnChanges {
       { number: 4, filename: row.financial_declaraguate_4_filename || '', has: Boolean(row.has_financial_declaraguate_4 || row.financial_declaraguate_4_filename) },
       { number: 5, filename: row.financial_declaraguate_5_filename || '', has: Boolean(row.has_financial_declaraguate_5 || row.financial_declaraguate_5_filename) }
     ];
+  }
+
+  tableReference(row: Submission) {
+    if (this.isFinancialSubmission(row)) {
+      return this.financialValue(row, 'matricula') ||
+        this.financialValue(row, 'numero_placa') ||
+        this.financialValue(row, 'nombre_taller') ||
+        this.financialValue(row, 'area') ||
+        row.matricula_tg ||
+        'N/D';
+    }
+    if (this.isAilaSubmission(row)) {
+      return this.ailaPermitLabel(row) ||
+        this.ailaValue(row, 'area_destino') ||
+        this.ailaValue(row, 'motivo') ||
+        'N/D';
+    }
+    return row.matricula_tg || row.matricula_tg_nueva || 'N/D';
+  }
+
+  stageAssignee(row: Submission, stage: 'emisor' | 'aprobador') {
+    if (this.isFinancialPaymentPasswordFlow(row)) return 'No aplica';
+    if (stage === 'emisor') {
+      return row.assigned_emisor_name || row.assigned_emisor_email || 'Sin asignar';
+    }
+    return row.assigned_aprobador_name || row.assigned_aprobador_email || 'Sin asignar';
+  }
+
+  tableDocuments(row: Submission): TableDocument[] {
+    const docs: TableDocument[] = [];
+    const add = (key: TableDocumentKey, label: string, hasDocument: boolean, filename?: string | null) => {
+      if (!hasDocument) return;
+      docs.push({ key, label, filename });
+    };
+
+    if (this.isFinancialSubmission(row)) {
+      for (const doc of this.financialDeclaraguateDocuments(row)) {
+        add(`financialDeclaraguate${doc.number}` as TableDocumentKey, `Declaraguate ${doc.number}`, doc.has, doc.filename);
+      }
+    } else {
+      add('dpi', this.documentLabel(row, 'dpi'), Boolean(row.has_dpi || row.dpi_filename), row.dpi_filename);
+    }
+
+    add('acta', this.documentLabel(row, 'acta'), Boolean(row.has_acta || row.acta_filename), row.acta_filename);
+    add('carta', this.documentLabel(row, 'carta'), Boolean(row.has_carta_representacion || row.carta_representacion_filename), row.carta_representacion_filename);
+    add('registro', this.documentLabel(row, 'registro'), Boolean(row.has_registro_mercantil || row.registro_mercantil_filename), row.registro_mercantil_filename);
+    add('rpaActaNombramiento', this.documentLabel(row, 'rpaActaNombramiento'), Boolean(row.has_rpa_acta_nombramiento || row.rpa_acta_nombramiento_filename), row.rpa_acta_nombramiento_filename);
+    add('rpaRegistroRepresentante', this.documentLabel(row, 'rpaRegistroRepresentante'), Boolean(row.has_rpa_registro_representante || row.rpa_registro_representante_filename), row.rpa_registro_representante_filename);
+    add('rpaRegistroEntidad', this.documentLabel(row, 'rpaRegistroEntidad'), Boolean(row.has_rpa_registro_entidad || row.rpa_registro_entidad_filename), row.rpa_registro_entidad_filename);
+    add('rpaDocumentoEstado', this.documentLabel(row, 'rpaDocumentoEstado'), Boolean(row.has_rpa_documento_estado || row.rpa_documento_estado_filename), row.rpa_documento_estado_filename);
+    add('boleta', 'Boleta de pago', Boolean(row.has_analyst_pdf || row.analyst_pdf_filename), row.analyst_pdf_filename);
+    add('signed', 'Documento firmado', Boolean(row.has_signed_pdf || row.signed_pdf_filename), row.signed_pdf_filename);
+    return docs;
+  }
+
+  openTableDocument(row: Submission, key: TableDocumentKey) {
+    switch (key) {
+      case 'dpi':
+      case 'financialDeclaraguate1':
+        this.viewDpi(row);
+        break;
+      case 'financialDeclaraguate2':
+        this.viewFinancialDeclaraguate(row, 2);
+        break;
+      case 'financialDeclaraguate3':
+        this.viewFinancialDeclaraguate(row, 3);
+        break;
+      case 'financialDeclaraguate4':
+        this.viewFinancialDeclaraguate(row, 4);
+        break;
+      case 'financialDeclaraguate5':
+        this.viewFinancialDeclaraguate(row, 5);
+        break;
+      case 'acta':
+        this.viewActa(row);
+        break;
+      case 'carta':
+        this.viewCartaRepresentacion(row);
+        break;
+      case 'registro':
+        this.viewRegistroMercantil(row);
+        break;
+      case 'rpaActaNombramiento':
+        this.viewRpaActaNombramiento(row);
+        break;
+      case 'rpaRegistroRepresentante':
+        this.viewRpaRegistroRepresentante(row);
+        break;
+      case 'rpaRegistroEntidad':
+        this.viewRpaRegistroEntidad(row);
+        break;
+      case 'rpaDocumentoEstado':
+        this.viewRpaDocumentoEstado(row);
+        break;
+      case 'boleta':
+        this.viewBoleta(row);
+        break;
+      case 'signed':
+        this.viewSignedPdf(row);
+        break;
+    }
   }
 
   actorDisplay(entry: SubmissionLog) {
@@ -804,6 +1051,18 @@ export class ReviewPanelComponent implements OnChanges {
       this.analystsService.list().subscribe({
         next: (data) => this.analysts = data,
         error: () => this.analysts = []
+      });
+    }
+    if (this.canSendSelectedToEmitter() && !this.emitters.length) {
+      this.analystsService.listEmitters().subscribe({
+        next: (data) => this.emitters = data,
+        error: () => this.emitters = []
+      });
+    }
+    if (this.canSendSelectedToApprover() && !this.approvers.length) {
+      this.analystsService.listApprovers().subscribe({
+        next: (data) => this.approvers = data,
+        error: () => this.approvers = []
       });
     }
   }
@@ -933,7 +1192,8 @@ export class ReviewPanelComponent implements OnChanges {
 
   viewCartaRepresentacion(row: Submission) {
     if (!row.id) return;
-    this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/carta-representacion`, 'No se pudo abrir la Carta de representación (revisa permisos o sesión).');
+    const label = this.isRpaExtranjeroJuridica(row) ? 'póliza de importación o DUCA' : 'Carta de representación';
+    this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/carta-representacion`, `No se pudo abrir ${label} (revisa permisos o sesión).`);
   }
 
   viewRegistroMercantil(row: Submission) {
@@ -969,7 +1229,9 @@ export class ReviewPanelComponent implements OnChanges {
     if (!row.id) return;
     this.openSubmissionPdf(
       `${this.apiBase}/submissions/${row.id}/rpa-documento-estado`,
-      'No se pudo abrir el documento de entidad del Estado/ONG (revisa permisos o sesión).'
+      this.isRpaExtranjeroIndividual(row)
+        ? 'No se pudo abrir el documento de importación o DUCA (revisa permisos o sesión).'
+        : 'No se pudo abrir el documento de entidad del Estado/ONG (revisa permisos o sesión).'
     );
   }
 
@@ -984,11 +1246,33 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canSendSelectedToEmitter() {
-    return this.canSendToEmitter && !this.isFinancialPaymentPasswordFlow(this.selected);
+    return this.canSendToEmitter && this.isFinancialSubmission(this.selected) && !this.isFinancialPaymentPasswordFlow(this.selected);
   }
 
   canSendSelectedToApprover() {
-    return this.canSendToApprover && !this.isFinancialPaymentPasswordFlow(this.selected);
+    if (!this.selected || this.isFinancialPaymentPasswordFlow(this.selected)) return false;
+    if (this.role === 'admin' || this.role === 'supervisor') return true;
+    if (this.isFinancialSubmission(this.selected)) {
+      return this.role === 'emisor';
+    }
+    if (this.role !== 'analista') return false;
+    return Number(this.selected.assigned_analista_id) === Number(this.currentUserId);
+  }
+
+  approversForSelected() {
+    const unit = String(this.selected?.unidad_clave || 'GENERAL').toUpperCase();
+    return this.approvers.filter((approver) => {
+      const units = (approver.unit_access || []).map((item) => String(item || '').toUpperCase());
+      return units.includes(unit);
+    });
+  }
+
+  emittersForSelected() {
+    const unit = String(this.selected?.unidad_clave || 'GENERAL').toUpperCase();
+    return this.emitters.filter((emitter) => {
+      const units = (emitter.unit_access || []).map((item) => String(item || '').toUpperCase());
+      return units.includes(unit);
+    });
   }
 
   canApproveSelected() {
@@ -997,13 +1281,33 @@ export class ReviewPanelComponent implements OnChanges {
 
   canUploadAnalystPdf(row: Submission | null | undefined) {
     if (!row?.id) return false;
-    if (!(this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor')) return false;
     if (row.approved_at || row.delivered_at) return false;
+    if (this.isFinancialSubmission(row)) {
+      if (this.isFinancialPaymentPasswordFlow(row)) {
+        if (!(this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor')) return false;
+        if (this.role === 'analista' && Number(row.assigned_analista_id) !== Number(this.currentUserId)) return false;
+        return true;
+      }
+      if (!(this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor')) return false;
+      if (this.role === 'emisor' && Number(row.assigned_emisor_id) !== Number(this.currentUserId)) return false;
+      return true;
+    }
+    if (!(this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor')) return false;
     if (this.role === 'analista' && Number(row.assigned_analista_id) !== Number(this.currentUserId)) return false;
     return true;
   }
 
   canShowBoletaPanel(row: Submission | null | undefined) {
+    if (this.isFinancialSubmission(row || null)) {
+      return Boolean(
+        row?.id &&
+        (this.canUploadAnalystPdf(row) ||
+          this.canSendSelectedToApprover() ||
+          this.canApproveSelected() ||
+          row.has_analyst_pdf ||
+          row.analyst_pdf_filename)
+      );
+    }
     return Boolean(
       row?.id &&
       (this.canUploadAnalystPdf(row) ||
@@ -1015,8 +1319,28 @@ export class ReviewPanelComponent implements OnChanges {
     );
   }
 
+  processPdfPanelTitle(row: Submission | null | undefined) {
+    if (this.isFinancialPaymentPasswordFlow(row || null)) {
+      return 'Boleta de pago (este proceso)';
+    }
+    return this.isFinancialSubmission(row || null)
+      ? 'Documento PDF del proceso'
+      : 'Boleta de pago (este proceso)';
+  }
+
   boletaLockedForAnalyst() {
     if (!this.selected) return false;
+    if (this.isFinancialSubmission(this.selected)) {
+      if (this.isFinancialPaymentPasswordFlow(this.selected)) {
+        return Boolean(this.selected.delivered_at);
+      }
+      return Boolean(
+        this.selected.delivered_at ||
+        this.selected.approved_at ||
+        this.selected.sent_to_aprobador_at ||
+        this.selected.assigned_aprobador_id
+      );
+    }
     return Boolean(
       this.selected.delivered_at ||
       this.selected.sent_to_emisor_at ||
@@ -1024,6 +1348,24 @@ export class ReviewPanelComponent implements OnChanges {
       this.selected.sent_to_aprobador_at ||
       this.selected.assigned_aprobador_id
     );
+  }
+
+  analystPdfSelectLabel(row: Submission | null | undefined) {
+    if (this.isFinancialPaymentPasswordFlow(row || null)) return 'Seleccionar boleta de pago...';
+    if (this.isFinancialSubmission(row || null)) return 'Seleccionar documento PDF...';
+    return 'Seleccionar boleta de pago...';
+  }
+
+  analystPdfUploadingLabel(row: Submission | null | undefined) {
+    if (this.isFinancialPaymentPasswordFlow(row || null)) return 'Cargando boleta de pago...';
+    if (this.isFinancialSubmission(row || null)) return 'Cargando documento PDF...';
+    return 'Cargando boleta de pago...';
+  }
+
+  analystPdfCurrentLabel(row: Submission | null | undefined) {
+    if (this.isFinancialPaymentPasswordFlow(row || null)) return 'Boleta actual';
+    if (this.isFinancialSubmission(row || null)) return 'Documento actual';
+    return 'Boleta actual';
   }
 
   onAnalystPdfSelected(event: Event) {
@@ -1069,7 +1411,11 @@ export class ReviewPanelComponent implements OnChanges {
 
     this.uploadingAnalystPdf = true;
     this.analystPdfError = '';
-    this.status = 'Cargando boleta de pago...';
+    this.status = this.isFinancialPaymentPasswordFlow(this.selected)
+      ? 'Cargando boleta de pago...'
+      : this.isFinancialSubmission(this.selected)
+      ? 'Cargando documento PDF...'
+      : 'Cargando boleta de pago...';
     this.readFileAsBase64(file).then((pdfBase64) => {
       this.http.post<{
         analyst_pdf_filename?: string | null;
@@ -1096,9 +1442,13 @@ export class ReviewPanelComponent implements OnChanges {
             this.edit.analyst_pdf_uploaded_at = this.selected?.analyst_pdf_uploaded_at || null;
             this.edit.analyst_pdf_uploaded_by_user_id = this.selected?.analyst_pdf_uploaded_by_user_id || null;
           }
-          this.status = this.isFinancialPaymentPasswordFlow(this.selected)
-            ? 'Boleta de pago cargada. El usuario ya puede descargarla.'
-            : 'Boleta de pago cargada. Se mostrará al usuario cuando el proceso esté aprobado.';
+          this.status = this.isFinancialSubmission(this.selected)
+            ? (this.isFinancialPaymentPasswordFlow(this.selected)
+              ? 'Boleta de pago cargada. El usuario ya puede descargarla y acercarse a realizar el pago correspondiente para recoger el documento solicitado.'
+              : 'Documento PDF cargado correctamente.')
+            : (this.isFinancialPaymentPasswordFlow(this.selected)
+              ? 'Boleta de pago cargada. El usuario ya puede descargarla.'
+              : 'Boleta de pago cargada. Se mostrará al usuario cuando el proceso esté aprobado.');
           this.analystPdfFile = null;
           this.uploadingAnalystPdf = false;
           if (this.selected?.id) {
@@ -1106,14 +1456,26 @@ export class ReviewPanelComponent implements OnChanges {
           }
           this.updated.emit();
         },
-        error: () => {
-          this.status = 'No se pudo cargar la boleta de pago.';
+        error: (err) => {
+          const backendError = String(err?.error?.error || '').trim();
+          this.status = backendError || (
+            this.isFinancialPaymentPasswordFlow(this.selected)
+              ? 'No se pudo cargar la boleta de pago.'
+              : this.isFinancialSubmission(this.selected)
+              ? 'No se pudo cargar el documento PDF.'
+              : 'No se pudo cargar la boleta de pago.'
+          );
+          this.analystPdfError = backendError;
           this.uploadingAnalystPdf = false;
         }
       });
     }).catch(() => {
       this.uploadingAnalystPdf = false;
-      this.status = 'No se pudo leer la boleta de pago.';
+      this.status = this.isFinancialPaymentPasswordFlow(this.selected)
+        ? 'No se pudo leer la boleta de pago.'
+        : this.isFinancialSubmission(this.selected)
+        ? 'No se pudo leer el documento PDF.'
+        : 'No se pudo leer la boleta de pago.';
     });
   }
 
@@ -1251,15 +1613,11 @@ export class ReviewPanelComponent implements OnChanges {
 
   sendToEmitter() {
     if (!this.selected || !this.selected.id || !this.canSendSelectedToEmitter()) return;
-    if (!(this.selected.has_analyst_pdf || this.selected.analyst_pdf_filename)) {
-      this.status = 'Debes subir la boleta de pago de este proceso antes de enviarlo al emisor.';
-      return;
-    }
     this.sendingToEmitter = true;
     this.status = 'Enviando a emisor...';
     this.http.post<{ assigned_emisor_id: number; sent_to_emisor_at: string; assigned_emisor_name?: string | null; assigned_emisor_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-emisor`,
-      {}
+      { emisor_id: this.edit?.assigned_emisor_id || null }
     ).subscribe({
       next: (resp) => {
         if (this.selected) {
@@ -1298,7 +1656,7 @@ export class ReviewPanelComponent implements OnChanges {
     this.status = 'Enviando a aprobador...';
     this.http.post<{ assigned_aprobador_id: number; sent_to_aprobador_at: string; assigned_aprobador_name?: string | null; assigned_aprobador_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-approver`,
-      {}
+      { aprobador_id: this.edit?.assigned_aprobador_id || null }
     ).subscribe({
       next: (resp) => {
         if (this.selected) {
@@ -1477,14 +1835,17 @@ export class ReviewPanelComponent implements OnChanges {
     if (!this.canDeliverRole || !row?.id) return false;
     const unit = String(row.unidad_clave || '').toUpperCase();
     if (unit === 'RAN') return Boolean(row.approved_at) && !row.delivered_at;
-    if (this.isFinancialPaymentPasswordFlow(row)) {
-      return Boolean(row.has_analyst_pdf || row.analyst_pdf_filename) && !row.delivered_at;
+    if (unit === 'FINANCIERO') {
+      if (this.isFinancialPaymentPasswordFlow(row)) {
+        return Boolean(row.has_analyst_pdf || row.analyst_pdf_filename) && !row.delivered_at;
+      }
+      return Boolean(row.approved_at) && !row.delivered_at;
     }
     return false;
   }
 
   deliveryActionLabel(row: Submission | null | undefined) {
-    return this.isFinancialPaymentPasswordFlow(row) ? 'Marcar finalizado' : 'Marcar entregado';
+    return this.isFinancialSubmission(row || null) ? 'Marcar finalizado' : 'Marcar entregado';
   }
 
   requiresSignedPdfBeforeApprove(row: Submission | null | undefined) {
@@ -1497,8 +1858,8 @@ export class ReviewPanelComponent implements OnChanges {
   markDelivered() {
     if (!this.selected?.id || !this.canMarkDelivered(this.selected)) return;
     this.delivering = true;
-    const isPaymentPassword = this.isFinancialPaymentPasswordFlow(this.selected);
-    this.status = isPaymentPassword ? 'Marcando finalización...' : 'Marcando entrega...';
+    const isFinancial = this.isFinancialSubmission(this.selected);
+    this.status = isFinancial ? 'Marcando finalización...' : 'Marcando entrega...';
     this.http.post<{ delivered_at: string }>(`${this.apiBase}/submissions/${this.selected.id}/deliver`, {}).subscribe({
       next: (resp) => {
         if (this.selected) {
@@ -1508,7 +1869,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.delivered_at = resp.delivered_at;
         }
         this.delivering = false;
-        this.status = isPaymentPassword ? 'Proceso marcado como finalizado.' : 'Proceso marcado como entregado al usuario.';
+        this.status = isFinancial ? 'Proceso marcado como finalizado.' : 'Proceso marcado como entregado al usuario.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }

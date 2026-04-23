@@ -695,7 +695,7 @@ export class HomePageComponent implements OnInit {
 
   approvedNoticeMessage(row: Submission) {
     if (this.isPaymentBoletaNotice(row)) {
-      return 'Ya puedes descargar la boleta de pago y acercarte a las instalaciones de la DGAC a realizar el pago correspondiente.';
+      return 'Ya puedes descargar la boleta de pago, acercarte a las instalaciones de la DGAC a realizar el pago correspondiente y pasar a recoger el documento solicitado.';
     }
     if (this.isRanSubmission(row)) {
       return 'Ya puedes venir a realizar el pago correspondiente y recoger la certificación solicitada en las instalaciones de la DGAC.';

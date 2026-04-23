@@ -28,6 +28,7 @@ Thumbs.db
 .vscode/
 
 # temporary artifacts
+tmp-upload.json
 backend/test-pdf-output.pdf
 entrega/*.zip
 entrega/ver_front_nube/
