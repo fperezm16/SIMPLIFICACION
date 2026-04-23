@@ -203,6 +203,11 @@ export class FinancialFormPageComponent implements OnInit {
       ].includes(option.value))
     }
   ];
+  private readonly solvenciaRequirementProcessCodes = new Set([
+    'cancelacion_matricula',
+    'solvencia_aeronavegabilidad',
+    'solvencia_financiera_aeronave'
+  ]);
   readonly financialExtraFileDefinitions: FinancialExtraFileDefinition[] = [
     {
       key: 'declaraguateCirculacion',
@@ -453,13 +458,20 @@ export class FinancialFormPageComponent implements OnInit {
   }
 
   shouldShowFinancialExtraFile(definition: FinancialExtraFileDefinition) {
-    return true;
+    return this.shouldShowSolvenciaRequirements();
   }
 
   isFinancialExtraFileRequired(definition: FinancialExtraFileDefinition) {
+    if (!this.shouldShowFinancialExtraFile(definition)) return false;
     if (definition.requirement === 'change') return this.requiresCambioDuenoMatriculaDocs();
     if (definition.requirement === 'renewal') return this.requiresRenovacionDocs();
     return true;
+  }
+
+  shouldShowSolvenciaRequirements() {
+    const groupCode = String(this.form.value.gestion_codigo || '').trim();
+    const processCode = String(this.form.value.proceso_codigo || '').trim();
+    return groupCode === 'solvencias' && this.solvenciaRequirementProcessCodes.has(processCode);
   }
 
   isGestionSelected(code: string) {

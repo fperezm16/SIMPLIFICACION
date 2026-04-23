@@ -1,27 +1,9 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
-function shouldUseInsecureSsl(connectionString = "") {
-  const sslFlag = String(process.env.DB_SSL_NO_VERIFY || "").trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(sslFlag)) return true;
-
-  try {
-    const hostname = new URL(connectionString).hostname.toLowerCase();
-    return hostname.includes("amazonaws.com");
-  } catch {
-    return false;
-  }
-}
-
 function buildPoolConfig() {
   const connectionString = process.env.DATABASE_URL;
-  const config = { connectionString };
-
-  if (shouldUseInsecureSsl(connectionString || "")) {
-    config.ssl = { rejectUnauthorized: false };
-  }
-
-  return config;
+  return { connectionString };
 }
 
 const pool = new Pool(buildPoolConfig());

@@ -423,6 +423,9 @@ function buildSubmissionPdfHtml(submission) {
   );
   const origenCompra = String(submission.origen_compra || "").trim().toLowerCase();
   const isRanDroneGuatemalaJuridica = isRanDrone && isJuridica && origenCompra === "guatemala";
+  const isRanDroneExtranjeroJuridica = isRanDrone && isJuridica && origenCompra === "extranjero";
+  const isRanDroneJuridica = isRanDrone && isJuridica;
+  const isRanDroneExtranjeroIndividual = isRanDrone && !isJuridica && origenCompra === "extranjero";
   const hideSolicitudSection = isRanMode && !isRanDrone;
   const formMainTitle = isRanDrone
     ? "Formulario único para trámites de aeronaves no tripuladas - UAV - RPA's"
@@ -892,12 +895,16 @@ function buildSubmissionPdfHtml(submission) {
             <span class="line-value">${renderValue(submission.has_acta ? submission.acta_filename || "Adjunto" : "No adjunto")}</span>
           </div>
           <div class="line-field">
-            <span class="label">Copia auténtica de Factura o Acta Notarial de Declaración Jurada:</span>
+            <span class="label">Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada:</span>
             <span class="line-value">${renderValue(submission.has_registro_mercantil ? submission.registro_mercantil_filename || "Adjunto" : "No adjunto")}</span>
           </div>
           ${
-            isRanDroneGuatemalaJuridica
-              ? `<div class="line-field">
+            isRanDroneJuridica
+              ? `${isRanDroneExtranjeroJuridica ? `<div class="line-field">
+            <span class="label">Copia legalizada de póliza de importación o DUCA con pago:</span>
+            <span class="line-value">${renderValue(submission.has_carta_representacion ? submission.carta_representacion_filename || "Adjunto" : "No adjunto")}</span>
+          </div>` : ""}
+          <div class="line-field">
             <span class="label">Acta Notarial de Nombramiento del representante legal:</span>
             <span class="line-value">${renderValue(submission.has_rpa_acta_nombramiento ? submission.rpa_acta_nombramiento_filename || "Adjunto" : "No adjunto")}</span>
           </div>
@@ -911,6 +918,14 @@ function buildSubmissionPdfHtml(submission) {
           </div>
           <div class="line-field">
             <span class="label">Documento entidad del Estado/ONG:</span>
+            <span class="line-value">${renderValue(submission.has_rpa_documento_estado ? submission.rpa_documento_estado_filename || "No adjunto" : "No adjunto")}</span>
+          </div>`
+              : ""
+          }
+          ${
+            isRanDroneExtranjeroIndividual
+              ? `<div class="line-field">
+            <span class="label">Copia legalizada de importación o DUCA con pago:</span>
             <span class="line-value">${renderValue(submission.has_rpa_documento_estado ? submission.rpa_documento_estado_filename || "No adjunto" : "No adjunto")}</span>
           </div>`
               : ""
@@ -1001,10 +1016,11 @@ function buildSubmissionFallbackPdfBuffer(submission) {
     line("DPI", submission.has_dpi ? "Adjunto" : "No adjunto");
     line("Acta", submission.has_acta ? "Adjunta" : "No adjunta");
     line("Registro mercantil", submission.has_registro_mercantil ? "Adjunto" : "No adjunto");
-    line("Acta nombramiento (RPA jurídica Guatemala)", submission.has_rpa_acta_nombramiento ? "Adjunta" : "No adjunta");
-    line("Registro representante (RPA jurídica Guatemala)", submission.has_rpa_registro_representante ? "Adjunto" : "No adjunto");
-    line("Registro entidad (RPA jurídica Guatemala)", submission.has_rpa_registro_entidad ? "Adjunto" : "No adjunto");
-    line("Documento entidad Estado/ONG (RPA jurídica Guatemala)", submission.has_rpa_documento_estado ? "Adjunto" : "No adjunto");
+    line("Póliza de importación o DUCA (RPA jurídica extranjero)", submission.has_carta_representacion ? "Adjunto" : "No adjunto");
+    line("Acta nombramiento (RPA jurídica)", submission.has_rpa_acta_nombramiento ? "Adjunta" : "No adjunta");
+    line("Registro representante (RPA jurídica)", submission.has_rpa_registro_representante ? "Adjunto" : "No adjunto");
+    line("Registro entidad (RPA jurídica)", submission.has_rpa_registro_entidad ? "Adjunto" : "No adjunto");
+    line("Documento entidad Estado/ONG o importación/DUCA (RPA)", submission.has_rpa_documento_estado ? "Adjunto" : "No adjunto");
     doc.end();
   });
 }
@@ -1496,9 +1512,11 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     : [
       ["nombre_propietario", nombre_propietario],
       ["correo", correo],
-      ["telefono", telefono],
-      ["uso", uso]
+      ["telefono", telefono]
     ];
+  if (!isRanCertificacionRequest && !isFinancialRequest && !isAilaRequest) {
+    required.push(["uso", uso]);
+  }
   if (requireOwnerDocument && !isFinancialRequest) {
     required.push(["documento_propietario", documento_propietario]);
   }
@@ -1508,7 +1526,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (isRanReservaRequest && !isFinancialRequest) {
     required.push(["nombre_orden_pago", nombre_orden_pago]);
   }
-  if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest) {
+  if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest) {
     required.push(["matricula_tg", matricula_tg]);
     required.push(["numero_serie", numero_serie]);
   }
@@ -1548,7 +1566,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     rpaActaNombramientoPdfBuffer = decodePdfBase64(rpa_acta_nombramiento_pdf_base64, "El PDF de acta de nombramiento");
     rpaRegistroRepresentantePdfBuffer = decodePdfBase64(rpa_registro_representante_pdf_base64, "El PDF de registro del representante");
     rpaRegistroEntidadPdfBuffer = decodePdfBase64(rpa_registro_entidad_pdf_base64, "El PDF de registro de la entidad");
-    rpaDocumentoEstadoPdfBuffer = decodePdfBase64(rpa_documento_estado_pdf_base64, "El PDF del documento de entidad del Estado/ONG");
+    rpaDocumentoEstadoPdfBuffer = decodePdfBase64(rpa_documento_estado_pdf_base64, "El PDF del documento RPA");
     cartaRepresentacionPdfBuffer = decodePdfBase64(carta_representacion_pdf_base64, "El PDF de carta de representación");
   } catch (err) {
     return res.status(400).json({ error: err.message || "Uno de los PDFs no es valido." });
@@ -1558,6 +1576,11 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   }
   const requireExtraDocs = personaTipo === "juridica" || isRanDroneRequest;
   const requireRpaJuridicaGuatemalaDocs = isRanDroneRequest && personaTipo === "juridica" && origenCompra === "guatemala";
+  const requireRpaJuridicaExtranjeroDocs = isRanDroneRequest && personaTipo === "juridica" && origenCompra === "extranjero";
+  const requireRpaJuridicaSupportingDocs = requireRpaJuridicaGuatemalaDocs || requireRpaJuridicaExtranjeroDocs;
+  const requireRpaJuridicaMercantilDocs = requireRpaJuridicaSupportingDocs;
+  const requireRpaIndividualExtranjeroDocs = isRanDroneRequest && personaTipo === "individual" && origenCompra === "extranjero";
+  const requireRpaDocumentoEstadoUpload = requireRpaJuridicaSupportingDocs || requireRpaIndividualExtranjeroDocs;
   if (!["individual", "juridica"].includes(personaTipo)) {
     return res.status(400).json({ error: "persona_tipo no válido. Usa individual o jurídica." });
   }
@@ -1570,38 +1593,35 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (isFinancialRequest) {
     const financialDetail = detalle_formulario && typeof detalle_formulario === "object" ? detalle_formulario : {};
     const financialProcessCode = String(financialDetail.proceso_codigo || financialDetail.gestion_codigo || "").trim();
-    const requiresChangeDocs = financialProcessCode === "cambio_datos_certificados";
-    const requiresRenewalDocs = ["renovacion_arrendamiento", "permiso_especial_vuelo", "solvencia_aeronavegabilidad"].includes(financialProcessCode);
+    const requiresSolvenciaDocs = [
+      "cancelacion_matricula",
+      "solvencia_aeronavegabilidad",
+      "solvencia_financiera_aeronave"
+    ].includes(financialProcessCode);
     const requiresWeightDocs = financialProcessCode === "derecho_aproximacion";
-    if (!dpiPdfBuffer) {
+    if (requiresSolvenciaDocs && !dpiPdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 1 en PDF." });
     }
-    if (!financialDeclaraguate2PdfBuffer) {
+    if (requiresSolvenciaDocs && !financialDeclaraguate2PdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 2 en PDF." });
     }
-    if (!financialDeclaraguate3PdfBuffer) {
+    if (requiresSolvenciaDocs && !financialDeclaraguate3PdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 3 en PDF." });
     }
-    if (!financialDeclaraguate4PdfBuffer) {
+    if (requiresSolvenciaDocs && !financialDeclaraguate4PdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 4 en PDF." });
     }
-    if (!financialDeclaraguate5PdfBuffer) {
+    if (requiresSolvenciaDocs && !financialDeclaraguate5PdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 5 en PDF." });
     }
-    if (!actaPdfBuffer) {
+    if (requiresSolvenciaDocs && !actaPdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar la factura de inspección del año en curso." });
     }
-    if (!registroMercantilPdfBuffer) {
+    if (requiresSolvenciaDocs && !registroMercantilPdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar la factura de aproximación del año en curso." });
     }
-    if (!rpaRegistroRepresentantePdfBuffer) {
+    if (requiresSolvenciaDocs && !rpaRegistroRepresentantePdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el certificado de aeronavegabilidad actual." });
-    }
-    if (requiresChangeDocs && !rpaActaNombramientoPdfBuffer) {
-      return res.status(400).json({ error: "Debes adjuntar los documentos del antiguo dueño y el certificado de aeronavegabilidad." });
-    }
-    if (requiresRenewalDocs && !rpaRegistroEntidadPdfBuffer) {
-      return res.status(400).json({ error: "Debes adjuntar la solvencia del año anterior." });
     }
     if (requiresWeightDocs && !rpaDocumentoEstadoPdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el documento que indica el peso máximo de despegue de la aeronave." });
@@ -1654,21 +1674,33 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (!isFinancialRequest && requireExtraDocs && !registro_mercantil_pdf_base64) {
     return res.status(400).json({
       error: isRanDroneRequest
-        ? "Para RPA la Copia auténtica de Factura o Acta Notarial de Declaración Jurada en PDF es obligatoria."
-        : "Para persona jurídica el registro mercantil en PDF es obligatorio."
+          ? "Para RPA la Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada en PDF es obligatoria."
+          : "Para persona jurídica el registro mercantil en PDF es obligatorio."
     });
   }
-  if (!isFinancialRequest && requireRpaJuridicaGuatemalaDocs && !rpa_acta_nombramiento_pdf_base64) {
+  if (!isFinancialRequest && requireRpaDocumentoEstadoUpload && !rpa_documento_estado_pdf_base64) {
+    return res.status(400).json({
+      error: requireRpaIndividualExtranjeroDocs
+        ? "Para RPA comprado en el extranjero por persona individual, la copia legalizada de importación de la aeronave o DUCA con pago en PDF es obligatoria."
+        : "Para RPA persona jurídica, el documento de acreditación en PDF es obligatorio."
+    });
+  }
+  if (!isFinancialRequest && requireRpaJuridicaExtranjeroDocs && !carta_representacion_pdf_base64) {
+    return res.status(400).json({
+      error: "Para RPA comprado en el extranjero por persona jurídica, la copia legalizada de la póliza de importación o DUCA con pago en PDF es obligatoria."
+    });
+  }
+  if (!isFinancialRequest && requireRpaJuridicaSupportingDocs && !rpa_acta_nombramiento_pdf_base64) {
     return res.status(400).json({
       error: "Debes adjuntar la copia simple del Acta Notarial de Nombramiento del representante legal."
     });
   }
-  if (!isFinancialRequest && requireRpaJuridicaGuatemalaDocs && !rpa_registro_representante_pdf_base64) {
+  if (!isFinancialRequest && requireRpaJuridicaMercantilDocs && !rpa_registro_representante_pdf_base64) {
     return res.status(400).json({
       error: "Debes adjuntar la certificación de inscripción del representante legal en el Registro Mercantil."
     });
   }
-  if (!isFinancialRequest && requireRpaJuridicaGuatemalaDocs && !rpa_registro_entidad_pdf_base64) {
+  if (!isFinancialRequest && requireRpaJuridicaMercantilDocs && !rpa_registro_entidad_pdf_base64) {
     return res.status(400).json({
       error: "Debes adjuntar la certificación de inscripción de la entidad en el Registro Mercantil."
     });
@@ -2515,10 +2547,10 @@ app.get("/api/my-submissions/:id/boleta", requireAuth, requireRole("user", "admi
 
     const submission = result.rows[0];
     if (!submission.approved_at && !isFinancialPaymentPasswordFlow(submission)) {
-      return res.status(400).json({ error: "La boleta de pago solo está disponible cuando el proceso está aprobado o cuando el analista la libera para pago." });
+      return res.status(400).json({ error: "La boleta de pago solo está disponible cuando el proceso está aprobado o cuando la etapa responsable la libera para pago." });
     }
     if (!submission.analyst_pdf) {
-      return res.status(404).json({ error: "Aún no hay boleta de pago cargada por el analista." });
+      return res.status(404).json({ error: "Aún no hay boleta de pago cargada para este proceso." });
     }
 
     const mime = submission.analyst_pdf_mime || "application/pdf";
@@ -2693,7 +2725,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     rpaActaNombramientoPdfBuffer = decodePdfBase64(rpa_acta_nombramiento_pdf_base64, "El PDF de acta de nombramiento");
     rpaRegistroRepresentantePdfBuffer = decodePdfBase64(rpa_registro_representante_pdf_base64, "El PDF de registro del representante");
     rpaRegistroEntidadPdfBuffer = decodePdfBase64(rpa_registro_entidad_pdf_base64, "El PDF de registro de la entidad");
-    rpaDocumentoEstadoPdfBuffer = decodePdfBase64(rpa_documento_estado_pdf_base64, "El PDF del documento de entidad del Estado/ONG");
+    rpaDocumentoEstadoPdfBuffer = decodePdfBase64(rpa_documento_estado_pdf_base64, "El PDF del documento RPA");
     cartaRepresentacionPdfBuffer = decodePdfBase64(carta_representacion_pdf_base64, "El PDF de carta de representación");
   } catch (err) {
     return res.status(400).json({ error: err.message || "Uno de los PDFs no es valido." });
@@ -2783,6 +2815,11 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
     const requireExtraDocs = !isFinancialRequest && (finalTipo === "juridica" || isRanDroneRequest);
     const requireRpaJuridicaGuatemalaDocs = isRanDroneRequest && finalTipo === "juridica" && finalOrigenCompra === "guatemala";
+    const requireRpaJuridicaExtranjeroDocs = isRanDroneRequest && finalTipo === "juridica" && finalOrigenCompra === "extranjero";
+    const requireRpaJuridicaSupportingDocs = requireRpaJuridicaGuatemalaDocs || requireRpaJuridicaExtranjeroDocs;
+    const requireRpaJuridicaMercantilDocs = requireRpaJuridicaSupportingDocs;
+    const requireRpaIndividualExtranjeroDocs = isRanDroneRequest && finalTipo === "individual" && finalOrigenCompra === "extranjero";
+    const requireRpaDocumentoEstadoUpload = requireRpaJuridicaSupportingDocs || requireRpaIndividualExtranjeroDocs;
     const hasDpiAfter = Boolean(dpi_pdf_base64) || Boolean(current.has_dpi);
     const hasDeclaraguate2After = Boolean(financial_declaraguate_2_pdf_base64) || Boolean(current.has_financial_declaraguate_2);
     const hasDeclaraguate3After = Boolean(financial_declaraguate_3_pdf_base64) || Boolean(current.has_financial_declaraguate_3);
@@ -2833,21 +2870,31 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     if (requireExtraDocs && !hasRegistroMercantilAfter) {
       return res.status(400).json({
         error: isRanDroneRequest
-          ? "Para RPA la Copia auténtica de Factura o Acta Notarial de Declaración Jurada en PDF es obligatoria."
+          ? "Para RPA la Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada en PDF es obligatoria."
           : "Para persona jurídica el registro mercantil en PDF es obligatorio."
       });
     }
     if (isRanDroneRequest && !finalOrigenCompra) {
       return res.status(400).json({ error: "Para RPA debes indicar si fue comprado en Guatemala o en el extranjero." });
     }
-    if (requireRpaJuridicaGuatemalaDocs && !hasRpaActaNombramientoAfter) {
+    if (requireRpaJuridicaExtranjeroDocs && !hasCartaRepresentacionAfter) {
+      return res.status(400).json({ error: "Debes adjuntar la copia legalizada de la póliza de importación de la aeronave o DUCA con pago." });
+    }
+    if (requireRpaJuridicaSupportingDocs && !hasRpaActaNombramientoAfter) {
       return res.status(400).json({ error: "Debes adjuntar la copia simple del Acta Notarial de Nombramiento del representante legal." });
     }
-    if (requireRpaJuridicaGuatemalaDocs && !hasRpaRegistroRepresentanteAfter) {
+    if (requireRpaJuridicaMercantilDocs && !hasRpaRegistroRepresentanteAfter) {
       return res.status(400).json({ error: "Debes adjuntar la certificación de inscripción del representante legal en el Registro Mercantil." });
     }
-    if (requireRpaJuridicaGuatemalaDocs && !hasRpaRegistroEntidadAfter) {
+    if (requireRpaJuridicaMercantilDocs && !hasRpaRegistroEntidadAfter) {
       return res.status(400).json({ error: "Debes adjuntar la certificación de inscripción de la entidad en el Registro Mercantil." });
+    }
+    if (requireRpaDocumentoEstadoUpload && !hasRpaDocumentoEstadoAfter) {
+      return res.status(400).json({
+        error: requireRpaIndividualExtranjeroDocs
+          ? "Debes adjuntar la copia legalizada de importación de la aeronave o DUCA con pago."
+          : "Debes adjuntar el documento de acreditación."
+      });
     }
     if ((finalTipo === "juridica" || isFinancialRequest) && !finalRepresentante) {
       return res.status(400).json({ error: isFinancialRequest ? "El nombre del solicitante es obligatorio." : "Para persona jurídica el representante legal es obligatorio." });
@@ -2857,38 +2904,35 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     }
     if (isFinancialRequest) {
       const financialProcessCode = String(nextDetail.proceso_codigo || nextDetail.gestion_codigo || "").trim();
-      const requiresChangeDocs = financialProcessCode === "cambio_datos_certificados";
-      const requiresRenewalDocs = ["renovacion_arrendamiento", "permiso_especial_vuelo", "solvencia_aeronavegabilidad"].includes(financialProcessCode);
+      const requiresSolvenciaDocs = [
+        "cancelacion_matricula",
+        "solvencia_aeronavegabilidad",
+        "solvencia_financiera_aeronave"
+      ].includes(financialProcessCode);
       const requiresWeightDocs = financialProcessCode === "derecho_aproximacion";
-      if (!hasDpiAfter) {
+      if (requiresSolvenciaDocs && !hasDpiAfter) {
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 1 en PDF." });
       }
-      if (!hasDeclaraguate2After) {
+      if (requiresSolvenciaDocs && !hasDeclaraguate2After) {
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 2 en PDF." });
       }
-      if (!hasDeclaraguate3After) {
+      if (requiresSolvenciaDocs && !hasDeclaraguate3After) {
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 3 en PDF." });
       }
-      if (!hasDeclaraguate4After) {
+      if (requiresSolvenciaDocs && !hasDeclaraguate4After) {
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 4 en PDF." });
       }
-      if (!hasDeclaraguate5After) {
+      if (requiresSolvenciaDocs && !hasDeclaraguate5After) {
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 5 en PDF." });
       }
-      if (!hasActaAfter) {
+      if (requiresSolvenciaDocs && !hasActaAfter) {
         return res.status(400).json({ error: "Debes adjuntar la factura de inspección del año en curso." });
       }
-      if (!hasRegistroMercantilAfter) {
+      if (requiresSolvenciaDocs && !hasRegistroMercantilAfter) {
         return res.status(400).json({ error: "Debes adjuntar la factura de aproximación del año en curso." });
       }
-      if (!hasRpaRegistroRepresentanteAfter) {
+      if (requiresSolvenciaDocs && !hasRpaRegistroRepresentanteAfter) {
         return res.status(400).json({ error: "Debes adjuntar el certificado de aeronavegabilidad actual." });
-      }
-      if (requiresChangeDocs && !hasRpaActaNombramientoAfter) {
-        return res.status(400).json({ error: "Debes adjuntar los documentos del antiguo dueño y el certificado de aeronavegabilidad." });
-      }
-      if (requiresRenewalDocs && !hasRpaRegistroEntidadAfter) {
-        return res.status(400).json({ error: "Debes adjuntar la solvencia del año anterior." });
       }
       if (requiresWeightDocs && !hasRpaDocumentoEstadoAfter) {
         return res.status(400).json({ error: "Debes adjuntar el documento que indica el peso máximo de despegue de la aeronave." });
@@ -2934,7 +2978,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     if (isRanReservaRequest && !finalNombreOrdenPago) {
       return res.status(400).json({ error: "En Reserva, Prórroga o Cesión de Matrícula el nombre para orden de pago es obligatorio." });
     }
-    if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !finalNumeroSerie) {
+    if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !finalNumeroSerie) {
       return res.status(400).json({ error: "Número de serie es obligatorio." });
     }
 
@@ -3687,7 +3731,7 @@ app.get("/api/submissions/:id/documento-firmado", requireAuth, requireRole("revi
   }
 });
 
-app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista", "emisor", "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const { pdf_base64, filename, mime } = req.body || {};
 
@@ -3695,11 +3739,15 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     return res.status(400).json({ error: "El PDF es obligatorio." });
   }
 
+  let role = req.user?.role || null;
   let pdfBuffer;
+  let decodeLabel = "La boleta de pago";
   try {
-    pdfBuffer = decodePdfBase64(pdf_base64, "La boleta de pago");
+    role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    decodeLabel = role === "emisor" ? "El documento PDF" : "La boleta de pago";
+    pdfBuffer = decodePdfBase64(pdf_base64, decodeLabel);
   } catch (err) {
-    return res.status(400).json({ error: err.message || "La boleta de pago no es válida." });
+    return res.status(400).json({ error: err.message || `${decodeLabel} no es válido.` });
   }
   if (!pdfBuffer || !pdfBuffer.length) {
     return res.status(400).json({ error: "PDF en formato base64 no válido." });
@@ -3716,8 +3764,8 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     .slice(0, 180) || "boleta-pago.pdf";
 
   try {
-    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
     const isAnalyst = role === "analista";
+    const isEmitter = role === "emisor";
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
 
@@ -3726,6 +3774,10 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     if (isAnalyst) {
       accessParams.push(req.user?.sub);
       accessWhere.push(`assigned_analista_id = $${accessParams.length}`);
+    }
+    if (isEmitter) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`assigned_emisor_id = $${accessParams.length}`);
     }
     if (isUnitRestricted) {
       accessParams.push(unitAccess);
@@ -3743,13 +3795,28 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     }
 
     const row = current.rows[0];
+    const isFinancial = String(row.unidad_clave || "").toUpperCase() === "FINANCIERO";
+    const isPaymentPassword = isFinancialPaymentPasswordFlow(row);
+    if (isFinancial && !isPaymentPassword && isAnalyst) {
+      return res.status(400).json({ error: "En financiero el documento PDF debe cargarlo el emisor." });
+    }
+    if (isFinancial && isPaymentPassword && isEmitter) {
+      return res.status(400).json({ error: "En solicitud de contraseña de pago el PDF debe cargarlo el analista." });
+    }
+    if (!isFinancial && isEmitter) {
+      return res.status(400).json({ error: "El rol emisor solo puede cargar PDFs en procesos financieros." });
+    }
     if (row.approved_at) {
-      return res.status(400).json({ error: "No se puede modificar la boleta porque el proceso ya está aprobado." });
+      return res.status(400).json({ error: "No se puede modificar el PDF porque el proceso ya está aprobado." });
     }
     if (row.delivered_at) {
-      return res.status(400).json({ error: "No se puede modificar la boleta porque el proceso ya fue finalizado." });
+      return res.status(400).json({ error: "No se puede modificar el PDF porque el proceso ya fue finalizado." });
     }
-    if (row.sent_to_emisor_at || row.assigned_emisor_id || row.sent_to_aprobador_at || row.assigned_aprobador_id) {
+    if (isFinancial && !isPaymentPassword) {
+      if (row.sent_to_aprobador_at || row.assigned_aprobador_id) {
+        return res.status(400).json({ error: "No se puede modificar el PDF. El proceso ya fue enviado a la siguiente etapa." });
+      }
+    } else if (!isPaymentPassword && (row.sent_to_emisor_at || row.assigned_emisor_id || row.sent_to_aprobador_at || row.assigned_aprobador_id)) {
       return res.status(400).json({ error: "No se puede modificar la boleta. El proceso ya fue enviado a la siguiente etapa." });
     }
 
@@ -3772,7 +3839,9 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "analista_sube_pdf",
-      eventLabel: "Analista subió boleta de pago",
+      eventLabel: isFinancial && !isPaymentPassword && isEmitter
+        ? "Emisor subió documento PDF"
+        : "Analista subió boleta de pago",
       eventDetail: safeFilename,
       actorUserId: req.user?.sub || null,
       actorRole: role
@@ -3781,7 +3850,7 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     return res.json(result.rows[0]);
   } catch (err) {
     console.error("Error uploading analyst pdf", err);
-    return res.status(500).json({ error: "No se pudo cargar el PDF del analista." });
+    return res.status(500).json({ error: "No se pudo cargar el PDF del proceso." });
   }
 });
 
@@ -3942,9 +4011,13 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
   }
 });
 
-// Analista/admin/supervisor envian formulario al emisor de la unidad
+// Analista/admin/supervisor envían formulario al emisor de la unidad.
 app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
+  const requestedEmisorId = req.body?.emisor_id ? Number(req.body.emisor_id) : null;
+  if (requestedEmisorId !== null && (!Number.isInteger(requestedEmisorId) || requestedEmisorId <= 0)) {
+    return res.status(400).json({ error: "emisor_id no válido." });
+  }
 
   try {
     const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
@@ -3964,7 +4037,7 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("analis
     }
 
     const submissionResult = await pool.query(
-      `SELECT id, unidad_clave, detalle_formulario, approved_at, analyst_pdf
+      `SELECT id, unidad_clave, detalle_formulario, approved_at
        FROM submissions
        WHERE ${where.join(" AND ")}`,
       params
@@ -3980,22 +4053,31 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("analis
     if (isFinancialPaymentPasswordFlow(submission)) {
       return res.status(400).json({ error: "Este proceso finaliza con la boleta de pago y no debe enviarse a emisor." });
     }
-    if (!submission.analyst_pdf) {
-      return res.status(400).json({ error: "Debes subir la boleta de pago de este proceso antes de enviarlo al emisor." });
-    }
     const submissionUnit = String(submission.unidad_clave || "GENERAL").toUpperCase();
 
-    const emitterResult = await pool.query(
-      `SELECT id, name, email, unit_access
-       FROM users
-       WHERE role = 'emisor'
-         AND unit_access @> ARRAY[$1]::TEXT[]
-       ORDER BY created_at ASC, id ASC
-       LIMIT 1`,
-      [submissionUnit]
-    );
+    const emitterQuery = requestedEmisorId
+      ? `SELECT id, name, email, unit_access
+         FROM users
+         WHERE role = 'emisor'
+           AND id = $1
+           AND unit_access @> ARRAY[$2]::TEXT[]
+         LIMIT 1`
+      : `SELECT id, name, email, unit_access
+         FROM users
+         WHERE role = 'emisor'
+           AND unit_access @> ARRAY[$1]::TEXT[]
+         ORDER BY created_at ASC, id ASC
+         LIMIT 1`;
+    const emitterParams = requestedEmisorId
+      ? [requestedEmisorId, submissionUnit]
+      : [submissionUnit];
+    const emitterResult = await pool.query(emitterQuery, emitterParams);
     if (!emitterResult.rowCount) {
-      return res.status(400).json({ error: "No existe un emisor configurado para esta unidad." });
+      return res.status(400).json({
+        error: requestedEmisorId
+          ? "El emisor seleccionado no existe o no tiene acceso a esta unidad."
+          : "No existe un emisor configurado para esta unidad."
+      });
     }
 
     const emitter = emitterResult.rows[0];
@@ -4052,8 +4134,8 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("analis
   }
 });
 
-// Emisor/admin/supervisor envian formulario al aprobador de la unidad
-app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("emisor", "admin", "supervisor"), async (req, res) => {
+// RAN/otras unidades: analista envia al aprobador. Financiero: emisor envia al aprobador.
+app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("analista", "emisor", "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const requestedAprobadorId = req.body?.aprobador_id ? Number(req.body.aprobador_id) : null;
   if (requestedAprobadorId !== null && (!Number.isInteger(requestedAprobadorId) || requestedAprobadorId <= 0)) {
@@ -4063,6 +4145,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("emis
   try {
     const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
     const isAnalyst = role === "analista";
+    const isEmitter = role === "emisor";
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
 
@@ -4071,6 +4154,10 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("emis
     if (isAnalyst) {
       params.push(req.user?.sub);
       where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isEmitter) {
+      params.push(req.user?.sub);
+      where.push(`assigned_emisor_id = $${params.length}`);
     }
     if (isUnitRestricted) {
       params.push(unitAccess);
@@ -4087,16 +4174,26 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("emis
     }
 
     const submission = submissionResult.rows[0];
+    const submissionUnit = String(submission.unidad_clave || "GENERAL").toUpperCase();
     if (submission.approved_at) {
       return res.status(400).json({ error: "El formulario ya está aprobado." });
     }
     if (isFinancialPaymentPasswordFlow(submission)) {
       return res.status(400).json({ error: "Este proceso finaliza con la boleta de pago y no debe enviarse a aprobador." });
     }
-    if (!submission.analyst_pdf) {
-      return res.status(400).json({ error: "Debes subir la boleta de pago de este proceso antes de enviarlo al aprobador." });
+    if (submissionUnit === "FINANCIERO" && isAnalyst) {
+      return res.status(400).json({ error: "En financiero el analista debe enviar el proceso al emisor antes del aprobador." });
     }
-    const submissionUnit = String(submission.unidad_clave || "GENERAL").toUpperCase();
+    if (submissionUnit !== "FINANCIERO" && isEmitter) {
+      return res.status(400).json({ error: "El rol emisor solo envía a aprobador procesos financieros." });
+    }
+    if (!submission.analyst_pdf) {
+      return res.status(400).json({
+        error: submissionUnit === "FINANCIERO"
+          ? "Debes cargar el documento PDF de este proceso antes de enviarlo al aprobador."
+          : "Debes subir la boleta de pago de este proceso antes de enviarlo al aprobador."
+      });
+    }
 
     let approverResult;
     if (requestedAprobadorId) {
@@ -4302,20 +4399,19 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", "
   }
 });
 
-// Analista/admin/supervisor marcan certificación RAN como entregada o contraseña de pago como finalizada
-app.post("/api/submissions/:id/deliver", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
+// Receptor marca certificación RAN como entregada o procesos financieros como finalizados
+app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
   const { id } = req.params;
   const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
-  const isAnalyst = role === "analista";
+  if (role !== "revisor") {
+    return res.status(403).json({ error: "Solo el receptor puede marcar este proceso como entregado o finalizado." });
+  }
   const isUnitRestricted = isUnitRestrictedRole(role);
   const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
 
   try {
-    const where = ["id = $2"];
-    const params = [req.user?.sub, id];
-    if (isAnalyst) {
-      where.push("assigned_analista_id = $1");
-    }
+    const where = ["id = $1"];
+    const params = [id];
     if (isUnitRestricted) {
       params.push(unitAccess);
       where.push(`unidad_clave = ANY($${params.length})`);
@@ -4328,18 +4424,22 @@ app.post("/api/submissions/:id/deliver", requireAuth, requireRole("analista", "a
       params
     );
     if (!current.rowCount) {
-      return res.status(404).json({ error: "Registro no encontrado o no asignado al analista." });
+      return res.status(404).json({ error: "Registro no encontrado o sin acceso para el receptor." });
     }
 
     const row = current.rows[0];
     const unit = String(row.unidad_clave || "").toUpperCase();
     const isRan = unit === "RAN";
+    const isFinancial = unit === "FINANCIERO";
     const isPaymentPassword = isFinancialPaymentPasswordFlow(row);
-    if (!isRan && !isPaymentPassword) {
+    if (!isRan && !isFinancial) {
       return res.status(400).json({ error: "Este proceso no se puede marcar como entregado o finalizado desde esta acción." });
     }
     if (isRan && !row.approved_at) {
       return res.status(400).json({ error: "El proceso debe estar aprobado antes de marcarse como entregado." });
+    }
+    if (isFinancial && !isPaymentPassword && !row.approved_at) {
+      return res.status(400).json({ error: "El proceso financiero debe estar aprobado antes de marcarse como finalizado." });
     }
     if (isPaymentPassword && !row.analyst_pdf) {
       return res.status(400).json({ error: "Debes cargar la boleta de pago antes de finalizar este proceso." });
@@ -4360,16 +4460,20 @@ app.post("/api/submissions/:id/deliver", requireAuth, requireRole("analista", "a
       return res.status(404).json({ error: "Registro no encontrado." });
     }
 
-    await registerSubmissionLog({
-      submissionId: Number(id),
-      eventCode: isPaymentPassword ? "proceso_finalizado" : "entrega_usuario",
-      eventLabel: isPaymentPassword ? "Proceso financiero finalizado" : "Certificación entregada al usuario",
-      eventDetail: isPaymentPassword
-        ? "Analista marcó la contraseña de pago como finalizada."
-        : "Analista marcó el proceso como entregado.",
-      actorUserId: req.user?.sub || null,
-      actorRole: role
-    });
+    try {
+      await registerSubmissionLog({
+        submissionId: Number(id),
+        eventCode: isFinancial ? "proceso_finalizado" : "entrega_usuario",
+        eventLabel: isFinancial ? "Proceso financiero finalizado" : "Certificación entregada al usuario",
+        eventDetail: isFinancial
+          ? "Receptor marcó el proceso financiero como finalizado."
+          : "Receptor marcó el proceso como entregado.",
+        actorUserId: req.user?.sub || null,
+        actorRole: role
+      });
+    } catch (logErr) {
+      console.warn("No se pudo registrar la bitácora de entrega/finalización", logErr);
+    }
 
     return res.json(result.rows[0]);
   } catch (err) {
@@ -4523,6 +4627,52 @@ app.get("/api/analistas", requireAuth, requireRole("revisor", "admin", "supervis
   } catch (err) {
     console.error("Error reading analysts", err);
     res.status(500).json({ error: "Failed to fetch analysts" });
+  }
+});
+
+// Lista aprobadores disponibles por unidad
+app.get("/api/aprobadores", requireAuth, requireRole("analista", "emisor", "admin", "supervisor"), async (req, res) => {
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const params = [];
+    let where = "role = 'aprobador'";
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where += ` AND unit_access && $1::TEXT[]`;
+    }
+    const result = await pool.query(
+      `SELECT id, email, name, unit_access FROM users WHERE ${where} ORDER BY email`,
+      params
+    );
+    res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));
+  } catch (err) {
+    console.error("Error reading approvers", err);
+    res.status(500).json({ error: "Failed to fetch approvers" });
+  }
+});
+
+// Lista emisores disponibles por unidad
+app.get("/api/emisores", requireAuth, requireRole("analista", "admin", "supervisor"), async (req, res) => {
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const params = [];
+    let where = "role = 'emisor'";
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where += ` AND unit_access && $1::TEXT[]`;
+    }
+    const result = await pool.query(
+      `SELECT id, email, name, unit_access FROM users WHERE ${where} ORDER BY email`,
+      params
+    );
+    res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));
+  } catch (err) {
+    console.error("Error reading emitters", err);
+    res.status(500).json({ error: "Failed to fetch emitters" });
   }
 });
 

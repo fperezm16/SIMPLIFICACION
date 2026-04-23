@@ -260,7 +260,7 @@
         </div>
       </section>
 
-      <section class="section finance-section" *ngIf="form.value.gestion_codigo">
+      <section class="section finance-section" *ngIf="shouldShowSolvenciaRequirements()">
         <h2>Documentos adjuntos del trámite</h2>
         <p class="field-hint">Adjunta cada documento en formato PDF. Tamaño máximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
         <div class="finance-grid two-col documents-grid">

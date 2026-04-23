@@ -95,6 +95,8 @@ export class FormPageComponent implements OnInit {
   rpaRegistroRepresentanteError = '';
   rpaRegistroEntidadFile: File | null = null;
   rpaRegistroEntidadError = '';
+  rpaImportacionDucaFile: File | null = null;
+  rpaImportacionDucaError = '';
   rpaDocumentoEstadoFile: File | null = null;
   rpaDocumentoEstadoError = '';
   trackingLoading = false;
@@ -110,6 +112,7 @@ export class FormPageComponent implements OnInit {
   existingRpaActaNombramientoName = '';
   existingRpaRegistroRepresentanteName = '';
   existingRpaRegistroEntidadName = '';
+  existingRpaImportacionDucaName = '';
   existingRpaDocumentoEstadoName = '';
   existingHasDpi = false;
   existingHasActa = false;
@@ -117,6 +120,7 @@ export class FormPageComponent implements OnInit {
   existingHasRpaActaNombramiento = false;
   existingHasRpaRegistroRepresentante = false;
   existingHasRpaRegistroEntidad = false;
+  existingHasRpaImportacionDuca = false;
   existingHasRpaDocumentoEstado = false;
   formMode: 'general' | 'ran2' | 'ran8' | 'ranUav' = 'general';
   isRanMode = false;
@@ -235,10 +239,23 @@ export class FormPageComponent implements OnInit {
     this.rpaRegistroEntidadError = normalized.error;
   }
 
+  onRpaImportacionDucaSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files && input.files[0];
+    const normalized = this.normalizePdfFile(file || null, 'La póliza de importación o DUCA debe estar en PDF.');
+    this.rpaImportacionDucaFile = normalized.file;
+    this.rpaImportacionDucaError = normalized.error;
+  }
+
   onRpaDocumentoEstadoSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files && input.files[0];
-    const normalized = this.normalizePdfFile(file || null, 'El documento de entidad del Estado/ONG debe estar en PDF.');
+    const normalized = this.normalizePdfFile(
+      file || null,
+      this.requiresRpaIndividualExtranjeroDocs()
+        ? 'El documento de importación o DUCA debe estar en PDF.'
+        : 'El documento de entidad del Estado/ONG debe estar en PDF.'
+    );
     this.rpaDocumentoEstadoFile = normalized.file;
     this.rpaDocumentoEstadoError = normalized.error;
   }
@@ -252,8 +269,17 @@ export class FormPageComponent implements OnInit {
     this.applyPersonaValidators();
     this.actaError = '';
     this.registroMercantilError = '';
-    if (!this.requiresRpaJuridicaGuatemalaDocs()) {
+    if (this.isRanUav) {
+      this.clearRpaDocumentoEstadoDoc();
+    }
+    if (!this.requiresRpaJuridicaSupportingDocs()) {
       this.clearRpaJuridicaGuatemalaDocs();
+    }
+    if (!this.requiresRpaJuridicaExtranjeroDocs()) {
+      this.clearRpaImportacionDucaDoc();
+    }
+    if (!this.requiresRpaDocumentoEstadoUpload()) {
+      this.clearRpaDocumentoEstadoDoc();
     }
     if (tipo === 'individual' && !this.isRanUav) {
       this.actaFile = null;
@@ -263,8 +289,17 @@ export class FormPageComponent implements OnInit {
 
   setOrigenCompra(origen: 'guatemala' | 'extranjero') {
     this.form.patchValue({ origen_compra: origen }, { emitEvent: false });
-    if (!this.requiresRpaJuridicaGuatemalaDocs()) {
+    if (this.isRanUav) {
+      this.clearRpaDocumentoEstadoDoc();
+    }
+    if (!this.requiresRpaJuridicaSupportingDocs()) {
       this.clearRpaJuridicaGuatemalaDocs();
+    }
+    if (!this.requiresRpaJuridicaExtranjeroDocs()) {
+      this.clearRpaImportacionDucaDoc();
+    }
+    if (!this.requiresRpaDocumentoEstadoUpload()) {
+      this.clearRpaDocumentoEstadoDoc();
     }
   }
 
@@ -280,17 +315,24 @@ export class FormPageComponent implements OnInit {
     this.rpaActaNombramientoError = '';
     this.rpaRegistroRepresentanteError = '';
     this.rpaRegistroEntidadError = '';
+    this.rpaImportacionDucaError = '';
     this.rpaDocumentoEstadoError = '';
     this.syncFechaHoy();
     const isResubmit = this.isEditingReturned();
     const requiresExtraDocs = this.requiresExtraUploadDocs();
-    const requiresRpaJuridicaGuatemalaDocs = this.requiresRpaJuridicaGuatemalaDocs();
+    const requiresRegistroMercantilDocs = this.requiresRegistroMercantilUpload();
+    const requiresRpaJuridicaSupportingDocs = this.requiresRpaJuridicaSupportingDocs();
+    const requiresRpaJuridicaMercantilDocs = this.requiresRpaJuridicaMercantilDocs();
+    const requiresRpaJuridicaExtranjeroDocs = this.requiresRpaJuridicaExtranjeroDocs();
+    const requiresRpaIndividualExtranjeroDocs = this.requiresRpaIndividualExtranjeroDocs();
     const hasDpiReady = Boolean(this.dpiFile) || (isResubmit && this.existingHasDpi);
     const hasActaReady = Boolean(this.actaFile) || (isResubmit && this.existingHasActa);
     const hasRegistroMercantilReady = Boolean(this.registroMercantilFile) || (isResubmit && this.existingHasRegistroMercantil);
     const hasRpaActaNombramientoReady = Boolean(this.rpaActaNombramientoFile) || (isResubmit && this.existingHasRpaActaNombramiento);
     const hasRpaRegistroRepresentanteReady = Boolean(this.rpaRegistroRepresentanteFile) || (isResubmit && this.existingHasRpaRegistroRepresentante);
     const hasRpaRegistroEntidadReady = Boolean(this.rpaRegistroEntidadFile) || (isResubmit && this.existingHasRpaRegistroEntidad);
+    const hasRpaImportacionDucaReady = Boolean(this.rpaImportacionDucaFile) || (isResubmit && this.existingHasRpaImportacionDuca);
+    const hasRpaDocumentoEstadoReady = Boolean(this.rpaDocumentoEstadoFile) || (isResubmit && this.existingHasRpaDocumentoEstado);
 
     if (!hasDpiReady) {
       this.dpiError = 'Adjunta el DPI en PDF antes de guardar.';
@@ -312,18 +354,27 @@ export class FormPageComponent implements OnInit {
       this.actaError = 'El acta notarial debe ser PDF.';
       return;
     }
-    if (requiresExtraDocs && !hasRegistroMercantilReady) {
+    if (requiresRegistroMercantilDocs && !hasRegistroMercantilReady) {
       this.registroMercantilError = this.isRanUav
-        ? 'Adjunta la Copia auténtica de Factura o Acta Notarial de Declaración Jurada en PDF.'
+        ? 'Adjunta la Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada en PDF.'
         : 'Adjunta el registro mercantil en PDF para persona jurídica.';
       this.form.markAllAsTouched();
       return;
     }
-    if (this.registroMercantilFile && this.registroMercantilFile.type !== 'application/pdf') {
+    if (requiresRegistroMercantilDocs && this.registroMercantilFile && this.registroMercantilFile.type !== 'application/pdf') {
       this.registroMercantilError = 'El registro mercantil debe ser PDF.';
       return;
     }
-    if (requiresRpaJuridicaGuatemalaDocs && !hasRpaActaNombramientoReady) {
+    if (requiresRpaJuridicaExtranjeroDocs && !hasRpaImportacionDucaReady) {
+      this.rpaImportacionDucaError = 'Adjunta la copia legalizada de la póliza de importación o DUCA con pago en PDF.';
+      this.form.markAllAsTouched();
+      return;
+    }
+    if (this.rpaImportacionDucaFile && this.rpaImportacionDucaFile.type !== 'application/pdf') {
+      this.rpaImportacionDucaError = 'La póliza de importación o DUCA debe estar en PDF.';
+      return;
+    }
+    if (requiresRpaJuridicaSupportingDocs && !hasRpaActaNombramientoReady) {
       this.rpaActaNombramientoError = 'Adjunta la copia simple del Acta Notarial de Nombramiento en PDF.';
       this.form.markAllAsTouched();
       return;
@@ -332,7 +383,7 @@ export class FormPageComponent implements OnInit {
       this.rpaActaNombramientoError = 'El acta notarial debe estar en PDF.';
       return;
     }
-    if (requiresRpaJuridicaGuatemalaDocs && !hasRpaRegistroRepresentanteReady) {
+    if (requiresRpaJuridicaMercantilDocs && !hasRpaRegistroRepresentanteReady) {
       this.rpaRegistroRepresentanteError = 'Adjunta la certificación del representante legal en PDF.';
       this.form.markAllAsTouched();
       return;
@@ -341,7 +392,7 @@ export class FormPageComponent implements OnInit {
       this.rpaRegistroRepresentanteError = 'La certificación del representante legal debe estar en PDF.';
       return;
     }
-    if (requiresRpaJuridicaGuatemalaDocs && !hasRpaRegistroEntidadReady) {
+    if (requiresRpaJuridicaMercantilDocs && !hasRpaRegistroEntidadReady) {
       this.rpaRegistroEntidadError = 'Adjunta la certificación de inscripción de la entidad en PDF.';
       this.form.markAllAsTouched();
       return;
@@ -350,8 +401,17 @@ export class FormPageComponent implements OnInit {
       this.rpaRegistroEntidadError = 'La certificación de la entidad debe estar en PDF.';
       return;
     }
+    if (this.requiresRpaDocumentoEstadoUpload() && !hasRpaDocumentoEstadoReady) {
+      this.rpaDocumentoEstadoError = requiresRpaIndividualExtranjeroDocs
+        ? 'Adjunta la copia legalizada de importación de la aeronave o DUCA con pago en PDF.'
+        : 'Adjunta el documento de acreditación en PDF.';
+      this.form.markAllAsTouched();
+      return;
+    }
     if (this.rpaDocumentoEstadoFile && this.rpaDocumentoEstadoFile.type !== 'application/pdf') {
-      this.rpaDocumentoEstadoError = 'El documento de entidad del Estado/ONG debe estar en PDF.';
+      this.rpaDocumentoEstadoError = requiresRpaIndividualExtranjeroDocs
+        ? 'El documento de importación o DUCA debe estar en PDF.'
+        : 'El documento de entidad del Estado/ONG debe estar en PDF.';
       return;
     }
 
@@ -368,6 +428,7 @@ export class FormPageComponent implements OnInit {
       this.readAsBase64(this.rpaActaNombramientoFile),
       this.readAsBase64(this.rpaRegistroRepresentanteFile),
       this.readAsBase64(this.rpaRegistroEntidadFile),
+      this.readAsBase64(this.rpaImportacionDucaFile),
       this.readAsBase64(this.rpaDocumentoEstadoFile)
     ]).then(([
       dpiBase64,
@@ -376,6 +437,7 @@ export class FormPageComponent implements OnInit {
       rpaActaNombramientoBase64,
       rpaRegistroRepresentanteBase64,
       rpaRegistroEntidadBase64,
+      rpaImportacionDucaBase64,
       rpaDocumentoEstadoBase64
     ]) => {
       if (!dpiBase64 && !isResubmit) {
@@ -399,27 +461,32 @@ export class FormPageComponent implements OnInit {
         payload['acta_filename'] = this.actaFile.name;
         payload['acta_mime'] = this.actaFile.type;
       }
-      if (requiresExtraDocs && registroMercantilBase64 && this.registroMercantilFile) {
+      if (requiresRegistroMercantilDocs && registroMercantilBase64 && this.registroMercantilFile) {
         payload['registro_mercantil_pdf_base64'] = registroMercantilBase64;
         payload['registro_mercantil_filename'] = this.registroMercantilFile.name;
         payload['registro_mercantil_mime'] = this.registroMercantilFile.type;
       }
-      if (requiresRpaJuridicaGuatemalaDocs && rpaActaNombramientoBase64 && this.rpaActaNombramientoFile) {
+      if (requiresRpaJuridicaExtranjeroDocs && rpaImportacionDucaBase64 && this.rpaImportacionDucaFile) {
+        payload['carta_representacion_pdf_base64'] = rpaImportacionDucaBase64;
+        payload['carta_representacion_filename'] = this.rpaImportacionDucaFile.name;
+        payload['carta_representacion_mime'] = this.rpaImportacionDucaFile.type;
+      }
+      if (requiresRpaJuridicaSupportingDocs && rpaActaNombramientoBase64 && this.rpaActaNombramientoFile) {
         payload['rpa_acta_nombramiento_pdf_base64'] = rpaActaNombramientoBase64;
         payload['rpa_acta_nombramiento_filename'] = this.rpaActaNombramientoFile.name;
         payload['rpa_acta_nombramiento_mime'] = this.rpaActaNombramientoFile.type;
       }
-      if (requiresRpaJuridicaGuatemalaDocs && rpaRegistroRepresentanteBase64 && this.rpaRegistroRepresentanteFile) {
+      if (requiresRpaJuridicaSupportingDocs && rpaRegistroRepresentanteBase64 && this.rpaRegistroRepresentanteFile) {
         payload['rpa_registro_representante_pdf_base64'] = rpaRegistroRepresentanteBase64;
         payload['rpa_registro_representante_filename'] = this.rpaRegistroRepresentanteFile.name;
         payload['rpa_registro_representante_mime'] = this.rpaRegistroRepresentanteFile.type;
       }
-      if (requiresRpaJuridicaGuatemalaDocs && rpaRegistroEntidadBase64 && this.rpaRegistroEntidadFile) {
+      if (requiresRpaJuridicaSupportingDocs && rpaRegistroEntidadBase64 && this.rpaRegistroEntidadFile) {
         payload['rpa_registro_entidad_pdf_base64'] = rpaRegistroEntidadBase64;
         payload['rpa_registro_entidad_filename'] = this.rpaRegistroEntidadFile.name;
         payload['rpa_registro_entidad_mime'] = this.rpaRegistroEntidadFile.type;
       }
-      if (requiresRpaJuridicaGuatemalaDocs && rpaDocumentoEstadoBase64 && this.rpaDocumentoEstadoFile) {
+      if (this.requiresRpaDocumentoEstadoUpload() && rpaDocumentoEstadoBase64 && this.rpaDocumentoEstadoFile) {
         payload['rpa_documento_estado_pdf_base64'] = rpaDocumentoEstadoBase64;
         payload['rpa_documento_estado_filename'] = this.rpaDocumentoEstadoFile.name;
         payload['rpa_documento_estado_mime'] = this.rpaDocumentoEstadoFile.type;
@@ -449,6 +516,8 @@ export class FormPageComponent implements OnInit {
           this.actaFile = null;
           this.registroMercantilFile = null;
           this.clearRpaJuridicaGuatemalaDocs();
+          this.clearRpaImportacionDucaDoc();
+          this.clearRpaDocumentoEstadoDoc();
           this.isSubmitting = false;
           if (this.showTracking) {
             this.fetchMySubmissions();
@@ -497,6 +566,7 @@ export class FormPageComponent implements OnInit {
         this.existingHasRpaActaNombramiento = Boolean(detail.has_rpa_acta_nombramiento || detail.rpa_acta_nombramiento_filename);
         this.existingHasRpaRegistroRepresentante = Boolean(detail.has_rpa_registro_representante || detail.rpa_registro_representante_filename);
         this.existingHasRpaRegistroEntidad = Boolean(detail.has_rpa_registro_entidad || detail.rpa_registro_entidad_filename);
+        this.existingHasRpaImportacionDuca = Boolean(detail.has_carta_representacion || detail.carta_representacion_filename);
         this.existingHasRpaDocumentoEstado = Boolean(detail.has_rpa_documento_estado || detail.rpa_documento_estado_filename);
         this.existingDpiName = detail.dpi_filename || '';
         this.existingActaName = detail.acta_filename || '';
@@ -504,6 +574,7 @@ export class FormPageComponent implements OnInit {
         this.existingRpaActaNombramientoName = detail.rpa_acta_nombramiento_filename || '';
         this.existingRpaRegistroRepresentanteName = detail.rpa_registro_representante_filename || '';
         this.existingRpaRegistroEntidadName = detail.rpa_registro_entidad_filename || '';
+        this.existingRpaImportacionDucaName = detail.carta_representacion_filename || '';
         this.existingRpaDocumentoEstadoName = detail.rpa_documento_estado_filename || '';
         this.form.patchValue({
           fecha: this.todayDate,
@@ -545,6 +616,8 @@ export class FormPageComponent implements OnInit {
         this.actaFile = null;
         this.registroMercantilFile = null;
         this.clearRpaJuridicaGuatemalaDocs();
+        this.clearRpaImportacionDucaDoc();
+        this.rpaDocumentoEstadoFile = null;
         this.loadingReturnedEdit = false;
         this.clearEditReturnedQueryParam();
         this.status = { type: 'success', message: 'Edita los datos requeridos y vuelve a enviar.' };
@@ -568,6 +641,8 @@ export class FormPageComponent implements OnInit {
     this.actaFile = null;
     this.registroMercantilFile = null;
     this.clearRpaJuridicaGuatemalaDocs();
+    this.clearRpaImportacionDucaDoc();
+    this.clearRpaDocumentoEstadoDoc();
     this.resetReturnedEditState();
     this.clearEditReturnedQueryParam();
     this.status = null;
@@ -662,7 +737,7 @@ export class FormPageComponent implements OnInit {
 
   formMainTitle() {
     if (this.isRanUav) {
-      return 'Formulario único para trámites de aeronaves no tripuladas - UAV - RPA\'s';
+      return 'Formulario único para trámites de aeronaves no tripuladas UAV - RPA\'s';
     }
     if (this.isRanForm8) {
       return 'FORMULARIO DE SOLICITUD DE CERTIFICACION';
@@ -674,14 +749,14 @@ export class FormPageComponent implements OnInit {
     if (this.isRanUav) {
       return 'A. Datos de identificación (individual o jurídico).';
     }
-    return 'A. Inscripción de aeronaves a nombre de persona individual o jurídica';
+    return 'A. DATOS DEL PROPIETARIO.';
   }
 
   sectionBTitle() {
     if (this.isRanUav) {
-      return 'B. Datos de la aeronave pilotada a distancia (RPA).';
+      return 'B. DATOS DE LA AERONAVE PILOTADA A DISTANCIA (RPA).';
     }
-    return 'B. Datos de la aeronave';
+    return 'B. DATOS DE LA AERONAVE';
   }
 
   showSolicitudSection() {
@@ -738,25 +813,94 @@ export class FormPageComponent implements OnInit {
     return this.isJuridica() || this.isRanUav;
   }
 
+  requiresRegistroMercantilUpload() {
+    return this.isRanUav && this.requiresExtraUploadDocs();
+  }
+
   isOrigenGuatemala() {
     return String(this.form.value.origen_compra || '').trim().toLowerCase() === 'guatemala';
+  }
+
+  isOrigenExtranjero() {
+    return String(this.form.value.origen_compra || '').trim().toLowerCase() === 'extranjero';
   }
 
   requiresRpaJuridicaGuatemalaDocs() {
     return this.isRanUav && this.isJuridica() && this.isOrigenGuatemala();
   }
 
+  requiresRpaJuridicaExtranjeroDocs() {
+    return this.isRanUav && this.isJuridica() && this.isOrigenExtranjero();
+  }
+
+  requiresRpaJuridicaSupportingDocs() {
+    return this.requiresRpaJuridicaGuatemalaDocs() || this.requiresRpaJuridicaExtranjeroDocs();
+  }
+
+  requiresRpaJuridicaMercantilDocs() {
+    return this.requiresRpaJuridicaSupportingDocs();
+  }
+
+  requiresRpaIndividualExtranjeroDocs() {
+    return this.isRanUav && !this.isJuridica() && this.isOrigenExtranjero();
+  }
+
+  requiresRpaDocumentoEstadoUpload() {
+    return this.requiresRpaJuridicaSupportingDocs() || this.requiresRpaIndividualExtranjeroDocs();
+  }
+
+  rpaImportacionDucaTitle() {
+    return '4. Copia legalizada de la póliza de importación de la Aeronave o Declaración Única Centroamericana -DUCA- adjuntando el pago';
+  }
+
+  rpaActaNombramientoTitle() {
+    const number = this.requiresRpaJuridicaExtranjeroDocs() ? '5' : '4';
+    return `${number}. Copia simple del Acta Notarial de Nombramiento del representante legal de la entidad propietaria/arrendataria.`;
+  }
+
+  rpaRegistroRepresentanteTitle() {
+    const number = this.requiresRpaJuridicaExtranjeroDocs() ? '6' : '5';
+    return `${number}. Certificación de la inscripción del representante legal en el Registro Mercantil`;
+  }
+
+  rpaRegistroEntidadTitle() {
+    const number = this.requiresRpaJuridicaExtranjeroDocs() ? '7' : '6';
+    return `${number}. Certificación de la inscripción de la entidad en el Registro Mercantil`;
+  }
+
+  rpaDocumentoEstadoTitle() {
+    if (this.requiresRpaIndividualExtranjeroDocs()) {
+      return '4. Copia legalizada de importación de la Aeronave o Declaración Única Centroamericana -DUCA- adjuntando el pago';
+    }
+    if (this.requiresRpaJuridicaExtranjeroDocs()) {
+      return '8. En caso de no ser una entidad del Estado/Organización no Gubernamental, adjuntar documento que acredite la calidad con que actúa, debidamente inscrito en el Registro correspondiente';
+    }
+    return '7. En caso de ser una entidad del Estado/Organización no Gubernamental, adjuntar documento que acredite la calidad con que actúa, debidamente inscrito en el Registro correspondiente';
+  }
+
+  rpaDocumentoEstadoDescription() {
+    return this.requiresRpaIndividualExtranjeroDocs()
+      ? 'Carga la copia legalizada de importación de la aeronave o DUCA con su pago en formato PDF.'
+      : 'Carga el documento de acreditación en formato PDF.';
+  }
+
+  rpaDocumentoEstadoPlaceholder() {
+    return this.requiresRpaIndividualExtranjeroDocs()
+      ? 'Seleccionar PDF de importación o DUCA...'
+      : 'Seleccionar PDF del documento de acreditación...';
+  }
+
   dpiUploadTitle() {
-    if (this.requiresRpaJuridicaGuatemalaDocs()) {
+    if (this.requiresRpaJuridicaSupportingDocs()) {
       return '2. Adjuntar copia simple del DPI del Representante Legal de la entidad propietaria/arrendataria';
     }
-    return this.isRanUav ? '2. Adjuntar copia simple del DPI' : 'Adjuntar copia simple del DPI';
+    return this.isRanUav ? '2. Adjuntar copia simple del DPI' : '1. Adjuntar copia simple del DPI';
   }
 
   actaUploadTitle() {
     return this.isRanUav
       ? '1. Dictamen Técnico emitido por el Departamento de Vigilancia de la Seguridad Operacional -DVSO-'
-      : 'Copia simple del Acta de nombramiento del representante legal de la entidad propietaria/arrendataria, debidamente inscrita en el Registro Mercantil.';
+      : '2. Copia simple del Acta Notarial de nombramiento del representante legal de la entidad propietaria/arrendataria, debidamente inscrita en el Registro Mercantil.';
   }
 
   actaUploadDescription() {
@@ -770,12 +914,12 @@ export class FormPageComponent implements OnInit {
   }
 
   registroUploadTitle() {
-    return this.isRanUav ? '3. Copia auténtica de Factura o Acta Notarial de Declaración Jurada' : '';
+    return this.isRanUav ? '3. Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada' : '';
   }
 
   registroUploadDescription() {
     return this.isRanUav
-      ? 'Carga la copia auténtica de Factura o Acta Notarial de Declaración Jurada en formato PDF.'
+      ? 'Carga la copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada en formato PDF.'
       : 'Carga el registro mercantil de la entidad en formato PDF.';
   }
 
@@ -845,13 +989,19 @@ export class FormPageComponent implements OnInit {
 
     const matriculaControl = this.form.get('matricula_tg');
     if (matriculaControl) {
-      matriculaControl.setValidators(this.isRanUav ? [] : [Validators.required]);
+      matriculaControl.setValidators((this.isRanUav || this.isRanForm8) ? [] : [Validators.required]);
       matriculaControl.updateValueAndValidity({ emitEvent: false });
+    }
+
+    const usoControl = this.form.get('uso');
+    if (usoControl) {
+      usoControl.setValidators(this.isRanForm8 ? [] : [Validators.required]);
+      usoControl.updateValueAndValidity({ emitEvent: false });
     }
 
     const numeroSerieControl = this.form.get('numero_serie');
     if (numeroSerieControl) {
-      numeroSerieControl.setValidators(this.isRanUav ? [] : [Validators.required]);
+      numeroSerieControl.setValidators((this.isRanForm8 || this.isRanUav) ? [] : [Validators.required]);
       numeroSerieControl.updateValueAndValidity({ emitEvent: false });
     }
 
@@ -901,6 +1051,8 @@ export class FormPageComponent implements OnInit {
       }, { emitEvent: false });
     } else {
       this.clearRpaJuridicaGuatemalaDocs();
+      this.clearRpaImportacionDucaDoc();
+      this.clearRpaDocumentoEstadoDoc();
     }
     if (this.isRanForm8) {
       this.form.patchValue({
@@ -972,6 +1124,14 @@ export class FormPageComponent implements OnInit {
     this.rpaRegistroRepresentanteError = '';
     this.rpaRegistroEntidadFile = null;
     this.rpaRegistroEntidadError = '';
+  }
+
+  private clearRpaImportacionDucaDoc() {
+    this.rpaImportacionDucaFile = null;
+    this.rpaImportacionDucaError = '';
+  }
+
+  private clearRpaDocumentoEstadoDoc() {
     this.rpaDocumentoEstadoFile = null;
     this.rpaDocumentoEstadoError = '';
   }
@@ -985,6 +1145,7 @@ export class FormPageComponent implements OnInit {
     this.existingRpaActaNombramientoName = '';
     this.existingRpaRegistroRepresentanteName = '';
     this.existingRpaRegistroEntidadName = '';
+    this.existingRpaImportacionDucaName = '';
     this.existingRpaDocumentoEstadoName = '';
     this.existingHasDpi = false;
     this.existingHasActa = false;
@@ -992,6 +1153,7 @@ export class FormPageComponent implements OnInit {
     this.existingHasRpaActaNombramiento = false;
     this.existingHasRpaRegistroRepresentante = false;
     this.existingHasRpaRegistroEntidad = false;
+    this.existingHasRpaImportacionDuca = false;
     this.existingHasRpaDocumentoEstado = false;
   }
 
