@@ -156,9 +156,9 @@ type UserRow = {
 export class AdminPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
-  readonly roles = ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'admin', 'supervisor'];
+  readonly roles = ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'admin', 'supervisor'];
   readonly unitOptions = ['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO'];
-  private readonly unitRoles = new Set(['revisor', 'analista', 'emisor', 'aprobador']);
+  private readonly unitRoles = new Set(['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero']);
 
   users: UserRow[] = [];
   loading = false;
@@ -288,7 +288,7 @@ export class AdminPageComponent implements OnInit {
     this.error = '';
     this.message = '';
     if (!this.isUnitRole(u.role)) {
-      this.error = 'Solo aplica para revisor, analista, emisor o aprobador.';
+      this.error = 'Solo aplica para revisor, analista, emisor, aprobador o avsec_financiero.';
       return;
     }
     const units = this.normalizeUnits(u.unit_access);

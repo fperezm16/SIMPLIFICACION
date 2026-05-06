@@ -152,6 +152,18 @@ input {
   background: #fff;
 }
 
+textarea {
+  width: 100%;
+  border: 1px solid #c6d8e6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 500;
+  color: #1f3345;
+  background: #fff;
+  resize: vertical;
+}
+
 input.ng-invalid.ng-touched {
   border-color: #b91c1c;
   background: #fff7f7;
@@ -218,12 +230,90 @@ input.ng-invalid.ng-touched {
 }
 
 .escorts .row {
-  grid-template-columns: 42px 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 48px minmax(220px, 2fr) minmax(130px, 0.9fr) minmax(130px, 0.9fr) minmax(170px, 1fr) minmax(150px, 0.95fr) minmax(220px, 1.2fr);
+  gap: 10px;
+}
+
+.escorts {
+  gap: 10px;
+}
+
+.escorts .header {
+  padding: 0 4px 6px;
+  border-bottom: 1px solid #d7e6f1;
+}
+
+.escort-row {
+  padding: 12px;
+  border: 1px solid #d9e7f2;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.escort-row input {
+  padding: 9px 11px;
+}
+
+.escort-upload-inline {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 0;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.escort-upload-inline span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.escort-empty-hint {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 6px;
 }
 
 .items .row,
 .vehicles .row {
   grid-template-columns: 42px 1fr 2fr;
+}
+
+.items {
+  gap: 3px;
+}
+
+.items .row {
+  grid-template-columns: 42px 190px minmax(280px, 760px);
+  gap: 3px;
+  align-items: center;
+  justify-content: start;
+}
+
+.items .row span {
+  line-height: 1.1;
+}
+
+.items input {
+  padding: 7px 10px;
+}
+
+.items .row .quantity-input {
+  max-width: 140px;
+}
+
+.items .row input:not(.quantity-input) {
+  max-width: 760px;
+}
+
+.plus-button {
+  min-width: 48px;
+  padding: 10px 0;
+  font-size: 24px;
+  line-height: 1;
 }
 
 .error {

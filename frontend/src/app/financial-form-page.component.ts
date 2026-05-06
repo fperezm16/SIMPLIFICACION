@@ -87,7 +87,7 @@ type FinancialExtraFileDefinition = {
   key: FinancialExtraFileKey;
   title: string;
   hint: string;
-  requirement: 'always' | 'change' | 'renewal';
+  requirement: 'always' | 'change' | 'renewal' | 'optional';
   fallback: string;
 };
 
@@ -141,7 +141,8 @@ export class FinancialFormPageComponent implements OnInit {
     {
       value: 'certificado_operador_aereo',
       label: 'Certificado Operador A\u00e9reo',
-      requiredFields: ['matricula']
+      amountOptions: ['Q1,000.00'],
+      requiredFields: ['matricula', 'monto_referencia']
     },
     {
       value: 'cambio_datos_certificados',
@@ -151,17 +152,20 @@ export class FinancialFormPageComponent implements OnInit {
     {
       value: 'autorizacion_vuelo_ferry',
       label: 'Autorizaci\u00f3n para Vuelo Ferry',
-      requiredFields: ['matricula']
+      amountOptions: ['Q225.00'],
+      requiredFields: ['matricula', 'monto_referencia']
     },
     {
       value: 'inspeccion_taller',
       label: 'Inspecci\u00f3n de Taller',
-      requiredFields: ['nombre_taller']
+      amountOptions: ['Q200.00'],
+      requiredFields: ['nombre_taller', 'monto_referencia']
     },
     {
       value: 'permiso_especial_vuelo',
       label: 'Emisi\u00f3n y/o Renovaci\u00f3n de Permiso Especial de Vuelo para Aeronaves (GNA 03)',
-      requiredFields: ['matricula']
+      amountOptions: ['Q1,000.00'],
+      requiredFields: ['matricula', 'monto_referencia']
     },
     {
       value: 'derecho_aproximacion',
@@ -241,7 +245,7 @@ export class FinancialFormPageComponent implements OnInit {
       key: 'certificadoAeronavegabilidad',
       title: 'Certificado de aeronavegabilidad actual',
       hint: 'Adjunta el certificado de aeronavegabilidad vigente. Máximo 10 MB.',
-      requirement: 'always',
+      requirement: 'optional',
       fallback: 'Seleccionar PDF de certificado de aeronavegabilidad...'
     },
     {
@@ -463,6 +467,7 @@ export class FinancialFormPageComponent implements OnInit {
 
   isFinancialExtraFileRequired(definition: FinancialExtraFileDefinition) {
     if (!this.shouldShowFinancialExtraFile(definition)) return false;
+    if (definition.requirement === 'optional') return false;
     if (definition.requirement === 'change') return this.requiresCambioDuenoMatriculaDocs();
     if (definition.requirement === 'renewal') return this.requiresRenovacionDocs();
     return true;
@@ -562,6 +567,7 @@ export class FinancialFormPageComponent implements OnInit {
     const next = current === value ? '' : value;
     this.form.patchValue({
       certificado_operativo_subtipo: next,
+      monto_referencia: '',
       numero_placa: '',
       tipo_vehiculo: '',
       color_vehiculo: '',
@@ -593,6 +599,13 @@ export class FinancialFormPageComponent implements OnInit {
 
   currentAmountOptions() {
     return this.currentOption()?.amountOptions || [];
+  }
+
+  getAmountOptions(option: GestionOption) {
+    if (option.value === 'certificado_operativo' && this.isCertificadoOperativoSubtipo('calcomania')) {
+      return ['Q100.00'];
+    }
+    return option.amountOptions || [];
   }
 
   requiresCambioDuenoMatriculaDocs() {
@@ -790,6 +803,11 @@ export class FinancialFormPageComponent implements OnInit {
       if (numeroPlaca) {
         numeroPlaca.setValidators(subtipo === 'calcomania' ? [Validators.required] : []);
         numeroPlaca.updateValueAndValidity({ emitEvent: false });
+      }
+      const montoReferencia = this.form.get('monto_referencia');
+      if (montoReferencia) {
+        montoReferencia.setValidators(subtipo === 'calcomania' ? [Validators.required] : []);
+        montoReferencia.updateValueAndValidity({ emitEvent: false });
       }
       if (otrosDetalle) {
         otrosDetalle.setValidators(subtipo === 'otros' ? [Validators.required] : []);

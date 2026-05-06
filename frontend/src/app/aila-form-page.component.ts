@@ -1,9 +1,10 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { API_BASE } from './api.config';
+import { AuthService } from './auth.service';
 import { Submission } from './submission.model';
 
 function digitsExact(length: number): ValidatorFn {
@@ -15,14 +16,53 @@ function digitsExact(length: number): ValidatorFn {
   };
 }
 
+function genericPermitLeadTimeValidator(getNow: () => Date): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const parent = control.parent;
+    if (!parent) return null;
+
+    const permitType = String(parent.get('tipo_permiso')?.value || '').trim().toLowerCase();
+    if (permitType !== 'generico') return null;
+
+    const fecha = String(parent.get('fecha_ingreso')?.value || '').trim();
+    const hora = String(parent.get('hora_ingreso')?.value || '').trim();
+    if (!fecha || !hora) return null;
+
+    const ingreso = new Date(`${fecha}T${hora}:00`);
+    if (Number.isNaN(ingreso.getTime())) return null;
+
+    const minAllowed = new Date(getNow().getTime() + (72 * 60 * 60 * 1000));
+    return ingreso.getTime() >= minAllowed.getTime()
+      ? null
+      : { genericPermit72Hours: true };
+  };
+}
+
 type AilaFileKey =
   | 'cartaSolicitud'
   | 'facturaSolvencia'
-  | 'personasDocumentos'
-  | 'tiaEscoltas'
-  | 'contrasenaEscoltas'
+  | `personaDoc${number}`
+  | 'escortPwd1'
+  | 'escortPwd2'
+  | 'escortPwd3'
   | 'herramientasFotos'
   | 'vehiculosTarjeta';
+
+type FixedAilaFileKey =
+  | 'cartaSolicitud'
+  | 'facturaSolvencia'
+  | 'escortPwd1'
+  | 'escortPwd2'
+  | 'escortPwd3'
+  | 'herramientasFotos'
+  | 'vehiculosTarjeta'
+  | 'personaDoc1'
+  | 'personaDoc2'
+  | 'personaDoc3'
+  | 'personaDoc4'
+  | 'personaDoc5';
+
+type AilaFileMap<T> = Record<FixedAilaFileKey, T> & Record<`personaDoc${number}`, T>;
 
 type AilaDetail = {
   tipo?: 'aila_permiso_trabajo';
@@ -35,8 +75,8 @@ type AilaDetail = {
   telefono_notificaciones?: string;
   hora_ingreso?: string;
   correo_notificaciones?: string;
-  personas?: Array<{ nombre: string; documento: string; nacionalidad: string }>;
-  escoltas?: Array<{ nombre: string; telefono: string; tia: string; vencimiento_tia: string; contrasena: string }>;
+  personas?: Array<{ nombre: string; documento: string; documento_pdf?: string }>;
+  escoltas?: Array<{ nombre: string; telefono: string; tia: string; vencimiento_tia: string; documento_pdf?: string; contrasena_pdf?: string }>;
   herramientas?: Array<{ cantidad: string; descripcion: string }>;
   vehiculos?: Array<{ placa: string; tipo: string }>;
   documentos?: Partial<Record<AilaFileKey, string>>;
@@ -53,11 +93,14 @@ export class AilaFormPageComponent implements OnInit {
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private auth = inject(AuthService);
 
   readonly apiBase = API_BASE;
-  readonly minPeopleRows = 8;
-  readonly minEscortRows = 3;
-  readonly minItemRows = 5;
+  readonly currentRole = String(this.auth.currentUser?.role || '').trim().toLowerCase();
+  readonly canViewAdministrativeAilaSections = this.currentRole === 'jefatura_avsec' || this.currentRole === 'jefatura_aila';
+  readonly minPeopleRows = 1;
+  readonly minEscortRows = 1;
+  readonly minItemRows = 1;
   peopleRows = Array.from({ length: this.minPeopleRows }, (_, i) => i + 1);
   escortRows = Array.from({ length: this.minEscortRows }, (_, i) => i + 1);
   itemRows = Array.from({ length: this.minItemRows }, (_, i) => i + 1);
@@ -72,21 +115,17 @@ export class AilaFormPageComponent implements OnInit {
     motivo_visita: ['', Validators.required],
     fecha_ingreso: ['', Validators.required],
     dias_solicitados: ['', Validators.required],
-    telefono_notificaciones: ['', [Validators.required, digitsExact(8)]],
+    telefono_notificaciones: ['', Validators.required],
     hora_ingreso: ['', Validators.required],
     correo_notificaciones: ['', [Validators.required, Validators.email]],
     persona1_nombre: ['', Validators.required],
     persona1_documento: ['', Validators.required],
-    persona1_nacionalidad: ['', Validators.required],
-    persona2_nombre: [''], persona2_documento: [''], persona2_nacionalidad: [''],
-    persona3_nombre: [''], persona3_documento: [''], persona3_nacionalidad: [''],
-    persona4_nombre: [''], persona4_documento: [''], persona4_nacionalidad: [''],
-    persona5_nombre: [''], persona5_documento: [''], persona5_nacionalidad: [''],
-    persona6_nombre: [''], persona6_documento: [''], persona6_nacionalidad: [''],
-    persona7_nombre: [''], persona7_documento: [''], persona7_nacionalidad: [''],
-    persona8_nombre: [''], persona8_documento: [''], persona8_nacionalidad: [''],
+    persona2_nombre: [''], persona2_documento: [''],
+    persona3_nombre: [''], persona3_documento: [''],
+    persona4_nombre: [''], persona4_documento: [''],
+    persona5_nombre: [''], persona5_documento: [''],
     escolta1_nombre: ['', Validators.required],
-    escolta1_telefono: ['', [Validators.required, digitsExact(8)]],
+    escolta1_telefono: ['', Validators.required],
     escolta1_tia: ['', Validators.required],
     escolta1_vencimiento_tia: ['', Validators.required],
     escolta1_contrasena: [''],
@@ -103,40 +142,17 @@ export class AilaFormPageComponent implements OnInit {
   });
 
   todayDate = '';
+  genericMinIngresoDate = '';
   status: { type: 'success' | 'error'; message: string } | null = null;
   isSubmitting = false;
   editingReturnedId: number | null = null;
   loadingReturnedEdit = false;
 
-  files: Record<AilaFileKey, File | null> = {
-    cartaSolicitud: null,
-    facturaSolvencia: null,
-    personasDocumentos: null,
-    tiaEscoltas: null,
-    contrasenaEscoltas: null,
-    herramientasFotos: null,
-    vehiculosTarjeta: null
-  };
+  files: AilaFileMap<File | null> = this.createInitialFileRecord<File | null>(null);
 
-  existingFiles: Record<AilaFileKey, string> = {
-    cartaSolicitud: '',
-    facturaSolvencia: '',
-    personasDocumentos: '',
-    tiaEscoltas: '',
-    contrasenaEscoltas: '',
-    herramientasFotos: '',
-    vehiculosTarjeta: ''
-  };
+  existingFiles: AilaFileMap<string> = this.createInitialFileRecord<string>('');
 
-  fileErrors: Record<AilaFileKey, string> = {
-    cartaSolicitud: '',
-    facturaSolvencia: '',
-    personasDocumentos: '',
-    tiaEscoltas: '',
-    contrasenaEscoltas: '',
-    herramientasFotos: '',
-    vehiculosTarjeta: ''
-  };
+  fileErrors: AilaFileMap<string> = this.createInitialFileRecord<string>('');
 
   ngOnInit(): void {
     this.syncFechaHoy();
@@ -154,11 +170,12 @@ export class AilaFormPageComponent implements OnInit {
     const control = this.form.get(field);
     if (!control || !control.touched || !control.invalid) return null;
     if (control.errors?.['required']) return 'Campo obligatorio';
-    if (control.errors?.['email']) return 'Correo no válido';
-    if (control.errors?.['digitsOnly']) return 'Solo se permiten dígitos';
-    if (control.errors?.['digitsLength']) return `Debe tener ${control.errors['digitsLength'].requiredLength} dígitos`;
-    if (control.errors?.['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
-    return 'Valor no válido';
+    if (control.errors?.['email']) return 'Correo no vÃ¡lido';
+    if (control.errors?.['digitsOnly']) return 'Solo se permiten dÃ­gitos';
+    if (control.errors?.['digitsLength']) return `Debe tener ${control.errors['digitsLength'].requiredLength} dÃ­gitos`;
+    if (control.errors?.['minlength']) return `MÃ­nimo ${control.errors['minlength'].requiredLength} caracteres`;
+    if (control.errors?.['genericPermit72Hours']) return 'Para permiso genérico debes solicitar el ingreso con al menos 72 horas de anticipación';
+    return 'Valor no vÃ¡lido';
   }
 
   onDigitsInput(event: Event, field: string, maxLength: number) {
@@ -192,9 +209,37 @@ export class AilaFormPageComponent implements OnInit {
     return this.files[key]?.name || this.existingFiles[key] || fallback;
   }
 
+  escortPasswordKey(idx: number): Extract<AilaFileKey, 'escortPwd1' | 'escortPwd2' | 'escortPwd3'> {
+    return (`escortPwd${idx}` as Extract<AilaFileKey, 'escortPwd1' | 'escortPwd2' | 'escortPwd3'>);
+  }
+
+  isEscortTiaExpired(idx: number) {
+    return this.isEscortTiaExpiredByValue(this.form.get(`escolta${idx}_vencimiento_tia`)?.value);
+  }
+
+  escortNeedsAttachment(idx: number) {
+    return Boolean(String(this.form.get(`escolta${idx}_vencimiento_tia`)?.value || '').trim());
+  }
+
+  escortDocumentTitle(idx: number) {
+    return this.isEscortTiaExpired(idx) ? 'Copia de contraseña' : 'Copia de DPI';
+  }
+
+  escortDocumentPlaceholder(idx: number) {
+    return this.isEscortTiaExpired(idx)
+      ? 'Seleccionar PDF de contraseña...'
+      : 'Seleccionar PDF de DPI...';
+  }
+
+  private isEscortTiaExpiredByValue(value: unknown) {
+    const raw = String(value || '').trim();
+    return Boolean(raw) && raw <= this.todayDate;
+  }
+
   addPersonRow() {
     const nextIndex = (this.peopleRows[this.peopleRows.length - 1] || 0) + 1;
     this.ensurePersonControls(nextIndex);
+    this.ensurePersonFileKey(nextIndex);
     this.peopleRows = [...this.peopleRows, nextIndex];
     this.syncDynamicValidators();
   }
@@ -213,6 +258,13 @@ export class AilaFormPageComponent implements OnInit {
     const nextIndex = (this.itemRows[this.itemRows.length - 1] || 0) + 1;
     this.ensureItemControls(nextIndex);
     this.itemRows = [...this.itemRows, nextIndex];
+  }
+
+  addEscortRow() {
+    const nextIndex = (this.escortRows[this.escortRows.length - 1] || 0) + 1;
+    this.ensureEscortControls(nextIndex);
+    this.escortRows = [...this.escortRows, nextIndex];
+    this.syncDynamicValidators();
   }
 
   removeLastItemRow() {
@@ -239,13 +291,13 @@ export class AilaFormPageComponent implements OnInit {
 
   hasPeopleRowErrors() {
     return this.peopleRows.some((idx) =>
-      ['nombre', 'documento', 'nacionalidad'].some((field) => this.form.get(`persona${idx}_${field}`)?.invalid && this.form.get(`persona${idx}_${field}`)?.touched)
+      ['nombre', 'documento'].some((field) => this.form.get(`persona${idx}_${field}`)?.invalid && this.form.get(`persona${idx}_${field}`)?.touched)
     );
   }
 
   hasEscortRowErrors() {
     return this.escortRows.some((idx) =>
-      ['nombre', 'telefono', 'tia', 'vencimiento_tia'].some((field) => this.form.get(`escolta${idx}_${field}`)?.invalid && this.form.get(`escolta${idx}_${field}`)?.touched)
+      ['nombre', 'telefono', 'tia', 'vencimiento_tia', 'contrasena'].some((field) => this.form.get(`escolta${idx}_${field}`)?.invalid && this.form.get(`escolta${idx}_${field}`)?.touched)
     );
   }
 
@@ -308,17 +360,36 @@ export class AilaFormPageComponent implements OnInit {
   private validateRequiredFiles() {
     const required: Array<[AilaFileKey, string]> = [
       ['cartaSolicitud', 'La carta de solicitud en PDF es obligatoria.'],
-      ['facturaSolvencia', 'La factura reciente de arrendamiento/solvencia en PDF es obligatoria.'],
-      ['personasDocumentos', 'El PDF de DPI/fe de edad/pasaporte de las personas es obligatorio.'],
-      ['tiaEscoltas', 'El PDF de Tarjeta de Identificación Aeroportuaria del escolta es obligatorio.']
+      ['facturaSolvencia', 'La factura reciente de arrendamiento/solvencia en PDF es obligatoria.']
     ];
-    if (this.hasToolRows()) required.push(['herramientasFotos', 'Debes adjuntar fotografías de herramienta, mercadería y/o mobiliario.']);
-    if (this.hasVehicleRows()) required.push(['vehiculosTarjeta', 'Debes adjuntar la tarjeta de circulación de cada vehículo.']);
 
     for (const [key, message] of required) {
       if (!this.files[key] && !this.existingFiles[key]) {
         this.fileErrors[key] = message;
         return message;
+      }
+    }
+
+    for (const idx of this.peopleRows) {
+      if (!this.personRowHasValue(idx)) continue;
+      const key = this.personDocumentKey(idx);
+      if (!this.files[key] && !this.existingFiles[key]) {
+        this.fileErrors[key] = `Debes adjuntar el PDF de la persona ${idx}.`;
+        return this.fileErrors[key];
+      }
+    }
+
+    for (const idx of this.escortRows) {
+      if (!this.escortRowHasValue(idx)) continue;
+      if (this.isEscortTiaExpired(idx) && !String(this.form.get(`escolta${idx}_contrasena`)?.value || '').trim()) {
+        return `Debes ingresar el número de contraseña del escolta ${idx}.`;
+      }
+      const key = this.escortPasswordKey(idx);
+      if (!this.files[key] && !this.existingFiles[key]) {
+        this.fileErrors[key] = this.isEscortTiaExpired(idx)
+          ? `Debes adjuntar el PDF de la contraseña del escolta ${idx}.`
+          : `Debes adjuntar el PDF de DPI del escolta ${idx}.`;
+        return this.fileErrors[key];
       }
     }
     return null;
@@ -359,15 +430,30 @@ export class AilaFormPageComponent implements OnInit {
       registro_mercantil_pdf_base64: filePayload.facturaSolvencia || undefined,
       registro_mercantil_filename: this.files.facturaSolvencia?.name || undefined,
       registro_mercantil_mime: this.files.facturaSolvencia?.type || undefined,
-      dpi_pdf_base64: filePayload.personasDocumentos || undefined,
-      dpi_filename: this.files.personasDocumentos?.name || undefined,
-      dpi_mime: this.files.personasDocumentos?.type || undefined,
-      acta_pdf_base64: filePayload.tiaEscoltas || undefined,
-      acta_filename: this.files.tiaEscoltas?.name || undefined,
-      acta_mime: this.files.tiaEscoltas?.type || undefined,
-      rpa_documento_estado_pdf_base64: filePayload.contrasenaEscoltas || undefined,
-      rpa_documento_estado_filename: this.files.contrasenaEscoltas?.name || undefined,
-      rpa_documento_estado_mime: this.files.contrasenaEscoltas?.type || undefined,
+      dpi_pdf_base64: filePayload['personaDoc1'] || undefined,
+      dpi_filename: this.files.personaDoc1?.name || undefined,
+      dpi_mime: this.files.personaDoc1?.type || undefined,
+      financial_declaraguate_2_pdf_base64: filePayload['personaDoc2'] || undefined,
+      financial_declaraguate_2_filename: this.files.personaDoc2?.name || undefined,
+      financial_declaraguate_2_mime: this.files.personaDoc2?.type || undefined,
+      financial_declaraguate_3_pdf_base64: filePayload['personaDoc3'] || undefined,
+      financial_declaraguate_3_filename: this.files.personaDoc3?.name || undefined,
+      financial_declaraguate_3_mime: this.files.personaDoc3?.type || undefined,
+      financial_declaraguate_4_pdf_base64: filePayload['personaDoc4'] || undefined,
+      financial_declaraguate_4_filename: this.files.personaDoc4?.name || undefined,
+      financial_declaraguate_4_mime: this.files.personaDoc4?.type || undefined,
+      financial_declaraguate_5_pdf_base64: filePayload['personaDoc5'] || undefined,
+      financial_declaraguate_5_filename: this.files.personaDoc5?.name || undefined,
+      financial_declaraguate_5_mime: this.files.personaDoc5?.type || undefined,
+      aila_escort_pwd_1_pdf_base64: filePayload.escortPwd1 || undefined,
+      aila_escort_pwd_1_filename: this.files.escortPwd1?.name || undefined,
+      aila_escort_pwd_1_mime: this.files.escortPwd1?.type || undefined,
+      aila_escort_pwd_2_pdf_base64: filePayload.escortPwd2 || undefined,
+      aila_escort_pwd_2_filename: this.files.escortPwd2?.name || undefined,
+      aila_escort_pwd_2_mime: this.files.escortPwd2?.type || undefined,
+      aila_escort_pwd_3_pdf_base64: filePayload.escortPwd3 || undefined,
+      aila_escort_pwd_3_filename: this.files.escortPwd3?.name || undefined,
+      aila_escort_pwd_3_mime: this.files.escortPwd3?.type || undefined,
       rpa_registro_entidad_pdf_base64: filePayload.herramientasFotos || undefined,
       rpa_registro_entidad_filename: this.files.herramientasFotos?.name || undefined,
       rpa_registro_entidad_mime: this.files.herramientasFotos?.type || undefined,
@@ -392,15 +478,16 @@ export class AilaFormPageComponent implements OnInit {
       personas: this.peopleRows.map((idx) => ({
         nombre: String(this.form.get(`persona${idx}_nombre`)?.value || '').trim(),
         documento: String(this.form.get(`persona${idx}_documento`)?.value || '').trim(),
-        nacionalidad: String(this.form.get(`persona${idx}_nacionalidad`)?.value || '').trim()
-      })).filter((row) => row.nombre || row.documento || row.nacionalidad),
+        documento_pdf: this.files[this.personDocumentKey(idx)]?.name || this.existingFiles[this.personDocumentKey(idx)] || ''
+      })).filter((row) => row.nombre || row.documento || row.documento_pdf),
       escoltas: this.escortRows.map((idx) => ({
         nombre: String(this.form.get(`escolta${idx}_nombre`)?.value || '').trim(),
         telefono: String(this.form.get(`escolta${idx}_telefono`)?.value || '').trim(),
         tia: String(this.form.get(`escolta${idx}_tia`)?.value || '').trim(),
         vencimiento_tia: String(this.form.get(`escolta${idx}_vencimiento_tia`)?.value || '').trim(),
-        contrasena: String(this.form.get(`escolta${idx}_contrasena`)?.value || '').trim()
-      })).filter((row) => row.nombre || row.telefono || row.tia || row.vencimiento_tia || row.contrasena),
+        contrasena: String(this.form.get(`escolta${idx}_contrasena`)?.value || '').trim(),
+        documento_pdf: this.files[this.escortPasswordKey(idx)]?.name || this.existingFiles[this.escortPasswordKey(idx)] || ''
+      })).filter((row) => row.nombre || row.telefono || row.tia || row.vencimiento_tia || row.contrasena || row.documento_pdf),
       herramientas: this.itemRows.map((idx) => ({
         cantidad: String(this.form.get(`herramienta${idx}_cantidad`)?.value || '').trim(),
         descripcion: String(this.form.get(`herramienta${idx}_descripcion`)?.value || '').trim()
@@ -412,9 +499,9 @@ export class AilaFormPageComponent implements OnInit {
       documentos: {
         cartaSolicitud: this.files.cartaSolicitud?.name || this.existingFiles.cartaSolicitud || '',
         facturaSolvencia: this.files.facturaSolvencia?.name || this.existingFiles.facturaSolvencia || '',
-        personasDocumentos: this.files.personasDocumentos?.name || this.existingFiles.personasDocumentos || '',
-        tiaEscoltas: this.files.tiaEscoltas?.name || this.existingFiles.tiaEscoltas || '',
-        contrasenaEscoltas: this.files.contrasenaEscoltas?.name || this.existingFiles.contrasenaEscoltas || '',
+        escortPwd1: this.files.escortPwd1?.name || this.existingFiles.escortPwd1 || '',
+        escortPwd2: this.files.escortPwd2?.name || this.existingFiles.escortPwd2 || '',
+        escortPwd3: this.files.escortPwd3?.name || this.existingFiles.escortPwd3 || '',
         herramientasFotos: this.files.herramientasFotos?.name || this.existingFiles.herramientasFotos || '',
         vehiculosTarjeta: this.files.vehiculosTarjeta?.name || this.existingFiles.vehiculosTarjeta || ''
       }
@@ -424,14 +511,14 @@ export class AilaFormPageComponent implements OnInit {
   private buildSummary(detail: AilaDetail) {
     return [
       `Permiso: ${detail.tipo_permiso}`,
-      `Área destino: ${detail.area_destino}`,
+      `Ãrea destino: ${detail.area_destino}`,
       `Motivo: ${detail.motivo_visita}`,
       `Ingreso: ${detail.fecha_ingreso}`,
-      `Días: ${detail.dias_solicitados}`,
+      `DÃ­as: ${detail.dias_solicitados}`,
       `Personas: ${detail.personas?.length || 0}`,
       `Escoltas: ${detail.escoltas?.length || 0}`,
-      detail.herramientas?.length ? `Herramientas/mercadería/mobiliario: ${detail.herramientas.length}` : '',
-      detail.vehiculos?.length ? `Vehículos: ${detail.vehiculos.length}` : ''
+      detail.herramientas?.length ? `Herramientas/mercaderÃ­a/mobiliario: ${detail.herramientas.length}` : '',
+      detail.vehiculos?.length ? `VehÃ­culos: ${detail.vehiculos.length}` : ''
     ].filter(Boolean).join(' | ');
   }
 
@@ -465,6 +552,11 @@ export class AilaFormPageComponent implements OnInit {
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
     this.todayDate = `${y}-${m}-${d}`;
+    const minIngreso = new Date(now.getTime() + (72 * 60 * 60 * 1000));
+    const minYear = minIngreso.getFullYear();
+    const minMonth = String(minIngreso.getMonth() + 1).padStart(2, '0');
+    const minDay = String(minIngreso.getDate()).padStart(2, '0');
+    this.genericMinIngresoDate = `${minYear}-${minMonth}-${minDay}`;
     this.form.patchValue({ fecha: this.todayDate }, { emitEvent: false });
   }
 
@@ -489,7 +581,7 @@ export class AilaFormPageComponent implements OnInit {
           hora_ingreso: detail.hora_ingreso || '',
           correo_notificaciones: detail.correo_notificaciones || submission.correo || ''
         }, { emitEvent: false });
-        this.patchRows('persona', detail.personas || [], ['nombre', 'documento', 'nacionalidad']);
+        this.patchRows('persona', detail.personas || [], ['nombre', 'documento']);
         this.patchRows('escolta', detail.escoltas || [], ['nombre', 'telefono', 'tia', 'vencimiento_tia', 'contrasena']);
         this.patchRows('herramienta', detail.herramientas || [], ['cantidad', 'descripcion']);
         this.patchRows('vehiculo', detail.vehiculos || [], ['placa', 'tipo']);
@@ -497,12 +589,29 @@ export class AilaFormPageComponent implements OnInit {
         this.existingFiles = {
           cartaSolicitud: docs.cartaSolicitud || submission.carta_representacion_filename || '',
           facturaSolvencia: docs.facturaSolvencia || submission.registro_mercantil_filename || '',
-          personasDocumentos: docs.personasDocumentos || submission.dpi_filename || '',
-          tiaEscoltas: docs.tiaEscoltas || submission.acta_filename || '',
-          contrasenaEscoltas: docs.contrasenaEscoltas || submission.rpa_documento_estado_filename || '',
+          personaDoc1: '',
+          personaDoc2: '',
+          personaDoc3: '',
+          personaDoc4: '',
+          personaDoc5: '',
+          escortPwd1: detail.escoltas?.[0]?.documento_pdf || detail.escoltas?.[0]?.contrasena_pdf || docs.escortPwd1 || submission.aila_escort_pwd_1_filename || submission.rpa_documento_estado_filename || '',
+          escortPwd2: detail.escoltas?.[1]?.documento_pdf || detail.escoltas?.[1]?.contrasena_pdf || docs.escortPwd2 || submission.aila_escort_pwd_2_filename || '',
+          escortPwd3: detail.escoltas?.[2]?.documento_pdf || detail.escoltas?.[2]?.contrasena_pdf || docs.escortPwd3 || submission.aila_escort_pwd_3_filename || '',
           herramientasFotos: docs.herramientasFotos || submission.rpa_registro_entidad_filename || '',
           vehiculosTarjeta: docs.vehiculosTarjeta || submission.rpa_registro_representante_filename || ''
         };
+        const fallbackPersonDocs = [
+          submission.dpi_filename || '',
+          submission.financial_declaraguate_2_filename || '',
+          submission.financial_declaraguate_3_filename || '',
+          submission.financial_declaraguate_4_filename || '',
+          submission.financial_declaraguate_5_filename || ''
+        ];
+        (detail.personas || []).forEach((persona, index) => {
+          const key = this.personDocumentKey(index + 1);
+          this.ensurePersonFileKey(index + 1);
+          this.existingFiles[key] = persona?.documento_pdf || fallbackPersonDocs[index] || '';
+        });
         this.loadingReturnedEdit = false;
         this.syncDynamicValidators();
         this.clearEditReturnedQueryParam();
@@ -565,13 +674,16 @@ export class AilaFormPageComponent implements OnInit {
   private resetDynamicRows() {
     for (const idx of this.peopleRows) {
       if (idx <= this.minPeopleRows) continue;
-      for (const field of ['nombre', 'documento', 'nacionalidad']) {
+      for (const field of ['nombre', 'documento']) {
         (this.form as any).removeControl(`persona${idx}_${field}`);
       }
+      delete this.files[this.personDocumentKey(idx)];
+      delete this.existingFiles[this.personDocumentKey(idx)];
+      delete this.fileErrors[this.personDocumentKey(idx)];
     }
     for (const idx of this.escortRows) {
       if (idx <= this.minEscortRows) continue;
-      for (const field of ['nombre', 'telefono', 'tia', 'vencimiento_tia', 'contrasena']) {
+      for (const field of ['nombre', 'telefono', 'tia', 'vencimiento_tia']) {
         (this.form as any).removeControl(`escolta${idx}_${field}`);
       }
     }
@@ -587,10 +699,18 @@ export class AilaFormPageComponent implements OnInit {
   }
 
   private syncDynamicValidators() {
+    const leadTimeValidator = genericPermitLeadTimeValidator(() => new Date());
+    const fechaIngresoControl = this.form.get('fecha_ingreso');
+    fechaIngresoControl?.setValidators([Validators.required, leadTimeValidator]);
+    fechaIngresoControl?.updateValueAndValidity({ emitEvent: false });
+
+    const horaIngresoControl = this.form.get('hora_ingreso');
+    horaIngresoControl?.setValidators([Validators.required, leadTimeValidator]);
+    horaIngresoControl?.updateValueAndValidity({ emitEvent: false });
     for (const idx of this.peopleRows) {
       this.ensurePersonControls(idx);
       const required = idx === 1 || this.personRowHasValue(idx);
-      for (const field of ['nombre', 'documento', 'nacionalidad']) {
+      for (const field of ['nombre', 'documento']) {
         const control = this.form.get(`persona${idx}_${field}`);
         control?.setValidators(required ? [Validators.required] : []);
         control?.updateValueAndValidity({ emitEvent: false });
@@ -608,13 +728,16 @@ export class AilaFormPageComponent implements OnInit {
         control?.updateValueAndValidity({ emitEvent: false });
       }
       const phoneControl = this.form.get(`escolta${idx}_telefono`);
-      phoneControl?.setValidators(required ? [Validators.required, digitsExact(8)] : [digitsExact(8)]);
+      phoneControl?.setValidators(required ? [Validators.required] : []);
       phoneControl?.updateValueAndValidity({ emitEvent: false });
+      const passwordControl = this.form.get(`escolta${idx}_contrasena`);
+      passwordControl?.setValidators(required && this.isEscortTiaExpired(idx) ? [Validators.required] : []);
+      passwordControl?.updateValueAndValidity({ emitEvent: false });
     }
   }
 
   private personRowHasValue(idx: number) {
-    return ['nombre', 'documento', 'nacionalidad'].some((field) =>
+    return ['nombre', 'documento'].some((field) =>
       String(this.form.get(`persona${idx}_${field}`)?.value || '').trim()
     );
   }
@@ -627,7 +750,10 @@ export class AilaFormPageComponent implements OnInit {
 
   private ensurePeopleRows(count: number) {
     const target = Math.max(this.minPeopleRows, count);
-    for (let idx = 1; idx <= target; idx++) this.ensurePersonControls(idx);
+    for (let idx = 1; idx <= target; idx++) {
+      this.ensurePersonControls(idx);
+      this.ensurePersonFileKey(idx);
+    }
     this.peopleRows = Array.from({ length: target }, (_, i) => i + 1);
   }
 
@@ -644,12 +770,40 @@ export class AilaFormPageComponent implements OnInit {
   }
 
   private ensurePersonControls(idx: number) {
-    for (const field of ['nombre', 'documento', 'nacionalidad']) {
+    for (const field of ['nombre', 'documento']) {
       const name = `persona${idx}_${field}`;
       if (!this.form.get(name)) {
         (this.form as any).addControl(name, this.fb.control(''));
       }
     }
+  }
+
+  personDocumentKey(idx: number): `personaDoc${number}` {
+    return `personaDoc${idx}`;
+  }
+
+  private ensurePersonFileKey(idx: number) {
+    const key = this.personDocumentKey(idx);
+    if (!(key in this.files)) this.files[key] = null;
+    if (!(key in this.existingFiles)) this.existingFiles[key] = '';
+    if (!(key in this.fileErrors)) this.fileErrors[key] = '';
+  }
+
+  private createInitialFileRecord<T>(defaultValue: T): AilaFileMap<T> {
+    return {
+      cartaSolicitud: defaultValue,
+      facturaSolvencia: defaultValue,
+      personaDoc1: defaultValue,
+      personaDoc2: defaultValue,
+      personaDoc3: defaultValue,
+      personaDoc4: defaultValue,
+      personaDoc5: defaultValue,
+      escortPwd1: defaultValue,
+      escortPwd2: defaultValue,
+      escortPwd3: defaultValue,
+      herramientasFotos: defaultValue,
+      vehiculosTarjeta: defaultValue
+    };
   }
 
   private ensureEscortControls(idx: number) {
@@ -670,3 +824,6 @@ export class AilaFormPageComponent implements OnInit {
     }
   }
 }
+
+
+

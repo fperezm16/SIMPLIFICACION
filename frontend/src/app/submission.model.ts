@@ -74,6 +74,15 @@ export type Submission = {
   rpa_documento_estado_filename?: string | null;
   rpa_documento_estado_mime?: string | null;
   has_rpa_documento_estado?: boolean | null;
+  aila_escort_pwd_1_filename?: string | null;
+  aila_escort_pwd_1_mime?: string | null;
+  has_aila_escort_pwd_1?: boolean | null;
+  aila_escort_pwd_2_filename?: string | null;
+  aila_escort_pwd_2_mime?: string | null;
+  has_aila_escort_pwd_2?: boolean | null;
+  aila_escort_pwd_3_filename?: string | null;
+  aila_escort_pwd_3_mime?: string | null;
+  has_aila_escort_pwd_3?: boolean | null;
   analyst_pdf_filename?: string | null;
   analyst_pdf_mime?: string | null;
   analyst_pdf_uploaded_at?: string | null;

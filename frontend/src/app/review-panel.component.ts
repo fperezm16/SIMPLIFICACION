@@ -91,9 +91,9 @@ type TableDocument = {
             <span><strong>Referencia</strong>{{ tableReference(row) }}</span>
             <span><strong>Tipo persona</strong>{{ row.persona_tipo === 'juridica' ? 'Jurídica' : 'Individual' }}</span>
             <span><strong>Fecha envío</strong>{{ row.created_at | date:'short' }}</span>
-            <span><strong>Analista</strong>{{ row.assigned_analista_name || row.assigned_analista_email || 'Sin asignar' }}</span>
-            <span *ngIf="showsEmitterField(row)"><strong>Emisor</strong>{{ stageAssignee(row, 'emisor') }}</span>
-            <span><strong>Aprobador</strong>{{ stageAssignee(row, 'aprobador') }}</span>
+            <span><strong>{{ stageLabel(row, 'analista') }}</strong>{{ row.assigned_analista_name || row.assigned_analista_email || 'Sin asignar' }}</span>
+            <span *ngIf="showsEmitterField(row)"><strong>{{ stageLabel(row, 'emisor') }}</strong>{{ stageAssignee(row, 'emisor') }}</span>
+            <span><strong>{{ stageLabel(row, 'aprobador') }}</strong>{{ stageAssignee(row, 'aprobador') }}</span>
           </div>
 
           <div class="documents-row">
@@ -129,18 +129,18 @@ type TableDocument = {
             <li *ngFor="let entry of logs">
               <div class="log-meta">
                 <span class="log-time">{{ entry.created_at | date:'short' }}</span>
-                <span class="log-role" *ngIf="entry.actor_role">{{ entry.actor_role }}</span>
+                <span class="log-role" *ngIf="entry.actor_role">{{ normalizeDisplayText(entry.actor_role) }}</span>
               </div>
-              <span class="log-event" [class]="logEventClass(entry)">{{ entry.event_label }}</span>
-              <small *ngIf="entry.event_detail">{{ entry.event_detail }}</small>
-              <small *ngIf="logComment(entry)">Comentario: {{ logComment(entry) }}</small>
+              <span class="log-event" [class]="logEventClass(entry)">{{ normalizeDisplayText(entry.event_label) }}</span>
+              <small *ngIf="entry.event_detail">{{ normalizeDisplayText(entry.event_detail) }}</small>
+              <small *ngIf="logComment(entry)">Comentario: {{ normalizeDisplayText(logComment(entry)) }}</small>
               <small *ngIf="entry.actor_name || entry.actor_email">Por: {{ actorDisplay(entry) }}</small>
             </li>
           </ul>
         </section>
         <div class="editor-grid">
           <ng-container *ngIf="isFinancialSubmission(selected); else standardSubmissionFields">
-            <label>Nombre de la empresa <input [value]="selected.nombre_propietario || financialValue(selected, 'nombre_empresa')" disabled /></label>
+            <label>Nombre <input [value]="selected.nombre_propietario || financialValue(selected, 'nombre_empresa')" disabled /></label>
             <label>DPI del solicitante <input [value]="selected.documento_propietario || financialValue(selected, 'dpi_solicitante')" disabled /></label>
             <label>Correo <input [value]="selected.correo || ''" disabled /></label>
             <label>Teléfono <input [value]="selected.telefono || ''" disabled /></label>
@@ -165,19 +165,157 @@ type TableDocument = {
           </ng-container>
           <ng-template #standardSubmissionFields>
             <ng-container *ngIf="isAilaSubmission(selected); else genericSubmissionFields">
-              <label>Tipo de permiso <input [value]="ailaPermitLabel(selected)" disabled /></label>
-              <label>Empresa / Arrendatario <input [value]="selected.nombre_propietario || ailaValue(selected, 'empresa_arrendatario')" disabled /></label>
-              <label>Área de destino <input [value]="selected.direccion || ailaValue(selected, 'area_destino')" disabled /></label>
-              <label>Motivo de la visita <input [value]="ailaValue(selected, 'motivo_visita')" disabled /></label>
-              <label>Fecha de ingreso <input [value]="ailaValue(selected, 'fecha_ingreso')" disabled /></label>
-              <label>Días solicitados <input [value]="ailaValue(selected, 'dias_solicitados')" disabled /></label>
-              <label>Teléfono <input [value]="selected.telefono || ailaValue(selected, 'telefono_notificaciones')" disabled /></label>
-              <label>Hora de ingreso <input [value]="ailaValue(selected, 'hora_ingreso')" disabled /></label>
-              <label>Correo <input [value]="selected.correo || ailaValue(selected, 'correo_notificaciones')" disabled /></label>
-              <label>Personas a ingresar <input [value]="ailaSummary(selected, 'personas')" disabled /></label>
-              <label>Escoltas <input [value]="ailaSummary(selected, 'escoltas')" disabled /></label>
-              <label *ngIf="ailaSummary(selected, 'herramientas')">Herramienta / mercadería / mobiliario <input [value]="ailaSummary(selected, 'herramientas')" disabled /></label>
-              <label *ngIf="ailaSummary(selected, 'vehiculos')">Vehículos <input [value]="ailaSummary(selected, 'vehiculos')" disabled /></label>
+              <div class="aila-review-view">
+                <section class="aila-section">
+                  <div class="aila-section-title"><span>1</span><h5>Clasificación del permiso</h5></div>
+                  <div class="aila-field-grid">
+                    <div class="aila-field-card">
+                      <strong>Tipo de permiso</strong>
+                      <span>{{ ailaPermitLabel(selected) }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Fecha de solicitud</strong>
+                      <span>{{ ailaValue(selected, 'fecha') || (selected.created_at | date:'yyyy-MM-dd') }}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="aila-section">
+                  <div class="aila-section-title"><span>2</span><h5>Datos del permiso</h5></div>
+                  <div class="aila-field-grid">
+                    <div class="aila-field-card">
+                      <strong>Empresa / Arrendatario</strong>
+                      <span>{{ selected.nombre_propietario || ailaValue(selected, 'empresa_arrendatario') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Área de destino a visitar</strong>
+                      <span>{{ selected.direccion || ailaValue(selected, 'area_destino') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Motivo de la visita</strong>
+                      <span>{{ ailaValue(selected, 'motivo_visita') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Fecha de ingreso</strong>
+                      <span>{{ ailaValue(selected, 'fecha_ingreso') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Días solicitados</strong>
+                      <span>{{ ailaValue(selected, 'dias_solicitados') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>No. telefónico para notificaciones</strong>
+                      <span>{{ selected.telefono || ailaValue(selected, 'telefono_notificaciones') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Hora de ingreso</strong>
+                      <span>{{ ailaValue(selected, 'hora_ingreso') || '—' }}</span>
+                    </div>
+                    <div class="aila-field-card">
+                      <strong>Correo electrónico para notificaciones</strong>
+                      <span>{{ selected.correo || ailaValue(selected, 'correo_notificaciones') || '—' }}</span>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="aila-section">
+                  <div class="aila-section-title"><span>3</span><h5>Personas a ingresar</h5></div>
+                  <div class="aila-table-wrap">
+                    <table class="aila-table" *ngIf="ailaEntries(selected, 'personas').length; else noAilaPeople">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Nombres y apellidos completos como DPI</th>
+                          <th>No. DPI / Pasaporte</th>
+                          <th>PDF</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let person of ailaEntries(selected, 'personas'); let i = index">
+                          <td>{{ i + 1 }}</td>
+                          <td>{{ displayValue(person['nombre']) }}</td>
+                          <td>{{ displayValue(person['documento']) }}</td>
+                          <td>{{ displayValue(person['documento_pdf']) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <ng-template #noAilaPeople><div class="aila-empty">Sin personas registradas.</div></ng-template>
+                  </div>
+                </section>
+
+                <section class="aila-section">
+                  <div class="aila-section-title"><span>4</span><h5>Datos de escolta</h5></div>
+                  <div class="aila-table-wrap">
+                    <table class="aila-table" *ngIf="ailaEntries(selected, 'escoltas').length; else noAilaEscorts">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Nombre y apellido según T.I.A.</th>
+                          <th>No. teléfono</th>
+                          <th>No. T.I.A.</th>
+                          <th>Vencimiento T.I.A.</th>
+                          <th>PDF T.I.A. / contraseña</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let escort of ailaEntries(selected, 'escoltas'); let i = index">
+                          <td>{{ i + 1 }}</td>
+                          <td>{{ displayValue(escort['nombre']) }}</td>
+                          <td>{{ displayValue(escort['telefono']) }}</td>
+                          <td>{{ displayValue(escort['tia']) }}</td>
+                          <td>{{ displayValue(escort['vencimiento_tia']) }}</td>
+                          <td>{{ displayValue(escort['documento_pdf'] || escort['contrasena_pdf']) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <ng-template #noAilaEscorts><div class="aila-empty">Sin escoltas registrados.</div></ng-template>
+                  </div>
+                </section>
+
+                <section class="aila-section" *ngIf="ailaEntries(selected, 'herramientas').length">
+                  <div class="aila-section-title"><span>5</span><h5>Herramienta, mercadería y/o mobiliario</h5></div>
+                  <div class="aila-table-wrap">
+                    <table class="aila-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Cantidad</th>
+                          <th>Descripción</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let item of ailaEntries(selected, 'herramientas'); let i = index">
+                          <td>{{ i + 1 }}</td>
+                          <td>{{ displayValue(item['cantidad']) }}</td>
+                          <td>{{ displayValue(item['descripcion']) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section class="aila-section" *ngIf="ailaEntries(selected, 'vehiculos').length">
+                  <div class="aila-section-title"><span>6</span><h5>Ingreso de vehículo</h5></div>
+                  <div class="aila-table-wrap">
+                    <table class="aila-table">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>No. placa</th>
+                          <th>Tipo vehículo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let vehicle of ailaEntries(selected, 'vehiculos'); let i = index">
+                          <td>{{ i + 1 }}</td>
+                          <td>{{ displayValue(vehicle['placa']) }}</td>
+                          <td>{{ displayValue(vehicle['tipo']) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </div>
             </ng-container>
             <ng-template #genericSubmissionFields>
               <label>Nombre propietario <input [(ngModel)]="edit.nombre_propietario" [disabled]="!canEdit" /></label>
@@ -213,7 +351,11 @@ type TableDocument = {
             {{ canReturnToAnalyst ? 'Motivo de devolución al analista' : 'Motivo de devolución al usuario' }}
             <textarea rows="3" [(ngModel)]="returnReason" [disabled]="returning"></textarea>
           </label>
-          <label *ngIf="analysts.length && canAssign">Asignar a analista
+          <label *ngIf="canWriteReceptionComments(selected)">
+            Observaciones / comentarios
+            <textarea rows="3" [(ngModel)]="reviewComments" [disabled]="saving || sendingToEmitter"></textarea>
+          </label>
+          <label *ngIf="analysts.length && canAssign">Asignar a {{ assignStageLabel(selected) }}
             <select [(ngModel)]="edit.assigned_analista_id">
               <option [ngValue]="null">Sin asignar</option>
               <option *ngFor="let a of analysts" [ngValue]="a.id">
@@ -221,13 +363,13 @@ type TableDocument = {
               </option>
             </select>
           </label>
-          <label>Analista asignado
+          <label>{{ assignedStageLabel(selected, 'analista') }}
             <input [value]="selected.assigned_analista_name || selected.assigned_analista_email || 'Sin asignar'" disabled />
           </label>
-          <label>Aprobador asignado
+          <label>{{ assignedStageLabel(selected, 'aprobador') }}
             <input [value]="selected.assigned_aprobador_name || selected.assigned_aprobador_email || 'Sin asignar'" disabled />
           </label>
-          <label *ngIf="canSendSelectedToApprover()">Asignar a aprobador
+          <label *ngIf="canSendSelectedToApprover()">Asignar a {{ assignStageLabel(selected, 'aprobador') }}
             <select [(ngModel)]="edit.assigned_aprobador_id" [disabled]="sendingToApprover || !approversForSelected().length">
               <option [ngValue]="null">Asignar automáticamente</option>
               <option *ngFor="let a of approversForSelected()" [ngValue]="a.id">
@@ -236,7 +378,7 @@ type TableDocument = {
             </select>
             <small class="muted" *ngIf="!approversForSelected().length">No hay aprobadores configurados para esta unidad.</small>
           </label>
-          <label *ngIf="canSendSelectedToEmitter() && showsEmitterField(selected)">Asignar a emisor
+          <label *ngIf="canSendSelectedToEmitter() && showsEmitterField(selected)">Asignar a {{ assignStageLabel(selected, 'emisor') }}
             <select [(ngModel)]="edit.assigned_emisor_id" [disabled]="sendingToEmitter || !emittersForSelected().length">
               <option [ngValue]="null">Asignar automáticamente</option>
               <option *ngFor="let e of emittersForSelected()" [ngValue]="e.id">
@@ -245,7 +387,7 @@ type TableDocument = {
             </select>
             <small class="muted" *ngIf="!emittersForSelected().length">No hay emisores configurados para esta unidad.</small>
           </label>
-          <label *ngIf="showsEmitterField(selected)">Emisor asignado
+          <label *ngIf="showsEmitterField(selected)">{{ assignedStageLabel(selected, 'emisor') }}
             <input [value]="selected.assigned_emisor_name || selected.assigned_emisor_email || 'Sin asignar'" disabled />
           </label>
         </div>
@@ -284,7 +426,7 @@ type TableDocument = {
               </div>
               <button class="link" type="button" (click)="viewCartaRepresentacion(selected)">Ver PDF</button>
             </div>
-            <div class="dpi-box" *ngIf="selected.has_registro_mercantil || selected.registro_mercantil_filename">
+            <div class="dpi-box" *ngIf="shouldShowRegistroMercantil(selected)">
               <div class="dpi-head">
                 <span>{{ documentLabel(selected, 'registro') }}:</span>
                 <strong>{{ selected.registro_mercantil_filename || 'registro-mercantil.pdf' }}</strong>
@@ -348,7 +490,7 @@ type TableDocument = {
               </small>
               <small class="error-text" *ngIf="analystPdfError">{{ analystPdfError }}</small>
             </div>
-            <div class="dpi-box" *ngIf="canApproveSelected() || selected.has_signed_pdf || selected.signed_pdf_filename">
+            <div class="dpi-box" *ngIf="showSignedPdfPanel(selected) && (canApproveSelected() || selected.has_signed_pdf || selected.signed_pdf_filename)">
               <div class="dpi-head">
                 <span>Documento firmado:</span>
                 <span class="muted" *ngIf="!(selected.has_signed_pdf || selected.signed_pdf_filename)">No adjunto</span>
@@ -381,10 +523,10 @@ type TableDocument = {
             {{ primaryActionLabel() }}
           </button>
           <button *ngIf="canSendSelectedToEmitter() && !selected?.approved_at" class="send-approver" (click)="sendToEmitter()" [disabled]="saving || sendingToEmitter">
-            {{ sendingToEmitter ? 'Enviando...' : 'Enviar a emisor' }}
+            {{ sendingToEmitter ? 'Enviando...' : sendToEmitterLabel(selected) }}
           </button>
           <button *ngIf="canSendSelectedToApprover() && !selected?.approved_at" class="send-approver" (click)="sendToApprover()" [disabled]="saving || sendingToApprover">
-            {{ sendingToApprover ? 'Enviando...' : 'Enviar a aprobador' }}
+            {{ sendingToApprover ? 'Enviando...' : sendToApproverLabel(selected) }}
           </button>
           <button *ngIf="canApproveSelected() && !selected?.approved_at" class="approve" (click)="approve()" [disabled]="saving || approving || requiresSignedPdfBeforeApprove(selected)">
             {{ approving ? 'Aprobando...' : 'Marcar aprobado' }}
@@ -541,6 +683,99 @@ type TableDocument = {
     .editor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
     .editor-grid label { font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
     .editor-grid input, .editor-grid select, .editor-grid textarea { padding: 7px; border: 1px solid var(--border); border-radius: 9px; }
+    .aila-review-view {
+      grid-column: 1 / -1;
+      display: grid;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .aila-section {
+      padding: 12px;
+      border: 1px solid #d7e6f2;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #ffffff, #f8fbff);
+    }
+    .aila-section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .aila-section-title span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1d4ed8;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .aila-section-title h5 {
+      margin: 0;
+      font-size: 15px;
+      color: #0f2d47;
+    }
+    .aila-field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .aila-field-card {
+      display: grid;
+      gap: 4px;
+      padding: 10px;
+      border: 1px solid #d7e6f2;
+      border-radius: 12px;
+      background: #fff;
+      min-width: 0;
+    }
+    .aila-field-card strong {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #64748b;
+    }
+    .aila-field-card span {
+      color: #0f172a;
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+    .aila-table-wrap {
+      overflow-x: auto;
+      border: 1px solid #d7e6f2;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .aila-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 620px;
+    }
+    .aila-table th,
+    .aila-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2edf6;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+    .aila-table th {
+      background: #eff6ff;
+      color: #1e3a8a;
+      font-weight: 800;
+    }
+    .aila-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .aila-empty {
+      padding: 12px;
+      color: #64748b;
+      font-size: 13px;
+    }
     .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; margin-top: 8px; }
     .attachments-zone { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); }
     .attachments-zone h5 { margin: 0 0 8px; font-size: 13px; color: #234868; }
@@ -587,6 +822,7 @@ export class ReviewPanelComponent implements OnChanges {
   uploadingSignedPdf = false;
   status = '';
   returnReason = '';
+  reviewComments = '';
   analystPdfFile: File | null = null;
   analystPdfError = '';
   signedPdfFile: File | null = null;
@@ -597,15 +833,20 @@ export class ReviewPanelComponent implements OnChanges {
   logs: SubmissionLog[] = [];
   logsLoading = false;
   role = this.auth.currentUser?.role || 'user';
+  readonly avsecFinancieroRole = 'avsec_financiero';
+  readonly ailaRecepcionRole = 'recepcion_aila';
+  readonly ailaRecepcionAvsecRole = 'recepcion_avsec';
+  readonly ailaJefaturaAvsecRole = 'jefatura_avsec';
+  readonly ailaJefaturaAilaRole = 'jefatura_aila';
   currentUserId = this.auth.currentUser?.id || null;
   canEdit = false;
-  canApprove = this.role === 'aprobador' || this.role === 'admin' || this.role === 'supervisor';
-  canSendToEmitter = this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor';
-  canSendToApprover = this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor';
+  canApprove = this.role === 'aprobador' || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
+  canSendToEmitter = this.role === 'analista' || this.role === this.ailaRecepcionAvsecRole || this.role === 'admin' || this.role === 'supervisor';
+  canSendToApprover = this.role === 'emisor' || this.role === this.ailaJefaturaAvsecRole || this.role === 'admin' || this.role === 'supervisor';
   canDeliverRole = this.role === 'revisor';
-  canAssign = this.role === 'revisor' || this.role === 'admin' || this.role === 'supervisor';
-  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === 'admin' || this.role === 'supervisor';
-  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor';
+  canAssign = this.role === 'revisor' || this.role === this.ailaRecepcionRole || this.role === 'admin' || this.role === 'supervisor';
+  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
+  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
   canReturnToAnalyst = this.role === 'aprobador';
 
   ngOnChanges(changes: SimpleChanges) {
@@ -618,6 +859,7 @@ export class ReviewPanelComponent implements OnChanges {
     if (this.edit) {
       this.edit = {
         ...this.edit,
+        comentarios_revision: refreshed.comentarios_revision ?? undefined,
         assigned_analista_id: refreshed.assigned_analista_id ?? null,
         assigned_analista_name: refreshed.assigned_analista_name ?? null,
         assigned_analista_email: refreshed.assigned_analista_email ?? null,
@@ -633,6 +875,7 @@ export class ReviewPanelComponent implements OnChanges {
         delivered_at: refreshed.delivered_at ?? null
       };
     }
+    this.reviewComments = refreshed.comentarios_revision || '';
   }
 
   private visibleRows() {
@@ -641,13 +884,28 @@ export class ReviewPanelComponent implements OnChanges {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) => Number(d.assigned_analista_id) === Number(this.currentUserId));
     }
+    if (this.role === this.ailaRecepcionAvsecRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) => this.isAilaGenericFlow(d) && Number(d.assigned_analista_id) === Number(this.currentUserId));
+    }
     if (this.role === 'emisor') {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) => Number(d.assigned_emisor_id) === Number(this.currentUserId));
     }
+    if (this.role === this.ailaJefaturaAvsecRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) => this.isAilaGenericFlow(d) && Number(d.assigned_emisor_id) === Number(this.currentUserId));
+    }
     if (this.role === 'aprobador') {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) => Number(d.assigned_aprobador_id) === Number(this.currentUserId));
+    }
+    if (this.role === this.ailaJefaturaAilaRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) => this.isAilaGenericFlow(d) && Number(d.assigned_aprobador_id) === Number(this.currentUserId));
+    }
+    if (this.role === this.avsecFinancieroRole) {
+      rows = rows.filter((d) => this.isFinancialAvsecFlow(d) && Boolean(d.approved_at) && Boolean(d.has_signed_pdf || d.signed_pdf_filename));
     }
     return rows;
   }
@@ -690,6 +948,7 @@ export class ReviewPanelComponent implements OnChanges {
 
   showsEmitterField(row: Submission | null) {
     if (!row) return false;
+    if (this.isAilaGenericFlow(row)) return true;
     return this.isFinancialSubmission(row) && !this.isFinancialPaymentPasswordFlow(row);
   }
 
@@ -711,9 +970,23 @@ export class ReviewPanelComponent implements OnChanges {
     return groupCode === 'otros_tramites' || groupLabel.includes('contrasena de pago');
   }
 
+  isFinancialAvsecFlow(row: Submission | null | undefined) {
+    if (!row || !this.isFinancialSubmission(row)) return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    return String(detail['gestion_grupo_codigo'] || '').trim() === 'solvencias'
+      && String(detail['proceso_codigo'] || '').trim() === 'gestion_tia';
+  }
+
   isAilaSubmission(row: Submission | null) {
     if (!row) return false;
     return String(row.unidad_clave || '').toUpperCase() === 'AILA';
+  }
+
+  isAilaGenericFlow(row: Submission | null | undefined) {
+    if (!this.isAilaSubmission(row || null)) return false;
+    return this.ailaValue(row || null, 'tipo_permiso').toLowerCase() === 'generico';
   }
 
   isRpaExtranjeroIndividual(row: Submission | null) {
@@ -744,6 +1017,26 @@ export class ReviewPanelComponent implements OnChanges {
     return isRpa &&
       String(row.persona_tipo || '').toLowerCase() === 'juridica' &&
       String(row.origen_compra || '').toLowerCase() === 'extranjero';
+  }
+
+  isRanCertificacion(row: Submission | null | undefined) {
+    if (!row) return false;
+    const unit = String(row.unidad_clave || '').toUpperCase();
+    const gestion = String(row.gestion_nombre || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+    return unit === 'RAN' && gestion.includes('certific');
+  }
+
+  usesCombinedRanCertificationJuridicaDocument(row: Submission | null | undefined) {
+    if (!this.isRanCertificacion(row)) return false;
+    if (String(row?.persona_tipo || '').toLowerCase() !== 'juridica') return false;
+    const hasActa = Boolean(row?.has_acta || row?.acta_filename);
+    const hasRegistro = Boolean(row?.has_registro_mercantil || row?.registro_mercantil_filename);
+    if (!hasActa || !hasRegistro) return false;
+    if (!row?.acta_filename || !row?.registro_mercantil_filename) return true;
+    return row.acta_filename === row.registro_mercantil_filename;
   }
 
   financialValue(row: Submission | null, key: string) {
@@ -816,6 +1109,18 @@ export class ReviewPanelComponent implements OnChanges {
     }).join(' | ');
   }
 
+  ailaEntries(row: Submission | null, key: 'personas' | 'escoltas' | 'herramientas' | 'vehiculos') {
+    if (!row?.detalle_formulario || typeof row.detalle_formulario !== 'object') return [] as Record<string, unknown>[];
+    const values = (row.detalle_formulario as Record<string, unknown>)[key];
+    if (!Array.isArray(values)) return [] as Record<string, unknown>[];
+    return values.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object');
+  }
+
+  displayValue(value: unknown) {
+    const text = String(value ?? '').trim();
+    return text || '—';
+  }
+
   documentLabel(row: Submission | null, key: string) {
     if (this.isAilaSubmission(row)) {
       const labels: Record<string, string> = {
@@ -850,7 +1155,9 @@ export class ReviewPanelComponent implements OnChanges {
     }
     const labels: Record<string, string> = {
       dpi: 'DPI adjunto',
-      acta: 'Acta notarial',
+      acta: this.usesCombinedRanCertificationJuridicaDocument(row)
+        ? 'Acta notarial / Registro mercantil'
+        : 'Acta notarial',
       carta: 'Carta de representación',
       registro: 'Registro mercantil',
       rpaActaNombramiento: 'Acta nombramiento representante legal',
@@ -898,12 +1205,50 @@ export class ReviewPanelComponent implements OnChanges {
     return row.assigned_aprobador_name || row.assigned_aprobador_email || 'Sin asignar';
   }
 
+  stageLabel(row: Submission | null | undefined, stage: 'analista' | 'emisor' | 'aprobador') {
+    if (this.isAilaGenericFlow(row)) {
+      if (stage === 'analista') return 'Recepción AVSEC';
+      if (stage === 'emisor') return 'Jefatura AVSEC';
+      return 'Jefatura AILA';
+    }
+    if (stage === 'analista') return 'Analista';
+    if (stage === 'emisor') return 'Emisor';
+    return 'Aprobador';
+  }
+
+  assignStageLabel(row: Submission | null | undefined, stage: 'analista' | 'emisor' | 'aprobador' = 'analista') {
+    return this.stageLabel(row, stage);
+  }
+
+  assignedStageLabel(row: Submission | null | undefined, stage: 'analista' | 'emisor' | 'aprobador') {
+    return `${this.stageLabel(row, stage)} asignado`;
+  }
+
+  sendToEmitterLabel(row: Submission | null | undefined) {
+    return this.isAilaGenericFlow(row) ? 'Enviar a Jefatura AVSEC' : 'Enviar a emisor';
+  }
+
+  sendToApproverLabel(row: Submission | null | undefined) {
+    return this.isAilaGenericFlow(row) ? 'Enviar a Jefatura AILA' : 'Enviar a aprobador';
+  }
+
+  shouldShowRegistroMercantil(row: Submission | null | undefined) {
+    if (!(row?.has_registro_mercantil || row?.registro_mercantil_filename)) return false;
+    if (this.usesCombinedRanCertificationJuridicaDocument(row)) return false;
+    return true;
+  }
+
   tableDocuments(row: Submission): TableDocument[] {
     const docs: TableDocument[] = [];
     const add = (key: TableDocumentKey, label: string, hasDocument: boolean, filename?: string | null) => {
       if (!hasDocument) return;
       docs.push({ key, label, filename });
     };
+
+    if (this.role === this.avsecFinancieroRole && this.isFinancialAvsecFlow(row)) {
+      add('signed', 'Documento firmado', Boolean(row.has_signed_pdf || row.signed_pdf_filename), row.signed_pdf_filename);
+      return docs;
+    }
 
     if (this.isFinancialSubmission(row)) {
       for (const doc of this.financialDeclaraguateDocuments(row)) {
@@ -915,12 +1260,14 @@ export class ReviewPanelComponent implements OnChanges {
 
     add('acta', this.documentLabel(row, 'acta'), Boolean(row.has_acta || row.acta_filename), row.acta_filename);
     add('carta', this.documentLabel(row, 'carta'), Boolean(row.has_carta_representacion || row.carta_representacion_filename), row.carta_representacion_filename);
-    add('registro', this.documentLabel(row, 'registro'), Boolean(row.has_registro_mercantil || row.registro_mercantil_filename), row.registro_mercantil_filename);
+    add('registro', this.documentLabel(row, 'registro'), this.shouldShowRegistroMercantil(row), row.registro_mercantil_filename);
     add('rpaActaNombramiento', this.documentLabel(row, 'rpaActaNombramiento'), Boolean(row.has_rpa_acta_nombramiento || row.rpa_acta_nombramiento_filename), row.rpa_acta_nombramiento_filename);
     add('rpaRegistroRepresentante', this.documentLabel(row, 'rpaRegistroRepresentante'), Boolean(row.has_rpa_registro_representante || row.rpa_registro_representante_filename), row.rpa_registro_representante_filename);
     add('rpaRegistroEntidad', this.documentLabel(row, 'rpaRegistroEntidad'), Boolean(row.has_rpa_registro_entidad || row.rpa_registro_entidad_filename), row.rpa_registro_entidad_filename);
     add('rpaDocumentoEstado', this.documentLabel(row, 'rpaDocumentoEstado'), Boolean(row.has_rpa_documento_estado || row.rpa_documento_estado_filename), row.rpa_documento_estado_filename);
-    add('boleta', 'Boleta de pago', Boolean(row.has_analyst_pdf || row.analyst_pdf_filename), row.analyst_pdf_filename);
+    if (!this.isAilaGenericFlow(row)) {
+      add('boleta', 'Boleta de pago', Boolean(row.has_analyst_pdf || row.analyst_pdf_filename), row.analyst_pdf_filename);
+    }
     add('signed', 'Documento firmado', Boolean(row.has_signed_pdf || row.signed_pdf_filename), row.signed_pdf_filename);
     return docs;
   }
@@ -974,8 +1321,10 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   actorDisplay(entry: SubmissionLog) {
-    if (entry.actor_name && entry.actor_email) return `${entry.actor_name} (${entry.actor_email})`;
-    return entry.actor_name || entry.actor_email || 'Sistema';
+    const actorName = this.normalizeDisplayText(entry.actor_name);
+    const actorEmail = this.normalizeDisplayText(entry.actor_email);
+    if (actorName && actorEmail) return `${actorName} (${actorEmail})`;
+    return actorName || actorEmail || 'Sistema';
   }
 
   logComment(entry: SubmissionLog): string | null {
@@ -983,6 +1332,18 @@ export class ReviewPanelComponent implements OnChanges {
     if (raw === null || raw === undefined) return null;
     const value = String(raw).trim();
     return value || null;
+  }
+
+  normalizeDisplayText(value: unknown): string {
+    const text = value === null || value === undefined ? '' : String(value);
+    if (!text) return '';
+    if (!/[ÃÂ�]/.test(text)) return text;
+    try {
+      const bytes = Uint8Array.from(Array.from(text).map((char) => char.charCodeAt(0) & 0xff));
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch {
+      return text;
+    }
   }
 
   private applyAssignedAnalyst(analystId: number | null, analystName: string | null, analystEmail: string | null) {
@@ -1040,6 +1401,7 @@ export class ReviewPanelComponent implements OnChanges {
     this.edit = { ...row };
     this.status = '';
     this.returnReason = row.returned_reason || '';
+    this.reviewComments = row.comentarios_revision || '';
     this.analystPdfFile = null;
     this.analystPdfError = '';
     this.logs = [];
@@ -1072,6 +1434,7 @@ export class ReviewPanelComponent implements OnChanges {
     this.edit = null;
     this.status = '';
     this.returnReason = '';
+    this.reviewComments = '';
     this.analystPdfFile = null;
     this.analystPdfError = '';
     this.signedPdfFile = null;
@@ -1083,12 +1446,14 @@ export class ReviewPanelComponent implements OnChanges {
   save() {
     if (!this.selected || !this.edit) return;
     const submissionId = this.selected.id;
+    const comentarios_revision = this.reviewComments.trim() || null;
 
     if (!this.canEdit && this.canAssign) {
       this.saving = true;
       this.status = 'Asignando...';
       this.http.post<{ analista_id?: number | null; assigned_analista_name?: string | null; assigned_analista_email?: string | null }>(`${this.apiBase}/submissions/${submissionId}/assign`, {
-        analista_id: this.edit.assigned_analista_id || null
+        analista_id: this.edit.assigned_analista_id || null,
+        comentarios_revision
       }).subscribe({
         next: (resp) => {
           this.applyAssignedAnalyst(
@@ -1096,6 +1461,8 @@ export class ReviewPanelComponent implements OnChanges {
             resp.assigned_analista_name ?? null,
             resp.assigned_analista_email ?? null
           );
+          if (this.selected) this.selected.comentarios_revision = comentarios_revision ?? undefined;
+          if (this.edit) this.edit.comentarios_revision = comentarios_revision ?? undefined;
           this.status = 'Analista asignado.';
           this.loadLogs(submissionId);
           this.saving = false;
@@ -1246,12 +1613,25 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canSendSelectedToEmitter() {
+    if (this.isAilaGenericFlow(this.selected)) {
+      if (!this.selected) return false;
+      if (this.role === 'admin' || this.role === 'supervisor') return true;
+      return this.role === this.ailaRecepcionAvsecRole && Number(this.selected.assigned_analista_id) === Number(this.currentUserId);
+    }
     return this.canSendToEmitter && this.isFinancialSubmission(this.selected) && !this.isFinancialPaymentPasswordFlow(this.selected);
+  }
+
+  canWriteReceptionComments(row: Submission | null | undefined) {
+    if (!row || !this.isAilaGenericFlow(row)) return false;
+    return this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === 'admin' || this.role === 'supervisor';
   }
 
   canSendSelectedToApprover() {
     if (!this.selected || this.isFinancialPaymentPasswordFlow(this.selected)) return false;
     if (this.role === 'admin' || this.role === 'supervisor') return true;
+    if (this.isAilaGenericFlow(this.selected)) {
+      return this.role === this.ailaJefaturaAvsecRole && Number(this.selected.assigned_emisor_id) === Number(this.currentUserId);
+    }
     if (this.isFinancialSubmission(this.selected)) {
       return this.role === 'emisor';
     }
@@ -1279,8 +1659,15 @@ export class ReviewPanelComponent implements OnChanges {
     return this.canApprove && !this.isFinancialPaymentPasswordFlow(this.selected);
   }
 
+  showSignedPdfPanel(row: Submission | null | undefined) {
+    if (!row?.id) return false;
+    if (this.isAilaGenericFlow(row)) return false;
+    return String(row.unidad_clave || '').toUpperCase() !== 'RAN';
+  }
+
   canUploadAnalystPdf(row: Submission | null | undefined) {
     if (!row?.id) return false;
+    if (this.isAilaGenericFlow(row)) return false;
     if (row.approved_at || row.delivered_at) return false;
     if (this.isFinancialSubmission(row)) {
       if (this.isFinancialPaymentPasswordFlow(row)) {
@@ -1298,6 +1685,9 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canShowBoletaPanel(row: Submission | null | undefined) {
+    if (this.isAilaGenericFlow(row || null)) {
+      return false;
+    }
     if (this.isFinancialSubmission(row || null)) {
       return Boolean(
         row?.id &&
@@ -1617,7 +2007,10 @@ export class ReviewPanelComponent implements OnChanges {
     this.status = 'Enviando a emisor...';
     this.http.post<{ assigned_emisor_id: number; sent_to_emisor_at: string; assigned_emisor_name?: string | null; assigned_emisor_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-emisor`,
-      { emisor_id: this.edit?.assigned_emisor_id || null }
+      {
+        emisor_id: this.edit?.assigned_emisor_id || null,
+        comentarios_revision: this.reviewComments.trim() || null
+      }
     ).subscribe({
       next: (resp) => {
         if (this.selected) {
@@ -1627,6 +2020,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.assigned_emisor_email = resp.assigned_emisor_email || null;
           this.selected.returned_to_analista_at = null;
           this.selected.returned_to_analista_reason = null;
+          this.selected.comentarios_revision = this.reviewComments.trim() || undefined;
         }
         if (this.edit) {
           this.edit.assigned_emisor_id = resp.assigned_emisor_id;
@@ -1635,6 +2029,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.assigned_emisor_email = resp.assigned_emisor_email || null;
           this.edit.returned_to_analista_at = null;
           this.edit.returned_to_analista_reason = null;
+          this.edit.comentarios_revision = this.reviewComments.trim() || undefined;
         }
         this.sendingToEmitter = false;
         this.status = 'Formulario enviado al emisor.';

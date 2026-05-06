@@ -106,6 +106,15 @@ async function init() {
       rpa_documento_estado_pdf BYTEA,
       rpa_documento_estado_filename TEXT,
       rpa_documento_estado_mime TEXT,
+      aila_escort_pwd_1_pdf BYTEA,
+      aila_escort_pwd_1_filename TEXT,
+      aila_escort_pwd_1_mime TEXT,
+      aila_escort_pwd_2_pdf BYTEA,
+      aila_escort_pwd_2_filename TEXT,
+      aila_escort_pwd_2_mime TEXT,
+      aila_escort_pwd_3_pdf BYTEA,
+      aila_escort_pwd_3_filename TEXT,
+      aila_escort_pwd_3_mime TEXT,
       carta_representacion_pdf BYTEA,
       carta_representacion_filename TEXT,
       carta_representacion_mime TEXT,
@@ -127,6 +136,9 @@ async function init() {
       created_by_user_id INTEGER,
       approved_at TIMESTAMPTZ,
       approved_by_user_id INTEGER,
+      rejected_at TIMESTAMPTZ,
+      rejected_by_user_id INTEGER,
+      rejected_reason TEXT,
       delivered_at TIMESTAMPTZ,
       delivered_by_user_id INTEGER,
       returned_at TIMESTAMPTZ,
@@ -181,6 +193,24 @@ async function init() {
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS submission_feedback_submission_user_idx
       ON submission_feedback (submission_id, user_id);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payments (
+      id SERIAL PRIMARY KEY,
+      submission_id INTEGER NOT NULL,
+      amount NUMERIC(12,2) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      transaction_id VARCHAR(100),
+      authorization_code VARCHAR(20),
+      reference_number VARCHAR(30),
+      audit_number VARCHAR(10),
+      masked_card VARCHAR(25),
+      response_code VARCHAR(5),
+      raw_response JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
   `);
 
   // Safety: add missing columns if table already existed with older schema
@@ -271,6 +301,15 @@ async function init() {
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_documento_estado_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_documento_estado_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rpa_documento_estado_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_1_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_1_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_1_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_2_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_2_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_2_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_3_pdf BYTEA",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_3_filename TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS aila_escort_pwd_3_mime TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS carta_representacion_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS carta_representacion_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS carta_representacion_mime TEXT",
@@ -292,8 +331,12 @@ async function init() {
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_by_user_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rejected_by_user_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS rejected_reason TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS delivered_by_user_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS payment_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS returned_reason TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS returned_by_user_id INTEGER",
@@ -475,6 +518,15 @@ async function init() {
     "CREATE UNIQUE INDEX IF NOT EXISTS submission_feedback_submission_user_idx ON submission_feedback (submission_id, user_id)",
     "CREATE INDEX IF NOT EXISTS submission_feedback_submission_idx ON submission_feedback (submission_id)",
     "CREATE INDEX IF NOT EXISTS submission_feedback_user_idx ON submission_feedback (user_id)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS authorization_code VARCHAR(20)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS reference_number VARCHAR(30)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS audit_number VARCHAR(10)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS masked_card VARCHAR(25)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS response_code VARCHAR(5)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS raw_response JSONB",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()",
+    "ALTER TABLE payments ALTER COLUMN updated_at SET DEFAULT NOW()",
     `DO $$
      BEGIN
        IF NOT EXISTS (
@@ -486,6 +538,20 @@ async function init() {
            ADD CONSTRAINT submissions_returned_by_user_fkey
            FOREIGN KEY (returned_by_user_id)
            REFERENCES users(id)
+           ON DELETE SET NULL;
+       END IF;
+     END $$`,
+    `DO $$
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1
+         FROM pg_constraint
+         WHERE conname = 'submissions_payment_fkey'
+       ) THEN
+         ALTER TABLE submissions
+           ADD CONSTRAINT submissions_payment_fkey
+           FOREIGN KEY (payment_id)
+           REFERENCES payments(id)
            ON DELETE SET NULL;
        END IF;
      END $$`,

@@ -647,7 +647,7 @@ export class SupervisorPageComponent implements OnInit {
     const normalized = String(unit || 'GENERAL').toUpperCase();
     if (normalized === 'RAN') return 'Unidad RAN';
     if (normalized === 'DVSO') return 'Unidad DVSO';
-    if (normalized === 'AILA') return 'Unidad AILA';
+    if (normalized === 'AILA') return 'Administración AILA';
     if (normalized === 'FINANCIERO') return 'Unidad FINANCIERO';
     return 'Unidad GENERAL';
   }

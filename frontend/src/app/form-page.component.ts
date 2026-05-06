@@ -525,7 +525,16 @@ export class FormPageComponent implements OnInit {
         },
         error: (err) => {
           console.error(err);
-          this.status = { type: 'error', message: 'No se pudo guardar. Verifica la API y la base de datos.' };
+          const backendMessage = String(
+            err?.error?.error ||
+            err?.error?.message ||
+            err?.message ||
+            ''
+          ).trim();
+          this.status = {
+            type: 'error',
+            message: backendMessage || 'No se pudo guardar. Verifica la API y la base de datos.'
+          };
           this.isSubmitting = false;
         }
       });

@@ -33,7 +33,7 @@
             <input formControlName="nit" class="line-input" type="text">
             <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
           </label>
-          <label>Nombre de la Empresa <span class="required-reference">*</span>
+          <label>Nombre <span class="required-reference">*</span>
             <input formControlName="nombre_empresa" class="line-input" type="text">
             <small class="error" *ngIf="getFieldError('nombre_empresa')">{{ getFieldError('nombre_empresa') }}</small>
           </label>
@@ -245,9 +245,9 @@
                   <small class="error" *ngIf="getFieldError('certificado_operativo_subtipo')">{{ getFieldError('certificado_operativo_subtipo') }}</small>
                 </div>
 
-                <div class="amount-options" *ngIf="process.amountOptions?.length">
+                <div class="amount-options" *ngIf="getAmountOptions(process).length">
                   <p class="field-hint">Selecciona un monto <span class="required-reference">*</span></p>
-                  <label class="checkbox-line" *ngFor="let amount of process.amountOptions">
+                  <label class="checkbox-line" *ngFor="let amount of getAmountOptions(process)">
                     <input type="checkbox" [checked]="isMontoSelected(amount)" (change)="toggleMonto(amount)">
                     <span>{{ amount }}</span>
                   </label>

@@ -15,7 +15,7 @@ import { AuthService } from './auth.service';
         <div class="header__right">
           <nav class="nav" *ngIf="auth.user$ | async as user; else guestNav">
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
-            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
+            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">

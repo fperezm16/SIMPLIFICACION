@@ -61,9 +61,9 @@ type UnitGroup = { unit: string; rows: Submission[] };
           <button
             type="button"
             class="download-btn signed-btn"
-            *ngIf="row.approved_at && (row.has_signed_pdf || row.signed_pdf_filename)"
+            *ngIf="canDownloadSignedDocument(row)"
             (click)="downloadSignedDocument(row)">
-            Descargar documento firmado
+            {{ isAilaGenericFlow(row) ? 'Descargar permiso' : 'Descargar documento firmado' }}
           </button>
           <button
             type="button"
@@ -97,9 +97,9 @@ type UnitGroup = { unit: string; rows: Submission[] };
             <button
               type="button"
               class="notice-download signed-btn"
-              *ngIf="approvedNoticeTarget && (approvedNoticeTarget.has_signed_pdf || approvedNoticeTarget.signed_pdf_filename)"
+              *ngIf="approvedNoticeTarget && canDownloadSignedDocument(approvedNoticeTarget)"
               (click)="downloadSignedFromNotice()">
-              Descargar documento firmado
+              {{ approvedNoticeTarget && isAilaGenericFlow(approvedNoticeTarget) ? 'Descargar permiso' : 'Descargar documento firmado' }}
             </button>
             <button type="button" class="notice-download" *ngIf="approvedNoticeTarget && canDownloadBoleta(approvedNoticeTarget)" (click)="downloadBoletaFromNotice()">
               Descargar boleta de pago
@@ -430,7 +430,7 @@ export class HomePageComponent implements OnInit {
     const key = (unit || 'GENERAL').toUpperCase();
     if (key === 'RAN') return 'Unidad RAN';
     if (key === 'DVSO') return 'Unidad DVSO';
-    if (key === 'AILA') return 'Unidad AILA';
+    if (key === 'AILA') return 'Administración AILA';
     if (key === 'FINANCIERO') return 'Unidad FINANCIERO';
     return 'Unidad General';
   }
@@ -700,6 +700,18 @@ export class HomePageComponent implements OnInit {
     if (this.isRanSubmission(row)) {
       return 'Ya puedes venir a realizar el pago correspondiente y recoger la certificación solicitada en las instalaciones de la DGAC.';
     }
+    if (this.isFinancialCancelacionMatriculaFlow(row)) {
+      return 'La solvencia de la aeronave se encuentra disponible para su retiro en las instalaciones de la DGAC, segundo nivel, Departamento Financiero.';
+    }
+    if (this.isFinancialGestionTiaFlow(row)) {
+      return 'El documento ha sido remitido a la administracion correspondiente (AVSEC) para su gestión y seguimiento.';
+    }
+    if (this.isFinancialRenovacionArrendamientoFlow(row)) {
+      return 'Si necesita el documento original, puede pasar a recogerlo en las instalaciones de la DGAC, segundo nivel, en el departamento financiero.';
+    }
+    if (this.isFinancialSolvenciaFlow(row)) {
+      return 'El proceso fue aprobado. Ya puedes descargar el documento firmado para continuar con la gestión.';
+    }
     if (String(row.unidad_clave || '').toUpperCase() === 'FINANCIERO') {
       return 'El proceso fue aprobado. Ya puedes descargar el documento firmado y la boleta de pago para continuar con la gestión.';
     }
@@ -714,8 +726,27 @@ export class HomePageComponent implements OnInit {
     return String(row.unidad_clave || this.inferUnit(row)).toUpperCase() === 'RAN';
   }
 
+  canDownloadSignedDocument(row: Submission | null | undefined) {
+    if (!row?.approved_at) return false;
+    if (this.isAilaGenericFlow(row)) return true;
+    return Boolean(row.has_signed_pdf || row.signed_pdf_filename);
+  }
+
+  private isAilaSubmission(row: Submission | null | undefined) {
+    return String(row?.unidad_clave || '').toUpperCase() === 'AILA';
+  }
+
+  isAilaGenericFlow(row: Submission | null | undefined) {
+    if (!this.isAilaSubmission(row)) return false;
+    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    return String(detail['tipo_permiso'] || '').trim().toLowerCase() === 'generico';
+  }
+
   canDownloadBoleta(row: Submission) {
     if (!row?.id || !(row.has_analyst_pdf || row.analyst_pdf_filename)) return false;
+    if (this.isFinancialSolvenciaFlow(row)) return false;
     return Boolean(row.approved_at || this.isFinancialPaymentPasswordFlow(row));
   }
 
@@ -740,6 +771,39 @@ export class HomePageComponent implements OnInit {
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase();
     return groupCode === 'otros_tramites' || groupLabel.includes('contrasena de pago');
+  }
+
+  private isFinancialSolvenciaFlow(row: Submission | null | undefined) {
+    if (!row || String(row.unidad_clave || this.inferUnit(row)).toUpperCase() !== 'FINANCIERO') return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    const groupCode = String(detail['gestion_grupo_codigo'] || '').trim();
+    return groupCode === 'solvencias';
+  }
+
+  private isFinancialRenovacionArrendamientoFlow(row: Submission | null | undefined) {
+    if (!row || !this.isFinancialSolvenciaFlow(row)) return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    return String(detail['proceso_codigo'] || '').trim() === 'renovacion_arrendamiento';
+  }
+
+  private isFinancialGestionTiaFlow(row: Submission | null | undefined) {
+    if (!row || !this.isFinancialSolvenciaFlow(row)) return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    return String(detail['proceso_codigo'] || '').trim() === 'gestion_tia';
+  }
+
+  private isFinancialCancelacionMatriculaFlow(row: Submission | null | undefined) {
+    if (!row || !this.isFinancialSolvenciaFlow(row)) return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    return String(detail['proceso_codigo'] || '').trim() === 'cancelacion_matricula';
   }
 
   private inferUnit(row: Submission) {
