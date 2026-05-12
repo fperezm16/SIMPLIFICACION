@@ -516,6 +516,13 @@ export class FinancialFormPageComponent implements OnInit {
     return this.groupOptions.find((option) => option.value === current) || null;
   }
 
+  dynamicFormTitle() {
+    const current = String(this.form.value.gestion_codigo || '').trim();
+    if (current === 'solvencias') return 'SOLICITUD DE SOLVENCIA FINANCIERA';
+    if (current === 'otros_tramites') return 'SOLICITUD DE CONTRASEÑA DE PAGO';
+    return 'SOLICITUD SOLVENCIA DE PAGO';
+  }
+
   currentProcesses() {
     return this.currentGroup()?.processes || [];
   }

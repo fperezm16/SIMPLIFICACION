@@ -67,10 +67,10 @@
                 formControlName="documento_propietario"
                 class="line-input"
                 type="text"
-                maxlength="13"
-                inputmode="numeric"
                 [required]="isRanForm2 || isRanForm8"
-                (input)="onDigitsInput($event, 'documento_propietario', 13)">
+                [attr.maxlength]="isRanMode ? null : 13"
+                [attr.inputmode]="isRanMode ? null : 'numeric'"
+                (input)="isRanMode ? null : onDigitsInput($event, 'documento_propietario', 13)">
             </label>
             <small class="error" *ngIf="getFieldError('documento_propietario')">{{ getFieldError('documento_propietario') }}</small>
           </li>
@@ -98,9 +98,8 @@
             </label>
           </li>
           <li [attr.data-num]="nitBlockNumber()">
-            <div class="note-line">NIT y nombre a consignar en orden de pago:</div>
             <div class="dual">
-              <label>NIT: <span class="required-reference" *ngIf="isFieldRequired('nit')">*</span>
+              <label>{{ nitBlockNumber() }}. NIT: <span class="required-reference" *ngIf="isFieldRequired('nit')">*</span>
                 <input formControlName="nit" class="line-input" type="text" [required]="isRanForm2 || isRanForm8 || isRanUav">
                 <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
               </label>
@@ -165,10 +164,10 @@
                 formControlName="documento_propietario"
                 class="line-input"
                 type="text"
-                maxlength="13"
-                inputmode="numeric"
                 [required]="isRanForm2"
-                (input)="onDigitsInput($event, 'documento_propietario', 13)">
+                [attr.maxlength]="isRanMode ? null : 13"
+                [attr.inputmode]="isRanMode ? null : 'numeric'"
+                (input)="isRanMode ? null : onDigitsInput($event, 'documento_propietario', 13)">
             </label>
             <small class="error" *ngIf="getFieldError('documento_propietario')">{{ getFieldError('documento_propietario') }}</small>
           </li>
@@ -192,9 +191,8 @@
             </div>
           </li>
           <li data-num="4">
-            <div class="note-line">N.I.T y nombre a consignar en orden de pago:</div>
             <div class="dual">
-              <label>NIT: <span class="required-reference" *ngIf="isFieldRequired('nit')">*</span>
+              <label>4. NIT: <span class="required-reference" *ngIf="isFieldRequired('nit')">*</span>
                 <input formControlName="nit" class="line-input" type="text" [required]="isRanForm2 || isRanForm8 || isRanUav">
                 <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
               </label>
@@ -246,7 +244,7 @@
         <ol class="fields" *ngIf="!isRanUav">
           <li class="dual">
             <label>{{ matriculaLabel() }} <span class="required-reference" *ngIf="isFieldRequired('matricula_tg')">*</span>
-              <input formControlName="matricula_tg" class="line-input short" type="text" [placeholder]="matriculaPlaceholder()">
+              <input formControlName="matricula_tg" class="line-input short" type="text" [placeholder]="matriculaPlaceholder()" (input)="onUppercaseInput($event, 'matricula_tg')">
             </label>
             <label *ngIf="!isRanForm8">Nueva Matrícula TG (por cambio):
               <input formControlName="matricula_tg_nueva" class="line-input short" type="text" placeholder="TG-">
@@ -305,7 +303,7 @@
           </li>
           <li data-num="4">
             <label>No. UAV - TG (si ya fue reservado):
-              <input formControlName="matricula_tg" class="line-input short" type="text" placeholder="UAV-TG-">
+              <input formControlName="matricula_tg" class="line-input short" type="text" placeholder="UAV-TG-" (input)="onUppercaseInput($event, 'matricula_tg')">
             </label>
             <small class="error" *ngIf="getFieldError('matricula_tg')">{{ getFieldError('matricula_tg') }}</small>
           </li>

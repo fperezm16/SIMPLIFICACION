@@ -11,10 +11,10 @@
           </div>
         </div>
         <div class="title">
-          <h1>Solicitud solvencia de pago</h1>
+          <h1>{{ dynamicFormTitle() }}</h1>
           <p>Departamento Financiero</p>
           <p>Unidad Control de Ingresos</p>
-          <span class="mode-pill">Unidad FINANCIERO</span>
+          <span class="mode-pill">DEPARTAMENTO FINANCIERO</span>
         </div>
         <div class="meta-row">
           <label class="inline-label">Fecha:
@@ -28,12 +28,13 @@
       </header>
 
       <section class="section finance-top">
+        <h2>DATOS DE FACTURACIÓN</h2>
         <div class="finance-grid">
           <label>NIT <span class="required-reference">*</span>
             <input formControlName="nit" class="line-input" type="text">
             <small class="error" *ngIf="getFieldError('nit')">{{ getFieldError('nit') }}</small>
           </label>
-          <label>Nombre <span class="required-reference">*</span>
+          <label>Nombre del arrendatario o dueño de la aeronave <span class="required-reference">*</span>
             <input formControlName="nombre_empresa" class="line-input" type="text">
             <small class="error" *ngIf="getFieldError('nombre_empresa')">{{ getFieldError('nombre_empresa') }}</small>
           </label>
@@ -68,12 +69,13 @@
           <div class="full-row upload-block">
             <span class="upload-title">Carta de Representaci&oacute;n <span class="required-reference">*</span></span>
             <p class="field-hint">Adjunta la carta de representaci&oacute;n en PDF. Tama&ntilde;o m&aacute;ximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
-            <label class="upload-inline">
-              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onCartaRepresentacionSelected($event)">
-              <span>{{ cartaRepresentacionFile?.name || existingCartaRepresentacionFilename || 'Seleccionar PDF de Carta de Representación...' }}</span>
-            </label>
-            <small class="error" *ngIf="cartaRepresentacionError">{{ cartaRepresentacionError }}</small>
-          </div>
+          <label class="upload-inline">
+            <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onCartaRepresentacionSelected($event)">
+            <span>{{ cartaRepresentacionFile?.name || existingCartaRepresentacionFilename || 'Seleccionar PDF de Carta de Representación...' }}</span>
+          </label>
+          <p class="field-hint">En caso de que la solicitud sea realizada por un tercero, la carta debe estar firmada y sellada con el sello de la empresa.</p>
+          <small class="error" *ngIf="cartaRepresentacionError">{{ cartaRepresentacionError }}</small>
+        </div>
         </div>
       </section>
 

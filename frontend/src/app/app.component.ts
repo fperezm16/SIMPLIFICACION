@@ -16,24 +16,18 @@ import { AuthService } from './auth.service';
           <nav class="nav" *ngIf="auth.user$ | async as user; else guestNav">
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
             <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
+            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">
               <button type="button" class="units-trigger">Unidades</button>
               <div class="units-dropdown">
-                <a href="#" (click)="$event.preventDefault()">DVSO</a>
                 <div class="units-submenu">
                   <button type="button" class="submenu-trigger">RAN</button>
                   <div class="units-submenu-panel">
                     <a routerLink="/ran/formulario-2" routerLinkActive="active-link">Reserva, Prórroga o Cesión de Matrícula</a>
                     <a routerLink="/ran/formulario-8" routerLinkActive="active-link">Certificación</a>
                     <a routerLink="/ran/formulario-drones" routerLinkActive="active-link">UAV / RPA - Distintivo</a>
-                  </div>
-                </div>
-                <div class="units-submenu">
-                  <button type="button" class="submenu-trigger">AILA</button>
-                  <div class="units-submenu-panel">
-                    <a routerLink="/aila/permiso-trabajo" routerLinkActive="active-link">Permiso de trabajos e ingreso/egreso</a>
                   </div>
                 </div>
                 <div class="units-submenu">

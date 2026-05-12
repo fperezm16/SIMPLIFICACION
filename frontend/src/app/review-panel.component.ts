@@ -146,7 +146,7 @@ type TableDocument = {
             <label>Teléfono <input [value]="selected.telefono || ''" disabled /></label>
             <label>NIT <input [value]="selected.nit || ''" disabled /></label>
             <label>Nombre del solicitante <input [value]="selected.representante_legal || financialValue(selected, 'nombre_solicitante')" disabled /></label>
-            <label>Proceso financiero <input [value]="financialProcessLabel(selected)" disabled /></label>
+            <label>{{ financialProcessFieldLabel() }} <input [value]="financialProcessLabel(selected)" disabled /></label>
             <label *ngIf="financialValue(selected, 'area')">Área <input [value]="financialValue(selected, 'area')" disabled /></label>
             <label *ngIf="financialValue(selected, 'nomenclatura_area')">Nomenclatura del área <input [value]="financialValue(selected, 'nomenclatura_area')" disabled /></label>
             <label *ngIf="financialValue(selected, 'anio')">Año <input [value]="financialValue(selected, 'anio')" disabled /></label>
@@ -347,7 +347,7 @@ type TableDocument = {
               <label>Especificaciones <input [(ngModel)]="edit.especificaciones" [disabled]="!canEdit" /></label>
             </ng-template>
           </ng-template>
-          <label *ngIf="canReturn || canReturnToAnalyst">
+          <label *ngIf="canReturnToUserSelected() || canReturnToAnalyst">
             {{ canReturnToAnalyst ? 'Motivo de devolución al analista' : 'Motivo de devolución al usuario' }}
             <textarea rows="3" [(ngModel)]="returnReason" [disabled]="returning"></textarea>
           </label>
@@ -490,20 +490,20 @@ type TableDocument = {
               </small>
               <small class="error-text" *ngIf="analystPdfError">{{ analystPdfError }}</small>
             </div>
-            <div class="dpi-box" *ngIf="showSignedPdfPanel(selected) && (canApproveSelected() || selected.has_signed_pdf || selected.signed_pdf_filename)">
+            <div class="dpi-box" *ngIf="showSignedPdfPanel(selected) && (canApproveSelected() || canUploadFinalSignedPdf(selected) || selected.has_signed_pdf || selected.signed_pdf_filename)">
               <div class="dpi-head">
                 <span>Documento firmado:</span>
                 <span class="muted" *ngIf="!(selected.has_signed_pdf || selected.signed_pdf_filename)">No adjunto</span>
               </div>
               <button class="link" type="button" *ngIf="selected.has_signed_pdf || selected.signed_pdf_filename" (click)="viewSignedPdf(selected)">Ver PDF</button>
-              <label class="upload-inline" *ngIf="canApproveSelected() && !selected?.approved_at">
+              <label class="upload-inline" *ngIf="(canApproveSelected() || canUploadFinalSignedPdf(selected)) && !selected?.approved_at">
                 <input type="file" accept="application/pdf" [disabled]="uploadingSignedPdf" (change)="onSignedPdfSelected($event)">
                 <span>{{ uploadingSignedPdf ? 'Cargando documento firmado...' : (signedPdfFile?.name || 'Seleccionar documento firmado...') }}</span>
               </label>
               <button
                 type="button"
                 class="send-approver"
-                *ngIf="canApproveSelected() && !selected?.approved_at"
+                *ngIf="(canApproveSelected() || canUploadFinalSignedPdf(selected)) && !selected?.approved_at"
                 (click)="uploadSignedPdf()"
                 [disabled]="uploadingSignedPdf || !signedPdfFile">
                 {{ uploadingSignedPdf ? 'Cargando...' : 'Subir PDF' }}
@@ -534,7 +534,7 @@ type TableDocument = {
           <button *ngIf="canMarkDelivered(selected)" class="deliver" (click)="markDelivered()" [disabled]="saving || delivering">
             {{ delivering ? 'Marcando...' : deliveryActionLabel(selected) }}
           </button>
-          <button *ngIf="canReturn" class="return" (click)="returnToUser()" [disabled]="saving || returning">
+          <button *ngIf="canReturnToUserSelected()" class="return" (click)="returnToUser()" [disabled]="saving || returning">
             {{ returning ? 'Devolviendo...' : 'Devolver al usuario' }}
           </button>
           <button *ngIf="canReturnToAnalyst" class="return" (click)="returnToAnalyst()" [disabled]="saving || returning">
@@ -848,6 +848,14 @@ export class ReviewPanelComponent implements OnChanges {
   canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
   canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
   canReturnToAnalyst = this.role === 'aprobador';
+
+  financialProcessFieldLabel() {
+    return this.isFinancialAreaRole() ? 'Motivo de la solicitud' : 'Proceso financiero';
+  }
+
+  isFinancialAreaRole() {
+    return this.role === 'revisor' || this.role === 'analista' || this.role === 'emisor' || this.role === 'aprobador' || this.role === this.avsecFinancieroRole;
+  }
 
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['data'] || !this.selected?.id) return;
@@ -1626,6 +1634,12 @@ export class ReviewPanelComponent implements OnChanges {
     return this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === 'admin' || this.role === 'supervisor';
   }
 
+  canReturnToUserSelected() {
+    if (!this.canReturn) return false;
+    if (this.role === 'emisor' && this.isFinancialSubmission(this.selected)) return false;
+    return true;
+  }
+
   canSendSelectedToApprover() {
     if (!this.selected || this.isFinancialPaymentPasswordFlow(this.selected)) return false;
     if (this.role === 'admin' || this.role === 'supervisor') return true;
@@ -1633,6 +1647,7 @@ export class ReviewPanelComponent implements OnChanges {
       return this.role === this.ailaJefaturaAvsecRole && Number(this.selected.assigned_emisor_id) === Number(this.currentUserId);
     }
     if (this.isFinancialSubmission(this.selected)) {
+      if (this.isFinancialAwaitingFinalSignedPdf(this.selected)) return false;
       return this.role === 'emisor';
     }
     if (this.role !== 'analista') return false;
@@ -1659,9 +1674,37 @@ export class ReviewPanelComponent implements OnChanges {
     return this.canApprove && !this.isFinancialPaymentPasswordFlow(this.selected);
   }
 
+  isFinancialApproverView(row: Submission | null | undefined) {
+    return Boolean(
+      row &&
+      this.isFinancialSubmission(row) &&
+      this.role === 'aprobador'
+    );
+  }
+
+  isFinancialAwaitingFinalSignedPdf(row: Submission | null | undefined) {
+    return Boolean(
+      row &&
+      this.isFinancialSubmission(row) &&
+      !this.isFinancialPaymentPasswordFlow(row) &&
+      !row.approved_at &&
+      row.approved_by_user_id &&
+      !row.assigned_aprobador_id &&
+      !row.sent_to_aprobador_at
+    );
+  }
+
+  canUploadFinalSignedPdf(row: Submission | null | undefined) {
+    if (!row?.id || row.approved_at || row.delivered_at) return false;
+    if (!this.isFinancialAwaitingFinalSignedPdf(row)) return false;
+    if (this.role === 'admin' || this.role === 'supervisor') return true;
+    return this.role === 'emisor' && Number(row.assigned_emisor_id) === Number(this.currentUserId);
+  }
+
   showSignedPdfPanel(row: Submission | null | undefined) {
     if (!row?.id) return false;
     if (this.isAilaGenericFlow(row)) return false;
+    if (this.isFinancialApproverView(row)) return false;
     return String(row.unidad_clave || '').toUpperCase() !== 'RAN';
   }
 
@@ -1890,7 +1933,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   uploadSignedPdf() {
-    if (!this.selected?.id || !this.canApproveSelected() || !this.signedPdfFile) return;
+    if (!this.selected?.id || (!this.canApproveSelected() && !this.canUploadFinalSignedPdf(this.selected)) || !this.signedPdfFile) return;
     this.uploadingSignedPdf = true;
     this.signedPdfError = '';
     this.status = 'Cargando documento firmado...';
@@ -1899,6 +1942,7 @@ export class ReviewPanelComponent implements OnChanges {
         signed_pdf_filename?: string | null;
         signed_pdf_mime?: string | null;
         signed_pdf_uploaded_at?: string | null;
+        approved_at?: string | null;
       }>(`${this.apiBase}/submissions/${this.selected?.id}/signed-pdf`, {
         pdf_base64: pdfBase64,
         filename: this.signedPdfFile?.name || 'documento-firmado.pdf',
@@ -1910,12 +1954,14 @@ export class ReviewPanelComponent implements OnChanges {
             this.selected.signed_pdf_filename = resp.signed_pdf_filename || this.signedPdfFile?.name || null;
             this.selected.signed_pdf_mime = resp.signed_pdf_mime || 'application/pdf';
             this.selected.signed_pdf_uploaded_at = resp.signed_pdf_uploaded_at || new Date().toISOString();
+            this.selected.approved_at = resp.approved_at ?? this.selected.approved_at ?? null;
           }
           if (this.edit) {
             this.edit.has_signed_pdf = this.selected?.has_signed_pdf || true;
             this.edit.signed_pdf_filename = this.selected?.signed_pdf_filename || null;
             this.edit.signed_pdf_mime = this.selected?.signed_pdf_mime || null;
             this.edit.signed_pdf_uploaded_at = this.selected?.signed_pdf_uploaded_at || null;
+            this.edit.approved_at = resp.approved_at ?? this.edit.approved_at ?? null;
           }
           this.status = 'Documento firmado cargado.';
           this.signedPdfFile = null;
@@ -2088,23 +2134,42 @@ export class ReviewPanelComponent implements OnChanges {
     if (!this.selected || !this.selected.id || !this.canApproveSelected()) return;
     this.approving = true;
     this.status = 'Aprobando...';
-    this.http.post<{ approved_at: string }>(`${this.apiBase}/submissions/${this.selected.id}/approve`, {}).subscribe({
+    this.http.post<{
+      approved_at: string | null;
+      approved_by_user_id?: number | null;
+      assigned_aprobador_id?: number | null;
+      assigned_aprobador_name?: string | null;
+      assigned_aprobador_email?: string | null;
+      sent_to_aprobador_at?: string | null;
+    }>(`${this.apiBase}/submissions/${this.selected.id}/approve`, {}).subscribe({
       next: (resp) => {
         if (this.selected) {
           this.selected.approved_at = resp.approved_at;
+          this.selected.approved_by_user_id = resp.approved_by_user_id ?? this.selected.approved_by_user_id ?? null;
+          this.selected.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
+          this.selected.assigned_aprobador_name = resp.assigned_aprobador_name ?? null;
+          this.selected.assigned_aprobador_email = resp.assigned_aprobador_email ?? null;
+          this.selected.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
           this.selected.delivered_at = null;
           this.selected.returned_at = null;
           this.selected.returned_reason = null;
         }
         if (this.edit) {
           this.edit.approved_at = resp.approved_at;
+          this.edit.approved_by_user_id = resp.approved_by_user_id ?? this.edit.approved_by_user_id ?? null;
+          this.edit.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
+          this.edit.assigned_aprobador_name = resp.assigned_aprobador_name ?? null;
+          this.edit.assigned_aprobador_email = resp.assigned_aprobador_email ?? null;
+          this.edit.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
           this.edit.delivered_at = null;
           this.edit.returned_at = null;
           this.edit.returned_reason = null;
         }
         this.returnReason = '';
         this.approving = false;
-        this.status = 'Formulario aprobado.';
+        this.status = this.isFinancialSubmission(this.selected) && !this.isFinancialPaymentPasswordFlow(this.selected)
+          ? 'Formulario aprobado y devuelto al emisor.'
+          : 'Formulario aprobado.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
@@ -2118,7 +2183,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   returnToUser() {
-    if (!this.selected || !this.selected.id || !this.canReturn) return;
+    if (!this.selected || !this.selected.id || !this.canReturnToUserSelected()) return;
     const reason = this.returnReason.trim();
     if (!reason) {
       this.status = 'Debes indicar el motivo de devolución.';
@@ -2247,7 +2312,7 @@ export class ReviewPanelComponent implements OnChanges {
     if (!row?.id) return false;
     const unit = String(row.unidad_clave || '').toUpperCase();
     if (unit !== 'FINANCIERO') return false;
-    return !(row.has_signed_pdf || row.signed_pdf_filename);
+    return false;
   }
 
   markDelivered() {

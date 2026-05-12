@@ -52,7 +52,7 @@ export class FormPageComponent implements OnInit {
     origen_compra: [''],
     nombre_propietario: ['', [Validators.required, Validators.minLength(3)]],
     representante_legal: [''],
-    documento_propietario: ['', [digitsExactOrEmpty(13)]],
+    documento_propietario: [''],
     direccion: ['', [Validators.required, Validators.minLength(5)]],
     telefono: ['', [Validators.required, digitsExactOrEmpty(8)]],
     correo: ['', [Validators.required, Validators.email]],
@@ -127,6 +127,14 @@ export class FormPageComponent implements OnInit {
   isRanForm2 = false;
   isRanForm8 = false;
   isRanUav = false;
+
+  onUppercaseInput(event: Event, field: string) {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    const normalized = String(input.value || '').toUpperCase();
+    if (input.value !== normalized) input.value = normalized;
+    this.form.get(field)?.setValue(normalized, { emitEvent: false });
+  }
 
   ngOnInit(): void {
     this.syncFechaHoy();
@@ -1017,7 +1025,7 @@ export class FormPageComponent implements OnInit {
     const documentoPropietarioControl = this.form.get('documento_propietario');
     if (documentoPropietarioControl) {
       const validators = (this.isRanForm2 || this.isRanForm8 || this.isRanUav)
-        ? [Validators.required, digitsExactOrEmpty(13)]
+        ? [Validators.required]
         : [digitsExactOrEmpty(13)];
       documentoPropietarioControl.setValidators(validators);
       documentoPropietarioControl.updateValueAndValidity({ emitEvent: false });

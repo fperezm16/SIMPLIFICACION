@@ -12,6 +12,7 @@ import { AdminPageComponent } from './admin-page.component';
 import { HomePageComponent } from './home-page.component';
 import { formGuard } from './form.guard';
 import { SupervisorPageComponent } from './supervisor-page.component';
+import { SearchPageComponent } from './search-page.component';
 import { supervisorGuard } from './supervisor.guard';
 import { FinancialFormPageComponent } from './financial-form-page.component';
 import { AilaFormPageComponent } from './aila-form-page.component';
@@ -31,6 +32,7 @@ export const appConfig: ApplicationConfig = {
       { path: 'aila/permiso-trabajo', component: AilaFormPageComponent, canActivate: [formGuard] },
       { path: 'financiero/solvencia-pago', component: FinancialFormPageComponent, canActivate: [formGuard] },
       { path: 'revision', component: ReviewPageComponent, canActivate: [revisorGuard] },
+      { path: 'busqueda', component: SearchPageComponent, canActivate: [revisorGuard] },
       { path: 'supervision', component: SupervisorPageComponent, canActivate: [supervisorGuard] },
       { path: 'admin', component: AdminPageComponent, canActivate: [adminGuard] },
       { path: '**', redirectTo: '' }

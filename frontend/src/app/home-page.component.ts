@@ -688,6 +688,9 @@ export class HomePageComponent implements OnInit {
     const gestion = this.gestionDisplay(row);
     const codigo = row.registro_codigo || ('#' + row.id);
     if (this.isPaymentBoletaNotice(row)) {
+      if (this.isFinancialPaymentPasswordFlow(row)) {
+        return `Tu contraseña de pago del proceso ${gestion} (${codigo}) ya está disponible.`;
+      }
       return `Tu boleta de pago del proceso ${gestion} (${codigo}) ya está disponible.`;
     }
     return `Tu proceso ${gestion} (${codigo}) ya fue aprobado.`;
@@ -695,6 +698,9 @@ export class HomePageComponent implements OnInit {
 
   approvedNoticeMessage(row: Submission) {
     if (this.isPaymentBoletaNotice(row)) {
+      if (this.isFinancialPaymentPasswordFlow(row)) {
+        return 'Su contraseña de pago ha sido generada y enviada. Puede realizar el pago en cualquiera de las cinco sedes autorizadas de CHN: Mundo Maya, Caja Administrativa, Aurora, Vuelos Privados o Puerto Barrios, utilizando cheque de caja, cheque propio o efectivo.';
+      }
       return 'Ya puedes descargar la boleta de pago, acercarte a las instalaciones de la DGAC a realizar el pago correspondiente y pasar a recoger el documento solicitado.';
     }
     if (this.isRanSubmission(row)) {
@@ -719,6 +725,9 @@ export class HomePageComponent implements OnInit {
   }
 
   noticeTitle(row: Submission) {
+    if (this.isPaymentBoletaNotice(row) && this.isFinancialPaymentPasswordFlow(row)) {
+      return 'Contraseña de pago disponible';
+    }
     return this.isPaymentBoletaNotice(row) ? 'Boleta de pago disponible' : 'Proceso finalizado';
   }
 
