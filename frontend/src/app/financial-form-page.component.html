@@ -84,6 +84,7 @@
         <div class="finance-select-row">
           <label>Gesti&oacute;n <span class="required-reference">*</span>
             <select
+              *ngIf="!isGestionLocked(); else lockedGestionField"
               formControlName="gestion_codigo"
               class="line-input finance-select"
               (change)="onGestionSelectionChange($event)">
@@ -92,6 +93,9 @@
                 {{ option.label }}
               </option>
             </select>
+            <ng-template #lockedGestionField>
+              <input class="line-input finance-select" type="text" [value]="currentGroup()?.label || ''" readonly>
+            </ng-template>
             <small class="error" *ngIf="getFieldError('gestion_codigo')">{{ getFieldError('gestion_codigo') }}</small>
           </label>
         </div>
@@ -131,9 +135,21 @@
                     <input formControlName="matricula" class="line-input" type="text">
                     <small class="error" *ngIf="getFieldError('matricula')">{{ getFieldError('matricula') }}</small>
                   </label>
-                  <label>Peso en KG <span class="required-reference">*</span>
+                  <label>Peso m&aacute;ximo de despegue en KGS de la aeronave <span class="required-reference">*</span>
                     <input formControlName="peso_kg" class="line-input" type="text">
                     <small class="error" *ngIf="getFieldError('peso_kg')">{{ getFieldError('peso_kg') }}</small>
+                  </label>
+                  <div class="upload-block document-card full-row inline-document-card">
+                    <span class="upload-title">Documento que indique cu&aacute;ntos KGS pesa la aeronave <span class="required-reference">*</span></span>
+                    <p class="field-hint">Sube el documento en formato PDF. M&aacute;ximo 10 MB.</p>
+                    <label class="upload-inline">
+                      <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPesoAeronavePdfSelected($event)">
+                      <span>{{ pesoAeronaveFileLabel() }}</span>
+                    </label>
+                    <small class="error" *ngIf="pesoAeronaveError">{{ pesoAeronaveError }}</small>
+                  </div>
+                  <label class="full-row">En caso de cancelar despu&eacute;s del 01 de febrero, colocar fecha de pago para realizar el c&aacute;lculo de mora
+                    <input formControlName="fecha_pago_mora" class="line-input" type="date">
                   </label>
                 </div>
 
@@ -155,29 +171,6 @@
                     process.value === 'certificado_operador_aereo'
                   ">Observaciones
                     <textarea formControlName="otros_detalle" class="textarea" rows="4" placeholder="Escribe las observaciones del proceso..."></textarea>
-                  </label>
-                </div>
-
-                <div class="finance-grid two-col" *ngIf="process.value === 'derecho_aproximacion'">
-                  <label>Peso m&aacute;ximo de despegue en KGS de la aeronave <span class="required-reference">*</span>
-                    <input formControlName="peso_kg" class="line-input" type="text">
-                    <small class="error" *ngIf="getFieldError('peso_kg')">{{ getFieldError('peso_kg') }}</small>
-                  </label>
-                  <div class="upload-block document-card full-row inline-document-card">
-                    <span class="upload-title">Documento que indique cu&aacute;ntos KGS pesa la aeronave <span class="required-reference">*</span></span>
-                    <p class="field-hint">Sube el documento en formato PDF. M&aacute;ximo 10 MB.</p>
-                    <label class="upload-inline">
-                      <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPesoAeronavePdfSelected($event)">
-                      <span>{{ pesoAeronaveFileLabel() }}</span>
-                    </label>
-                    <small class="error" *ngIf="pesoAeronaveError">{{ pesoAeronaveError }}</small>
-                  </div>
-                  <label>Matr&iacute;cula <span class="required-reference">*</span>
-                    <input formControlName="matricula" class="line-input" type="text">
-                    <small class="error" *ngIf="getFieldError('matricula')">{{ getFieldError('matricula') }}</small>
-                  </label>
-                  <label class="full-row">En caso de cancelar despu&eacute;s del 01 de febrero, colocar fecha de pago para realizar el c&aacute;lculo de mora
-                    <input formControlName="fecha_pago_mora" class="line-input" type="date">
                   </label>
                 </div>
 

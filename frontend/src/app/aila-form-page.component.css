@@ -329,6 +329,10 @@ input.ng-invalid.ng-touched {
   margin-top: 20px;
 }
 
+.print-button {
+  order: -1;
+}
+
 button {
   border: 1px solid #0b8fd9;
   border-radius: 12px;

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
@@ -124,7 +124,7 @@ export class FinancialFormPageComponent implements OnInit {
     },
     {
       value: 'derecho_inspeccion',
-      label: 'Derecho De Inspecci\u00f3n Matr\u00edcula Guatemalteca',
+      label: 'Derecho De Inspecci\u00f3n y Aproximaci\u00f3n Matr\u00edcula Guatemalteca',
       amountOptions: ['Q1,000.00', 'Q300.00'],
       requiredFields: ['matricula', 'peso_kg', 'monto_referencia']
     },
@@ -166,11 +166,6 @@ export class FinancialFormPageComponent implements OnInit {
       label: 'Emisi\u00f3n y/o Renovaci\u00f3n de Permiso Especial de Vuelo para Aeronaves (GNA 03)',
       amountOptions: ['Q1,000.00'],
       requiredFields: ['matricula', 'monto_referencia']
-    },
-    {
-      value: 'derecho_aproximacion',
-      label: 'Derecho De Aproximaci\u00f3n Matr\u00edcula Guatemalteca',
-      requiredFields: ['matricula', 'peso_kg']
     },
     {
       value: 'solvencia_aeronavegabilidad',
@@ -326,11 +321,19 @@ export class FinancialFormPageComponent implements OnInit {
     certificadoAeronavegabilidad: '',
     solvenciaAnterior: ''
   };
+  lockedGestionCode = '';
 
   ngOnInit(): void {
     this.syncFechaHoy();
     this.form.get('certificado_operativo_subtipo')?.valueChanges.subscribe(() => this.applyGestionValidators());
     this.route.queryParamMap.subscribe((params) => {
+      const requestedGestion = String(params.get('gestion') || '').trim();
+      if (requestedGestion === 'solvencias' || requestedGestion === 'otros_tramites') {
+        this.lockedGestionCode = requestedGestion;
+        this.setGestionGroup(requestedGestion);
+      } else {
+        this.lockedGestionCode = '';
+      }
       const rawId = params.get('editReturned');
       if (!rawId) return;
       const returnedId = Number(rawId);
@@ -486,6 +489,26 @@ export class FinancialFormPageComponent implements OnInit {
   onGestionSelectionChange(event: Event) {
     const select = event.target as HTMLSelectElement | null;
     const next = String(select?.value || '').trim();
+    this.setGestionGroup(next);
+  }
+
+  currentGroup() {
+    const current = String(this.form.value.gestion_codigo || '');
+    return this.groupOptions.find((option) => option.value === current) || null;
+  }
+
+  dynamicFormTitle() {
+    const current = String(this.form.value.gestion_codigo || '').trim();
+    if (current === 'solvencias') return 'SOLICITUD DE SOLVENCIA FINANCIERA';
+    if (current === 'otros_tramites') return 'SOLICITUD DE CONTRASEÑA DE PAGO';
+    return 'SOLICITUD SOLVENCIA DE PAGO';
+  }
+
+  isGestionLocked() {
+    return this.lockedGestionCode === 'solvencias' || this.lockedGestionCode === 'otros_tramites';
+  }
+
+  private setGestionGroup(next: string) {
     this.form.patchValue({
       gestion_codigo: next,
       proceso_codigo: '',
@@ -510,19 +533,6 @@ export class FinancialFormPageComponent implements OnInit {
     this.applyGestionValidators();
     this.clearHiddenFinancialExtraFiles();
   }
-
-  currentGroup() {
-    const current = String(this.form.value.gestion_codigo || '');
-    return this.groupOptions.find((option) => option.value === current) || null;
-  }
-
-  dynamicFormTitle() {
-    const current = String(this.form.value.gestion_codigo || '').trim();
-    if (current === 'solvencias') return 'SOLICITUD DE SOLVENCIA FINANCIERA';
-    if (current === 'otros_tramites') return 'SOLICITUD DE CONTRASEÑA DE PAGO';
-    return 'SOLICITUD SOLVENCIA DE PAGO';
-  }
-
   currentProcesses() {
     return this.currentGroup()?.processes || [];
   }
@@ -711,7 +721,7 @@ export class FinancialFormPageComponent implements OnInit {
   }
 
   private requiresPesoAeronavePdf() {
-    return this.isGestionSelected('derecho_aproximacion');
+    return this.isGestionSelected('derecho_inspeccion');
   }
 
   private validateFinancialExtraFiles() {
@@ -1197,3 +1207,4 @@ export class FinancialFormPageComponent implements OnInit {
     return solvencias.has(normalized) ? 'solvencias' : 'otros_tramites';
   }
 }
+

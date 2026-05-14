@@ -2055,7 +2055,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
       "solvencia_aeronavegabilidad",
       "solvencia_financiera_aeronave"
     ].includes(financialProcessCode);
-    const requiresWeightDocs = financialProcessCode === "derecho_aproximacion";
+    const requiresWeightDocs = ["derecho_inspeccion", "derecho_aproximacion"].includes(financialProcessCode);
     if (requiresSolvenciaDocs && !dpiPdfBuffer) {
       return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 1 en PDF." });
     }
@@ -3706,7 +3706,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
         "solvencia_aeronavegabilidad",
         "solvencia_financiera_aeronave"
       ].includes(financialProcessCode);
-      const requiresWeightDocs = financialProcessCode === "derecho_aproximacion";
+      const requiresWeightDocs = ["derecho_inspeccion", "derecho_aproximacion"].includes(financialProcessCode);
       if (requiresSolvenciaDocs && !hasDpiAfter) {
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 1 en PDF." });
       }

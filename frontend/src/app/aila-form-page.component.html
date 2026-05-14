@@ -44,11 +44,11 @@
             <input formControlName="empresa_arrendatario" type="text">
             <small class="error" *ngIf="getFieldError('empresa_arrendatario')">{{ getFieldError('empresa_arrendatario') }}</small>
           </label>
-          <label>Área de destino a visitar <span class="required-reference">*</span>
+          <label>Área de destino a ingresar <span class="required-reference">*</span>
             <input formControlName="area_destino" type="text">
             <small class="error" *ngIf="getFieldError('area_destino')">{{ getFieldError('area_destino') }}</small>
           </label>
-          <label>Motivo de la visita <span class="required-reference">*</span>
+          <label>Motivo del ingreso <span class="required-reference">*</span>
             <input formControlName="motivo_visita" type="text">
             <small class="error" *ngIf="getFieldError('motivo_visita')">{{ getFieldError('motivo_visita') }}</small>
           </label>
@@ -204,12 +204,28 @@
         </label>
       </section>
 
+      <section class="section">
+        <div class="section-title"><span>7</span><h2>PDF adicional</h2></div>
+        <div class="upload-block">
+          <span class="upload-title">Adjuntar archivo PDF</span>
+          <p class="field-hint">Carga un archivo adicional en formato PDF. Máximo 10 MB.</p>
+          <label class="upload-inline">
+            <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onPdfSelected($event, 'vehiculosTarjeta')">
+            <span>{{ fileLabel('vehiculosTarjeta', 'Seleccionar PDF adicional...') }}</span>
+          </label>
+          <small class="error" *ngIf="fileErrors.vehiculosTarjeta">{{ fileErrors.vehiculosTarjeta }}</small>
+        </div>
+      </section>
+
       <section class="section admin-only" *ngIf="canViewAdministrativeAilaSections">
         <h2>Uso exclusivo administración aeroportuaria</h2>
         <p>Las secciones de escolta por Administración Aeroportuaria, trabajos mayores, firmas y consultas AVSEC serán completadas por la administración durante la revisión interna.</p>
       </section>
 
       <div class="actions">
+        <button type="button" class="secondary print-button" (click)="savePdf()" [disabled]="isSubmitting">
+          Guardar PDF
+        </button>
         <button type="submit" [disabled]="isSubmitting">
           {{ isSubmitting ? 'Enviando...' : 'Guardar' }}
         </button>

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { jsPDF } from 'jspdf';
 import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
 import { Submission } from './submission.model';
@@ -76,7 +77,7 @@ type AilaDetail = {
   hora_ingreso?: string;
   correo_notificaciones?: string;
   personas?: Array<{ nombre: string; documento: string; documento_pdf?: string }>;
-  escoltas?: Array<{ nombre: string; telefono: string; tia: string; vencimiento_tia: string; documento_pdf?: string; contrasena_pdf?: string }>;
+  escoltas?: Array<{ nombre: string; telefono: string; tia: string; vencimiento_tia: string; contrasena?: string; documento_pdf?: string; contrasena_pdf?: string }>;
   herramientas?: Array<{ cantidad: string; descripcion: string }>;
   vehiculos?: Array<{ placa: string; tipo: string }>;
   documentos?: Partial<Record<AilaFileKey, string>>;
@@ -310,6 +311,194 @@ export class AilaFormPageComponent implements OnInit {
     this.resetReturnedEditState();
     this.clearEditReturnedQueryParam();
     this.status = null;
+  }
+
+  async savePdf() {
+    const detail = this.buildDetail();
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 12;
+    const contentWidth = pageWidth - (margin * 2);
+    let y = margin;
+
+    const [mcivLogo, dgacLogo] = await Promise.all([
+      this.loadImageAsDataUrl('assets/mciv-oficial.png'),
+      this.loadImageAsDataUrl('assets/dgac-oficial.png')
+    ]);
+
+    if (mcivLogo) pdf.addImage(mcivLogo, 'PNG', margin, y, 54, 18);
+    if (dgacLogo) pdf.addImage(dgacLogo, 'PNG', pageWidth - margin - 54, y, 54, 18);
+    y += 24;
+
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(11.5);
+    const titleLines = pdf.splitTextToSize(
+      'PERMISO DE INGRESO A INSTALACIONES DEL AEROPUERTO INTERNACIONAL LA AURORA',
+      contentWidth - 12
+    );
+    pdf.text(titleLines, pageWidth / 2, y, { align: 'center' });
+    y += titleLines.length * 5;
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(11);
+    pdf.text('Ingreso y egreso de herramienta, mercadería y mobiliario', pageWidth / 2, y, { align: 'center' });
+    y += 5;
+    pdf.text('Aeropuerto Internacional "La Aurora"', pageWidth / 2, y, { align: 'center' });
+    y += 7;
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(10);
+    pdf.roundedRect((pageWidth / 2) - 24, y - 4.5, 48, 8, 4, 4);
+    pdf.text('Administración AILA', pageWidth / 2, y + 0.5, { align: 'center' });
+    y += 10;
+
+    const ensureSpace = (needed = 10) => {
+      if (y + needed <= pageHeight - margin) return;
+      pdf.addPage();
+      y = margin;
+    };
+
+    const addSectionTitle = (title: string) => {
+      ensureSpace(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text(title, margin, y);
+      y += 6;
+    };
+
+    const addField = (label: string, value: string, options?: { full?: boolean }) => {
+      const width = options?.full ? contentWidth : (contentWidth / 2) - 2;
+      const lines = pdf.splitTextToSize(value || '-', width - 4);
+      const height = Math.max(8, (lines.length * 4) + 4);
+      ensureSpace(height + 6);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text(label, margin, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.rect(margin, y + 1.5, width, height);
+      pdf.text(lines, margin + 2, y + 6);
+      y += height + 6;
+    };
+
+    const addTwoColumnFields = (left: [string, string], right: [string, string]) => {
+      const halfWidth = (contentWidth / 2) - 3;
+      const leftLines = pdf.splitTextToSize(left[1] || '-', halfWidth - 4);
+      const rightLines = pdf.splitTextToSize(right[1] || '-', halfWidth - 4);
+      const height = Math.max(8, Math.max(leftLines.length, rightLines.length) * 4 + 4);
+      ensureSpace(height + 6);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text(left[0], margin, y);
+      pdf.text(right[0], margin + halfWidth + 6, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.rect(margin, y + 1.5, halfWidth, height);
+      pdf.rect(margin + halfWidth + 6, y + 1.5, halfWidth, height);
+      pdf.text(leftLines, margin + 2, y + 6);
+      pdf.text(rightLines, margin + halfWidth + 8, y + 6);
+      y += height + 6;
+    };
+
+    const addSimpleTable = (headers: string[], rows: string[][], widths: number[]) => {
+      const rowHeight = 7;
+      ensureSpace(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      let x = margin;
+      headers.forEach((header, index) => {
+        pdf.rect(x, y, widths[index], rowHeight);
+        pdf.text(header, x + 1.5, y + 4.5);
+        x += widths[index];
+      });
+      y += rowHeight;
+      pdf.setFont('helvetica', 'normal');
+      rows.forEach((row) => {
+        const lineCounts = row.map((cell, index) => pdf.splitTextToSize(cell || '-', widths[index] - 3).length);
+        const dynamicHeight = Math.max(rowHeight, (Math.max(...lineCounts) * 4) + 3);
+        ensureSpace(dynamicHeight + 2);
+        let cellX = margin;
+        row.forEach((cell, index) => {
+          pdf.rect(cellX, y, widths[index], dynamicHeight);
+          pdf.text(pdf.splitTextToSize(cell || '-', widths[index] - 3), cellX + 1.5, y + 4.5);
+          cellX += widths[index];
+        });
+        y += dynamicHeight;
+      });
+      y += 4;
+    };
+
+    addSectionTitle('1. Clasificación del permiso');
+    addField('Tipo de permiso', detail.tipo_permiso || '', { full: true });
+
+    addSectionTitle('2. Datos del permiso');
+    addTwoColumnFields(['Fecha de solicitud', this.todayDate], ['Empresa / Arrendatario', detail.empresa_arrendatario || '']);
+    addTwoColumnFields(['Área de destino a ingresar', detail.area_destino || ''], ['Motivo del ingreso', detail.motivo_visita || '']);
+    addTwoColumnFields(['Fecha de ingreso', detail.fecha_ingreso || ''], ['Días solicitados', detail.dias_solicitados || '']);
+    addTwoColumnFields(['No. telefónico para notificaciones', detail.telefono_notificaciones || ''], ['Hora de ingreso', detail.hora_ingreso || '']);
+    addField('Correo electrónico para notificaciones', detail.correo_notificaciones || '', { full: true });
+
+    addSectionTitle('3. Personas a ingresar');
+    const personRows = (detail.personas || [])
+      .filter((row) => row.nombre || row.documento || row.documento_pdf)
+      .map((row, index) => [
+        String(index + 1),
+        row.nombre || '',
+        row.documento || '',
+        row.documento_pdf || ''
+      ]);
+    if (personRows.length) {
+      addSimpleTable(['#', 'Nombres y apellidos completos como DPI', 'No. DPI - CUI', 'PDF'], personRows, [10, 76, 44, 44]);
+    } else {
+      addField('Registros', 'Sin registros.', { full: true });
+    }
+
+    addSectionTitle('4. Datos de escolta');
+    const escortRows = (detail.escoltas || [])
+      .filter((row) => row.nombre || row.telefono || row.tia || row.vencimiento_tia || row.contrasena || row.documento_pdf)
+      .map((row, index) => [
+        String(index + 1),
+        row.nombre || '',
+        row.telefono || '',
+        row.tia || '',
+        row.vencimiento_tia || '',
+        row.contrasena || 'No aplica',
+        row.documento_pdf || ''
+      ]);
+    if (escortRows.length) {
+      addSimpleTable(['#', 'Nombre según T.I.A.', 'Teléfono', 'No. T.I.A.', 'Vencimiento', 'Contraseña', 'PDF'], escortRows, [8, 52, 22, 24, 24, 24, 32]);
+    } else {
+      addField('Registros', 'Sin registros.', { full: true });
+    }
+
+    addSectionTitle('5. Herramienta, mercadería y/o mobiliario');
+    const toolRows = (detail.herramientas || [])
+      .filter((row) => row.cantidad || row.descripcion)
+      .map((row, index) => [String(index + 1), row.cantidad || '', row.descripcion || '']);
+    if (toolRows.length) {
+      addSimpleTable(['#', 'Cantidad', 'Descripción'], toolRows, [10, 30, 136]);
+    } else {
+      addField('Registros', 'Sin registros.', { full: true });
+    }
+
+    addSectionTitle('6. Observaciones');
+    addField('Observaciones', String(this.form.get('vehiculo1_tipo')?.value || '').trim(), { full: true });
+
+    addSectionTitle('7. Documentos adjuntos');
+    const documentRows = [
+      ['Carta de solicitud', detail.documentos?.cartaSolicitud || ''],
+      ['Factura o solvencia', detail.documentos?.facturaSolvencia || ''],
+      ['PDF adicional', detail.documentos?.vehiculosTarjeta || '']
+    ].filter(([, value]) => value);
+    if (documentRows.length) {
+      addSimpleTable(['Documento', 'Archivo'], documentRows, [55, 125]);
+    } else {
+      addField('Documentos', 'Sin documentos adjuntos.', { full: true });
+    }
+
+    const safeCode = String(this.form.value.empresa_arrendatario || 'formulario-aila')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'formulario-aila';
+    pdf.save(`${safeCode}.pdf`);
   }
 
   onSubmit() {
@@ -823,7 +1012,16 @@ export class AilaFormPageComponent implements OnInit {
       }
     }
   }
+
+  private loadImageAsDataUrl(path: string): Promise<string | null> {
+    return fetch(path)
+      .then((response) => response.blob())
+      .then((blob) => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('image-read-error'));
+        reader.readAsDataURL(blob);
+      }))
+      .catch(() => null);
+  }
 }
-
-
-

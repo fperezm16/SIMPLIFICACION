@@ -33,7 +33,8 @@ import { AuthService } from './auth.service';
                 <div class="units-submenu">
                   <button type="button" class="submenu-trigger">FINANCIERO</button>
                   <div class="units-submenu-panel">
-                    <a routerLink="/financiero/solvencia-pago" routerLinkActive="active-link">Solicitud de solvencia de pago</a>
+                    <a routerLink="/financiero/solvencia-pago" [queryParams]="{ gestion: 'solvencias' }" routerLinkActive="active-link">Solicitud para emisión de solvencia financiera</a>
+                    <a routerLink="/financiero/solvencia-pago" [queryParams]="{ gestion: 'otros_tramites' }" routerLinkActive="active-link">Solicitud para emisión de contraseña de pago de otros rubros</a>
                   </div>
                 </div>
               </div>
