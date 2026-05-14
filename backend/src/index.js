@@ -183,6 +183,22 @@ function sendSubmissionNotification(task) {
     });
 }
 
+async function notifyOwnerSubmissionStatus(submissionId, { subjectPrefix, heading, message, reason } = {}) {
+  const context = await getSubmissionNotificationContext(Number(submissionId));
+  const recipientEmail = context?.owner_email || context?.correo;
+  if (!recipientEmail) return false;
+
+  return notifyUserStatus({
+    to: recipientEmail,
+    recipientName: context?.owner_name || context?.nombre_propietario,
+    subjectPrefix,
+    heading,
+    message,
+    context,
+    reason
+  });
+}
+
 function canFinalizeAilaAdministration(row = {}) {
   return Boolean(
     isAilaGenericWorkflow(row) &&
@@ -4793,6 +4809,18 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
       actorRole: role
     });
 
+    sendSubmissionNotification(async () => {
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: isPaymentPassword ? "Contraseña de pago disponible" : "Documento disponible",
+        heading: isPaymentPassword ? "Tu contraseña de pago ya está disponible" : "Tu documento del proceso ya fue cargado",
+        message: isPaymentPassword
+          ? "Tu proceso ya cuenta con la contraseña de pago y puedes ingresar al portal para revisar el estado actualizado."
+          : isFinancial
+            ? "Tu proceso financiero ya cuenta con el documento PDF correspondiente y puedes continuar con el seguimiento desde el portal."
+            : "Tu proceso ya cuenta con la boleta de pago correspondiente y puedes continuar con el seguimiento desde el portal."
+      });
+    });
+
     return res.json(result.rows[0]);
   } catch (err) {
     console.error("Error uploading analyst pdf", err);
@@ -4900,6 +4928,16 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
       eventDetail: safeFilename,
       actorUserId: req.user?.sub || null,
       actorRole: role
+    });
+
+    sendSubmissionNotification(async () => {
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: "Documento firmado disponible",
+        heading: isEmitter ? "Tu documento final ya está disponible" : "Tu documento firmado fue cargado",
+        message: isEmitter
+          ? "Tu proceso ya cuenta con el documento firmado final y puedes revisarlo dentro del portal."
+          : "Tu proceso ya cuenta con un documento firmado cargado y puedes revisar el estado actualizado dentro del portal."
+      });
     });
 
     return res.json(result.rows[0]);
@@ -5131,14 +5169,23 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("analis
     });
     sendSubmissionNotification(async () => {
       const context = await getSubmissionNotificationContext(Number(id));
-      if (!context?.emitter_email) return;
-      await notifyAssignee({
-        to: context.emitter_email,
-        recipientName: context.emitter_name,
-        roleLabel: isAilaGeneric ? "Jefatura AVSEC" : "emisor",
-        actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AVSEC" : "Formulario enviado a emisor",
-        context,
-        comments: comentariosRevision
+      if (context?.emitter_email) {
+        await notifyAssignee({
+          to: context.emitter_email,
+          recipientName: context.emitter_name,
+          roleLabel: isAilaGeneric ? "Jefatura AVSEC" : "emisor",
+          actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AVSEC" : "Formulario enviado a emisor",
+          context,
+          comments: comentariosRevision
+        });
+      }
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: "Cambio de estado",
+        heading: "Tu tramite avanzo a la siguiente etapa",
+        message: isAilaGeneric
+          ? "Tu solicitud fue enviada a Jefatura AVSEC para continuar la revision."
+          : "Tu solicitud fue enviada al emisor para continuar la gestion.",
+        reason: comentariosRevision || ""
       });
     });
 
@@ -5288,13 +5335,21 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     });
     sendSubmissionNotification(async () => {
       const context = await getSubmissionNotificationContext(Number(id));
-      if (!context?.approver_email) return;
-      await notifyAssignee({
-        to: context.approver_email,
-        recipientName: context.approver_name,
-        roleLabel: isAilaGeneric ? "Jefatura AILA" : "aprobador",
-        actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : "Formulario enviado a aprobador",
-        context
+      if (context?.approver_email) {
+        await notifyAssignee({
+          to: context.approver_email,
+          recipientName: context.approver_name,
+          roleLabel: isAilaGeneric ? "Jefatura AILA" : "aprobador",
+          actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : "Formulario enviado a aprobador",
+          context
+        });
+      }
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: "Cambio de estado",
+        heading: "Tu tramite paso a aprobacion",
+        message: isAilaGeneric
+          ? "Tu solicitud fue enviada a Jefatura AILA para revision final."
+          : "Tu solicitud fue enviada al aprobador para continuar la gestion."
       });
     });
 
@@ -5367,14 +5422,21 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
     });
     sendSubmissionNotification(async () => {
       const context = await getSubmissionNotificationContext(Number(id));
-      if (!context?.analyst_email) return;
-      await notifyAssignee({
-        to: context.analyst_email,
-        recipientName: context.analyst_name,
-        roleLabel: "analista",
-        actionLabel: "Formulario devuelto al analista",
-        context,
-        comments: reason
+      if (context?.analyst_email) {
+        await notifyAssignee({
+          to: context.analyst_email,
+          recipientName: context.analyst_name,
+          roleLabel: "analista",
+          actionLabel: "Formulario devuelto al analista",
+          context,
+          comments: reason
+        });
+      }
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: "Cambio de estado",
+        heading: "Tu tramite regreso a revision interna",
+        message: "Tu solicitud fue devuelta al analista para ajustes internos antes de continuar.",
+        reason
       });
     });
     return res.json(result.rows[0]);
@@ -5441,6 +5503,13 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
         actorUserId: req.user?.sub || null,
         actorRole: role
       });
+      sendSubmissionNotification(async () => {
+        await notifyOwnerSubmissionStatus(Number(id), {
+          subjectPrefix: "Cambio de estado",
+          heading: "Tu tramite fue aprobado por el aprobador",
+          message: "Tu solicitud ya fue aprobada por el aprobador y regreso al emisor para la emision final del documento."
+        });
+      });
       return res.json({
         ...result.rows[0],
         assigned_aprobador_name: null,
@@ -5475,16 +5544,10 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
       actorRole: role
     });
     sendSubmissionNotification(async () => {
-      const context = await getSubmissionNotificationContext(Number(id));
-      const recipientEmail = context?.owner_email || context?.correo;
-      if (!recipientEmail) return;
-      await notifyUserStatus({
-        to: recipientEmail,
-        recipientName: context?.owner_name || context?.nombre_propietario,
+      await notifyOwnerSubmissionStatus(Number(id), {
         subjectPrefix: "Formulario aprobado",
         heading: "Tu tramite fue aprobado",
-        message: "Tu solicitud ya fue aprobada y puedes consultar el estado actualizado dentro del portal.",
-        context
+        message: "Tu solicitud ya fue aprobada y puedes consultar el estado actualizado dentro del portal."
       });
     });
     return res.json(result.rows[0]);
@@ -5569,6 +5632,16 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
     } catch (logErr) {
       console.warn("No se pudo registrar la bitÃ¡cora de entrega/finalizaciÃ³n", logErr);
     }
+
+    sendSubmissionNotification(async () => {
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: isFinancial ? "Proceso finalizado" : "Proceso entregado",
+        heading: isFinancial ? "Tu proceso financiero finalizo" : "Tu proceso fue entregado",
+        message: isFinancial
+          ? "Tu proceso financiero cambio a estado finalizado y ya puedes revisar el resultado dentro del portal."
+          : "Tu tramite fue marcado como entregado y ya puedes revisar el estado actualizado dentro del portal."
+      });
+    });
 
     return res.json(result.rows[0]);
   } catch (err) {
@@ -5700,14 +5773,23 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
     });
     sendSubmissionNotification(async () => {
       const context = await getSubmissionNotificationContext(Number(id));
-      if (!context?.analyst_email) return;
-      await notifyAssignee({
-        to: context.analyst_email,
-        recipientName: context.analyst_name,
-        roleLabel: isAilaGeneric ? "Recepcion AVSEC" : "analista",
-        actionLabel: isAilaGeneric ? "Nuevo formulario asignado a Recepcion AVSEC" : "Nuevo formulario asignado",
-        context,
-        comments: comentariosRevision
+      if (context?.analyst_email) {
+        await notifyAssignee({
+          to: context.analyst_email,
+          recipientName: context.analyst_name,
+          roleLabel: isAilaGeneric ? "Recepcion AVSEC" : "analista",
+          actionLabel: isAilaGeneric ? "Nuevo formulario asignado a Recepcion AVSEC" : "Nuevo formulario asignado",
+          context,
+          comments: comentariosRevision
+        });
+      }
+      await notifyOwnerSubmissionStatus(Number(id), {
+        subjectPrefix: "Cambio de estado",
+        heading: "Tu tramite inicio revision",
+        message: isAilaGeneric
+          ? "Tu solicitud fue asignada a Recepcion AVSEC para iniciar la revision."
+          : "Tu solicitud fue asignada a un analista para iniciar la revision.",
+        reason: comentariosRevision || ""
       });
     });
     return res.json({
