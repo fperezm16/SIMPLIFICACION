@@ -8,6 +8,7 @@ const puppeteer = require("puppeteer-core");
 const { pool, init } = require("./db");
 const { validateEmailAddress } = require("./email-validator");
 const { sendAlertEmail } = require("./mailer");
+const { notifyAssignee, notifyUserStatus } = require("../services/emailNotificationService");
 const { authRouter, requireAuth, requireRole } = require("./auth");
 require("dotenv").config();
 //Modulo de pagos
@@ -43,6 +44,36 @@ const REVIEW_ROLES = [
 const ALLOWED_ROLES = ["user", ...REVIEW_ROLES];
 const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO"];
 const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC];
+
+function isDevelopmentEnvironment() {
+  return String(process.env.NODE_ENV || "").trim().toLowerCase() !== "production";
+}
+
+function getAllowedCorsOrigins() {
+  const rawOrigins =
+    process.env.CORS_ORIGIN ||
+    process.env.FRONTEND_BASE_URL ||
+    "http://localhost:3000,http://localhost:4200";
+
+  return String(rawOrigins)
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+}
+
+const allowedCorsOrigins = getAllowedCorsOrigins();
+
+function isCorsOriginAllowed(origin) {
+  if (!origin) return true;
+  const normalizedOrigin = String(origin).trim().replace(/\/+$/, "");
+  if (
+    isDevelopmentEnvironment() &&
+    /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(normalizedOrigin)
+  ) {
+    return true;
+  }
+  return allowedCorsOrigins.includes(normalizedOrigin);
+}
 
 function normalizeUnitAccess(unitAccess) {
   if (!Array.isArray(unitAccess)) return [...ALL_UNITS];
@@ -106,6 +137,50 @@ function forcedUnitAccessForRole(role = "", requestedUnits = ALL_UNITS) {
     return normalizeUnitAccess(requestedUnits);
   }
   return [...ALL_UNITS];
+}
+
+async function getSubmissionNotificationContext(submissionId) {
+  const result = await pool.query(
+    `SELECT
+       s.id,
+       s.registro_codigo,
+       s.unidad_clave,
+       s.gestion_nombre,
+       s.nombre_propietario,
+       s.correo,
+       s.comentarios_revision,
+       s.returned_reason,
+       s.returned_to_analista_reason,
+       owner.id AS owner_user_id,
+       owner.name AS owner_name,
+       owner.email AS owner_email,
+       analyst.id AS analyst_user_id,
+       analyst.name AS analyst_name,
+       analyst.email AS analyst_email,
+       emitter.id AS emitter_user_id,
+       emitter.name AS emitter_name,
+       emitter.email AS emitter_email,
+       approver.id AS approver_user_id,
+       approver.name AS approver_name,
+       approver.email AS approver_email
+     FROM submissions s
+     LEFT JOIN users owner ON owner.id = s.created_by_user_id
+     LEFT JOIN users analyst ON analyst.id = s.assigned_analista_id
+     LEFT JOIN users emitter ON emitter.id = s.assigned_emisor_id
+     LEFT JOIN users approver ON approver.id = s.assigned_aprobador_id
+     WHERE s.id = $1`,
+    [submissionId]
+  );
+
+  return result.rows[0] || null;
+}
+
+function sendSubmissionNotification(task) {
+  Promise.resolve()
+    .then(task)
+    .catch((err) => {
+      console.error("Error enviando notificacion de correo", err);
+    });
 }
 
 function canFinalizeAilaAdministration(row = {}) {
@@ -1813,7 +1888,16 @@ function buildSupervisorCsv(processes = []) {
 
 
 app.use(cors({
-  origin: "http://localhost:4200",
+  origin(origin, callback) {
+    if (isCorsOriginAllowed(origin)) {
+      return callback(null, true);
+    }
+    console.error("CORS_NOT_ALLOWED", {
+      origin,
+      allowedCorsOrigins
+    });
+    return callback(new Error("CORS_NOT_ALLOWED"));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -4900,6 +4984,20 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
       actorUserId: req.user?.sub || null,
       actorRole: role
     });
+    sendSubmissionNotification(async () => {
+      const context = await getSubmissionNotificationContext(Number(id));
+      const recipientEmail = context?.owner_email || context?.correo;
+      if (!recipientEmail) return;
+      await notifyUserStatus({
+        to: recipientEmail,
+        recipientName: context?.owner_name || context?.nombre_propietario,
+        subjectPrefix: "Formulario devuelto",
+        heading: "Tu formulario fue devuelto para correccion",
+        message: "Se realizaron observaciones en tu tramite y ya puedes corregirlo desde el portal.",
+        context,
+        reason
+      });
+    });
     return res.json(result.rows[0]);
   } catch (err) {
     console.error("Error devolviendo formulario", err);
@@ -5030,6 +5128,18 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("analis
         emisor_email: emitter.email || null,
         comentarios_revision: comentariosRevision
       }
+    });
+    sendSubmissionNotification(async () => {
+      const context = await getSubmissionNotificationContext(Number(id));
+      if (!context?.emitter_email) return;
+      await notifyAssignee({
+        to: context.emitter_email,
+        recipientName: context.emitter_name,
+        roleLabel: isAilaGeneric ? "Jefatura AVSEC" : "emisor",
+        actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AVSEC" : "Formulario enviado a emisor",
+        context,
+        comments: comentariosRevision
+      });
     });
 
     return res.json({
@@ -5176,6 +5286,17 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
         aprobador_email: approver.email || null
       }
     });
+    sendSubmissionNotification(async () => {
+      const context = await getSubmissionNotificationContext(Number(id));
+      if (!context?.approver_email) return;
+      await notifyAssignee({
+        to: context.approver_email,
+        recipientName: context.approver_name,
+        roleLabel: isAilaGeneric ? "Jefatura AILA" : "aprobador",
+        actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : "Formulario enviado a aprobador",
+        context
+      });
+    });
 
     return res.json({
       id: updated.rows[0].id,
@@ -5243,6 +5364,18 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
       eventDetail: reason,
       actorUserId: req.user?.sub || null,
       actorRole: role
+    });
+    sendSubmissionNotification(async () => {
+      const context = await getSubmissionNotificationContext(Number(id));
+      if (!context?.analyst_email) return;
+      await notifyAssignee({
+        to: context.analyst_email,
+        recipientName: context.analyst_name,
+        roleLabel: "analista",
+        actionLabel: "Formulario devuelto al analista",
+        context,
+        comments: reason
+      });
     });
     return res.json(result.rows[0]);
   } catch (err) {
@@ -5340,6 +5473,19 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
       eventDetail: `Aprobado por rol ${role}`,
       actorUserId: req.user?.sub || null,
       actorRole: role
+    });
+    sendSubmissionNotification(async () => {
+      const context = await getSubmissionNotificationContext(Number(id));
+      const recipientEmail = context?.owner_email || context?.correo;
+      if (!recipientEmail) return;
+      await notifyUserStatus({
+        to: recipientEmail,
+        recipientName: context?.owner_name || context?.nombre_propietario,
+        subjectPrefix: "Formulario aprobado",
+        heading: "Tu tramite fue aprobado",
+        message: "Tu solicitud ya fue aprobada y puedes consultar el estado actualizado dentro del portal.",
+        context
+      });
     });
     return res.json(result.rows[0]);
   } catch (err) {
@@ -5551,6 +5697,18 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
         analista_email: userRow.rows[0].email || null,
         comentarios_revision: comentariosRevision
       }
+    });
+    sendSubmissionNotification(async () => {
+      const context = await getSubmissionNotificationContext(Number(id));
+      if (!context?.analyst_email) return;
+      await notifyAssignee({
+        to: context.analyst_email,
+        recipientName: context.analyst_name,
+        roleLabel: isAilaGeneric ? "Recepcion AVSEC" : "analista",
+        actionLabel: isAilaGeneric ? "Nuevo formulario asignado a Recepcion AVSEC" : "Nuevo formulario asignado",
+        context,
+        comments: comentariosRevision
+      });
     });
     return res.json({
       message: "Asignado",

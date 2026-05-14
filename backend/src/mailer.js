@@ -1,64 +1,92 @@
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 
-let sendgridInitialized = false;
+let transporter = null;
 
-function getSendgridConfig() {
-  const apiKey = String(process.env.SENDGRID_API_KEY || "").trim();
-  const fromEmail = String(process.env.SENDGRID_FROM_EMAIL || "").trim();
-  const fromName = String(process.env.SENDGRID_FROM_NAME || "").trim();
-  return { apiKey, fromEmail, fromName };
+function normalizeBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
 }
 
-function ensureSendgridClient() {
-  const { apiKey } = getSendgridConfig();
-  if (!apiKey) {
-    throw new Error("SENDGRID_NOT_CONFIGURED");
+function getSmtpConfig() {
+  return {
+    host: String(process.env.SMTP_HOST || "").trim(),
+    port: Number(process.env.SMTP_PORT || 465),
+    secure: normalizeBoolean(process.env.SMTP_SECURE, true),
+    user: String(process.env.SMTP_USER || "").trim(),
+    pass: String(process.env.SMTP_PASS || "").trim(),
+    fromEmail: String(process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || "").trim(),
+    fromName: String(process.env.SMTP_FROM_NAME || "").trim()
+  };
+}
+
+function ensureTransporter() {
+  const config = getSmtpConfig();
+  if (!config.host) {
+    throw new Error("SMTP_HOST_NOT_CONFIGURED");
   }
-  if (!sendgridInitialized) {
-    sgMail.setApiKey(apiKey);
-    sendgridInitialized = true;
+  if (!config.port || Number.isNaN(config.port)) {
+    throw new Error("SMTP_PORT_NOT_CONFIGURED");
   }
+  if (!config.user) {
+    throw new Error("SMTP_USER_NOT_CONFIGURED");
+  }
+  if (!config.pass) {
+    throw new Error("SMTP_PASS_NOT_CONFIGURED");
+  }
+
+  if (!transporter) {
+    transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: {
+        user: config.user,
+        pass: config.pass
+      }
+    });
+  }
+
+  return transporter;
 }
 
 function buildFrom() {
-  const { fromEmail, fromName } = getSendgridConfig();
+  const { fromEmail, fromName } = getSmtpConfig();
   if (!fromEmail) {
-    throw new Error("SENDGRID_FROM_NOT_CONFIGURED");
+    throw new Error("SMTP_FROM_NOT_CONFIGURED");
   }
   if (fromName) {
-    return { email: fromEmail, name: fromName };
+    return {
+      name: fromName,
+      address: fromEmail
+    };
   }
   return fromEmail;
 }
 
-function extractSendgridError(err) {
-  const first = err?.response?.body?.errors?.[0];
-  if (first?.message) return String(first.message);
+function extractSmtpError(err) {
+  if (err?.code) return String(err.code);
+  if (err?.response) return String(err.response);
   if (err?.message) return String(err.message);
-  return "SENDGRID_SEND_FAILED";
+  return "SMTP_SEND_FAILED";
 }
 
 async function sendEmail({ to, subject, html, text }) {
-  ensureSendgridClient();
-  const from = buildFrom();
+  const smtpTransporter = ensureTransporter();
   const recipient = String(to || "").trim();
   if (!recipient) {
-    throw new Error("SENDGRID_TO_REQUIRED");
+    throw new Error("SMTP_TO_REQUIRED");
   }
 
-  const msg = {
-    to: recipient,
-    from,
-    subject: String(subject || "").trim() || "Notificacion",
-    html: html || "<p></p>",
-    text: text || undefined
-  };
-
   try {
-    await sgMail.send(msg);
+    await smtpTransporter.sendMail({
+      from: buildFrom(),
+      to: recipient,
+      subject: String(subject || "").trim() || "Notificacion",
+      html: html || "<p></p>",
+      text: text || undefined
+    });
   } catch (err) {
-    const reason = extractSendgridError(err);
-    const wrapped = new Error(reason);
+    const wrapped = new Error(extractSmtpError(err));
     wrapped.cause = err;
     throw wrapped;
   }
@@ -66,7 +94,7 @@ async function sendEmail({ to, subject, html, text }) {
 
 async function sendAlertEmail({ to, subject, html }) {
   try {
-    const { fromEmail } = getSendgridConfig();
+    const { fromEmail } = getSmtpConfig();
     await sendEmail({ to: to || fromEmail, subject, html });
   } catch (err) {
     console.error("No se pudo enviar alerta por correo", err);

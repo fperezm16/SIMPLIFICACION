@@ -22,6 +22,8 @@ async function init() {
       email_verified_at TIMESTAMPTZ,
       email_verification_token TEXT,
       email_verification_expires TIMESTAMPTZ,
+      password_reset_token TEXT,
+      password_reset_expires TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
@@ -196,6 +198,22 @@ async function init() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_trace_counter (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      last_value INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT payment_trace_counter_single_row CHECK (id = 1),
+      CONSTRAINT payment_trace_counter_range CHECK (last_value BETWEEN 0 AND 999999)
+    );
+  `);
+
+  await pool.query(`
+    INSERT INTO payment_trace_counter (id, last_value)
+    VALUES (1, 0)
+    ON CONFLICT (id) DO NOTHING;
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS payments (
       id SERIAL PRIMARY KEY,
       submission_id INTEGER NOT NULL,
@@ -225,12 +243,15 @@ async function init() {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token TEXT",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_expires TIMESTAMPTZ",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token_hash TEXT",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verify_token_expires_at TIMESTAMPTZ",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()",
     "CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_idx ON users (LOWER(email))",
     "CREATE INDEX IF NOT EXISTS users_email_verify_token_hash_idx ON users(email_verify_token_hash) WHERE email_verify_token_hash IS NOT NULL",
     "CREATE INDEX IF NOT EXISTS users_email_verification_token_idx ON users(email_verification_token) WHERE email_verification_token IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS users_password_reset_token_idx ON users(password_reset_token) WHERE password_reset_token IS NOT NULL",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS fecha DATE",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS persona_tipo TEXT NOT NULL DEFAULT 'individual'",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS origen_compra TEXT",
@@ -518,6 +539,16 @@ async function init() {
     "CREATE UNIQUE INDEX IF NOT EXISTS submission_feedback_submission_user_idx ON submission_feedback (submission_id, user_id)",
     "CREATE INDEX IF NOT EXISTS submission_feedback_submission_idx ON submission_feedback (submission_id)",
     "CREATE INDEX IF NOT EXISTS submission_feedback_user_idx ON submission_feedback (user_id)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS cardholder_name VARCHAR(80)",
+    "ALTER TABLE payments ADD COLUMN IF NOT EXISTS card_brand VARCHAR(30)",
+    `CREATE TABLE IF NOT EXISTS payment_trace_counter (
+       id INTEGER PRIMARY KEY DEFAULT 1,
+       last_value INTEGER NOT NULL DEFAULT 0,
+       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+       CONSTRAINT payment_trace_counter_single_row CHECK (id = 1),
+       CONSTRAINT payment_trace_counter_range CHECK (last_value BETWEEN 0 AND 999999)
+     )`,
+    "INSERT INTO payment_trace_counter (id, last_value) VALUES (1, 0) ON CONFLICT (id) DO NOTHING",
     "ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_id VARCHAR(100)",
     "ALTER TABLE payments ADD COLUMN IF NOT EXISTS authorization_code VARCHAR(20)",
     "ALTER TABLE payments ADD COLUMN IF NOT EXISTS reference_number VARCHAR(30)",
@@ -664,6 +695,13 @@ async function init() {
   await pool.query("UPDATE users SET role = 'user' WHERE role IS NULL");
   await pool.query("UPDATE users SET unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[] WHERE unit_access IS NULL");
   await pool.query("UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL");
+  await pool.query(`
+    UPDATE users
+    SET email_verified = TRUE,
+        email_verified_at = COALESCE(email_verified_at, created_at, NOW())
+    WHERE email_verified = FALSE
+      AND email_verification_token IS NULL
+  `);
   await pool.query(`
     UPDATE submissions s
     SET created_by_user_id = u.id

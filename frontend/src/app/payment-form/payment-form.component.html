@@ -1,119 +1,149 @@
 <div class="payment-shell" *ngIf="requiresPayment; else noPaymentBlock">
-  <div class="payment-panel">
-    <div class="payment-header">
-      <div class="header-copy">
-        <h2>Pago con tarjeta</h2>
-        <p>Ingresa los datos de la tarjeta para completar el pago del trámite.</p>
-      </div>
-
-      <div class="amount-box">
-        <span>Monto a pagar</span>
-        <strong>Q {{ amount | number:'1.2-2' }}</strong>
+  <section class="payment-panel">
+    <div class="payment-visual">
+      <div class="visual-copy">
+        <span class="eyebrow">DGAC</span>
+        <h2>Pago de tramite</h2>
+        <p>{{ concept }}</p>
+        <strong>Q {{ formattedAmount }}</strong>
       </div>
     </div>
 
-    <div class="form-group">
-      <div class="label-row">
-        <label for="cardNumber">Número de tarjeta</label>
-        <span class="card-brand" *ngIf="cardBrand">{{ cardBrand }}</span>
+    <div class="payment-form-area">
+      <div class="form-header">
+        <div>
+          <span class="section-label">Pasarela de pago</span>
+          <h3>Datos de tarjeta</h3>
+        </div>
+        <span class="status-pill" [ngClass]="statusToneClass">{{ statusBadgeLabel }}</span>
       </div>
 
-      <input
-        id="cardNumber"
-        type="text"
-        [value]="cardNumber"
-        (input)="onCardNumberInput($event)"
-        placeholder="4000 0000 0000 0416"
-        maxlength="19"
-        autocomplete="off"
-      />
-    </div>
-
-    <div class="form-row">
       <div class="form-group">
-        <label for="expirationDate">Expiración (MM/YY)</label>
+        <label for="cardholderName">Nombre del titular</label>
         <input
-          id="expirationDate"
+          id="cardholderName"
           type="text"
-          [value]="expirationDate"
-          (input)="onExpirationInput($event)"
-          placeholder="12/25"
-          maxlength="5"
+          [value]="cardholderName"
+          (input)="onCardholderNameInput($event)"
+          placeholder="NOMBRE COMO APARECE EN LA TARJETA"
           autocomplete="off"
         />
       </div>
 
       <div class="form-group">
-        <label for="cvv">CVV</label>
+        <div class="label-row">
+          <label for="cardNumber">Numero de tarjeta</label>
+          <span class="card-brand" *ngIf="cardBrand">{{ cardBrand }}</span>
+        </div>
         <input
-          id="cvv"
-          type="password"
-          [value]="cvv"
-          (input)="onCvvInput($event)"
-          placeholder="123"
-          maxlength="4"
+          id="cardNumber"
+          type="text"
+          [value]="cardNumber"
+          (input)="onCardNumberInput($event)"
+          placeholder="4000 0000 0000 0416"
+          maxlength="19"
           autocomplete="off"
         />
       </div>
-    </div>
 
-    <button type="button" class="pay-button" (click)="processPayment()" [disabled]="loading">
-      {{ loading ? 'Procesando pago...' : 'Pagar ahora' }}
-    </button>
-
-    <div class="message success-box" *ngIf="successMessage">
-      <strong>Pago aprobado</strong>
-      <span>{{ successMessage }}</span>
-    </div>
-
-    <div class="message error-box" *ngIf="errorMessage">
-      <strong>Error</strong>
-      <span>{{ errorMessage }}</span>
-    </div>
-
-    <div class="summary-box" *ngIf="paymentResponse?.payment">
-      <h3>Resumen de transacción</h3>
-
-      <div class="summary-grid">
-        <div>
-          <span class="summary-label">ID de pago</span>
-          <strong>{{ paymentResponse.payment.id }}</strong>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="expirationDate">Expiracion</label>
+          <input
+            id="expirationDate"
+            type="text"
+            [value]="expirationDate"
+            (input)="onExpirationInput($event)"
+            placeholder="MM/YY"
+            maxlength="5"
+            autocomplete="off"
+          />
         </div>
 
-        <div>
-          <span class="summary-label">Estado</span>
-          <strong>{{ paymentResponse.status }}</strong>
-        </div>
-
-        <div>
-          <span class="summary-label">Referencia</span>
-          <strong>{{ paymentResponse.payment.reference_number || 'N/D' }}</strong>
-        </div>
-
-        <div>
-          <span class="summary-label">Autorización</span>
-          <strong>{{ paymentResponse.payment.authorization_code || 'N/D' }}</strong>
-        </div>
-
-        <div>
-          <span class="summary-label">Auditoría</span>
-          <strong>{{ paymentResponse.payment.audit_number || 'N/D' }}</strong>
-        </div>
-
-        <div>
-          <span class="summary-label">Monto</span>
-          <strong>Q {{ paymentResponse.payment.amount }}</strong>
+        <div class="form-group">
+          <label for="cvv">CVV</label>
+          <input
+            id="cvv"
+            type="password"
+            [value]="cvv"
+            (input)="onCvvInput($event)"
+            placeholder="123"
+            maxlength="4"
+            autocomplete="off"
+          />
         </div>
       </div>
+
+      <button
+        type="button"
+        class="pay-button"
+        (click)="processPayment()"
+        [disabled]="isPayButtonDisabled">
+        {{ payButtonLabel }}
+      </button>
+
+      <div class="message success-box" *ngIf="successMessage">
+        <strong>Pago aprobado</strong>
+        <span>{{ successMessage }}</span>
+      </div>
+
+      <div class="message error-box" *ngIf="errorMessage">
+        <strong>Atencion</strong>
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <section class="summary-box" *ngIf="hasPaymentResponse">
+        <div class="summary-header">
+          <div>
+            <span class="section-label">Resultado</span>
+            <h4>Resumen de transaccion</h4>
+          </div>
+          <button
+            type="button"
+            class="voucher-button"
+            *ngIf="canRequestVoucher"
+            (click)="requestVoucher()">
+            Ver voucher
+          </button>
+        </div>
+
+        <div class="summary-grid">
+          <div class="summary-item">
+            <span class="summary-label">ID de pago</span>
+            <strong>{{ paymentResponse.payment.id }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Estado</span>
+            <strong>{{ paymentStatus || 'N/D' }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Referencia</span>
+            <strong>{{ paymentResponse.payment.reference_number || 'N/D' }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Autorizacion</span>
+            <strong>{{ paymentResponse.payment.authorization_code || 'N/D' }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Auditoria</span>
+            <strong>{{ paymentResponse.payment.audit_number || 'N/D' }}</strong>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Monto</span>
+            <strong>Q {{ paymentResponse.payment.amount }}</strong>
+          </div>
+        </div>
+      </section>
     </div>
-  </div>
+  </section>
 </div>
 
 <ng-template #noPaymentBlock>
   <div class="payment-shell">
-    <div class="payment-panel">
+    <section class="payment-panel no-payment-panel">
+      <span class="eyebrow">DGAC</span>
       <h2>Pago no requerido</h2>
-      <p>Este trámite no requiere pago.</p>
-    </div>
+      <p>Este tramite no requiere pago para continuar con el flujo actual.</p>
+    </section>
   </div>
 </ng-template>

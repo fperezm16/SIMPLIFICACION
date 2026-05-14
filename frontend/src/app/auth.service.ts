@@ -17,6 +17,12 @@ export interface RegisterResponse {
   dev_verify_url?: string;
 }
 
+export interface PasswordRecoveryResponse {
+  message?: string;
+  error?: string;
+  dev_reset_url?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
@@ -64,7 +70,7 @@ export class AuthService {
     return !!this.token;
   }
 
-  register(payload: { name?: string | null; email: string; password: string; }) {
+  register(payload: { name: string; email: string; password: string; }) {
     return this.http.post<RegisterResponse>(`${API_BASE}/auth/register`, payload);
   }
 
@@ -83,6 +89,14 @@ export class AuthService {
       `${API_BASE}/auth/resend-verification`,
       { email }
     );
+  }
+
+  forgotPassword(email: string) {
+    return this.http.post<PasswordRecoveryResponse>(`${API_BASE}/auth/forgot-password`, { email });
+  }
+
+  resetPassword(token: string, password: string) {
+    return this.http.post<{ message: string }>(`${API_BASE}/auth/reset-password`, { token, password });
   }
 
   logout() {
