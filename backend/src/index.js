@@ -1618,8 +1618,8 @@ function submissionProcessState(row) {
   }
   if (row?.assigned_aprobador_id || row?.sent_to_aprobador_at) {
     return isAilaGeneric
-      ? { code: "en_jefatura_avsec", label: "En revisiÃ³n por Jefatura AVSEC", step: 4, percent: 90 }
-      : { code: "en_aprobacion", label: "En aprobaciÃ³n de unidad", step: 4, percent: 90 };
+      ? { code: "en_jefatura_avsec", label: "En revisión por Jefatura AVSEC", step: 4, percent: 90 }
+      : { code: "en_aprobacion", label: "En aprobación de unidad", step: 4, percent: 90 };
   }
   if (row?.assigned_emisor_id || row?.sent_to_emisor_at) {
     return isAilaGeneric
@@ -4809,18 +4809,6 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
       actorRole: role
     });
 
-    sendSubmissionNotification(async () => {
-      await notifyOwnerSubmissionStatus(Number(id), {
-        subjectPrefix: isPaymentPassword ? "Contraseña de pago disponible" : "Documento disponible",
-        heading: isPaymentPassword ? "Tu contraseña de pago ya está disponible" : "Tu documento del proceso ya fue cargado",
-        message: isPaymentPassword
-          ? "Tu proceso ya cuenta con la contraseña de pago y puedes ingresar al portal para revisar el estado actualizado."
-          : isFinancial
-            ? "Tu proceso financiero ya cuenta con el documento PDF correspondiente y puedes continuar con el seguimiento desde el portal."
-            : "Tu proceso ya cuenta con la boleta de pago correspondiente y puedes continuar con el seguimiento desde el portal."
-      });
-    });
-
     return res.json(result.rows[0]);
   } catch (err) {
     console.error("Error uploading analyst pdf", err);
@@ -4928,16 +4916,6 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
       eventDetail: safeFilename,
       actorUserId: req.user?.sub || null,
       actorRole: role
-    });
-
-    sendSubmissionNotification(async () => {
-      await notifyOwnerSubmissionStatus(Number(id), {
-        subjectPrefix: "Documento firmado disponible",
-        heading: isEmitter ? "Tu documento final ya está disponible" : "Tu documento firmado fue cargado",
-        message: isEmitter
-          ? "Tu proceso ya cuenta con el documento firmado final y puedes revisarlo dentro del portal."
-          : "Tu proceso ya cuenta con un documento firmado cargado y puedes revisar el estado actualizado dentro del portal."
-      });
     });
 
     return res.json(result.rows[0]);
@@ -5504,6 +5482,16 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
         actorRole: role
       });
       sendSubmissionNotification(async () => {
+        const context = await getSubmissionNotificationContext(Number(id));
+        if (context?.emitter_email) {
+          await notifyAssignee({
+            to: context.emitter_email,
+            recipientName: context.emitter_name,
+            roleLabel: "emisor",
+            actionLabel: "Proceso aprobado y devuelto al emisor",
+            context
+          });
+        }
         await notifyOwnerSubmissionStatus(Number(id), {
           subjectPrefix: "Cambio de estado",
           heading: "Tu tramite fue aprobado por el aprobador",

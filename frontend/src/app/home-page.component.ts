@@ -1,6 +1,6 @@
 ﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { API_BASE } from './api.config';
@@ -383,10 +383,11 @@ type UnitGroup = { unit: string; rows: Submission[] };
     }
   `]
 })
-export class HomePageComponent implements OnInit {
+export class HomePageComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private router = inject(Router);
   private auth = inject(AuthService);
+  private autoRefreshHandle: ReturnType<typeof setInterval> | null = null;
   readonly apiBase = API_BASE;
   readonly ratingOptions = [
     { value: 1, emoji: '🙁', label: 'Malo' },
@@ -407,9 +408,18 @@ export class HomePageComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.startAutoRefresh();
+  }
+
+  ngOnDestroy(): void {
+    if (this.autoRefreshHandle) {
+      clearInterval(this.autoRefreshHandle);
+      this.autoRefreshHandle = null;
+    }
   }
 
   load() {
+    if (this.loading) return;
     this.loading = true;
     this.http.get<Submission[]>(`${this.apiBase}/my-submissions`).subscribe({
       next: (rows) => {
@@ -426,6 +436,13 @@ export class HomePageComponent implements OnInit {
     });
   }
 
+  private startAutoRefresh() {
+    this.autoRefreshHandle = setInterval(() => {
+      if (document.hidden) return;
+      this.load();
+    }, 10000);
+  }
+
   unitLabel(unit: string) {
     const key = (unit || 'GENERAL').toUpperCase();
     if (key === 'RAN') return 'Unidad RAN';
@@ -436,7 +453,19 @@ export class HomePageComponent implements OnInit {
   }
 
   stateLabel(row: Submission) {
-    return row.process_label || this.inferState(row);
+    return this.normalizeDisplayText(row.process_label || this.inferState(row));
+  }
+
+  normalizeDisplayText(value: unknown) {
+    const text = value === null || value === undefined ? '' : String(value);
+    if (!text) return '';
+    if (!/[ÃÂ�]/.test(text)) return text;
+    try {
+      const bytes = Uint8Array.from(Array.from(text).map((char) => char.charCodeAt(0) & 0xff));
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch {
+      return text;
+    }
   }
 
   progressPercent(row: Submission) {

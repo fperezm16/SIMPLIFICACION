@@ -1,4 +1,5 @@
 const { Pool } = require("pg");
+const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
 function buildPoolConfig() {
@@ -847,6 +848,42 @@ async function init() {
       END;
     END $$;
   `);
+
+  const adminEmail = "admin.sistema@dgac.gob.gt";
+  const adminPassword = "Ad*si$15052026";
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+
+  await pool.query(
+    `
+      INSERT INTO users (
+        name,
+        email,
+        password_hash,
+        role,
+        unit_access,
+        email_verified,
+        email_verified_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        'admin',
+        ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[],
+        TRUE,
+        NOW()
+      )
+      ON CONFLICT (email)
+      DO UPDATE SET
+        name = EXCLUDED.name,
+        password_hash = EXCLUDED.password_hash,
+        role = 'admin',
+        unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[],
+        email_verified = TRUE,
+        email_verified_at = COALESCE(users.email_verified_at, NOW())
+    `,
+    ["Administrador del sistema", adminEmail, adminPasswordHash]
+  );
 }
 
 module.exports = {

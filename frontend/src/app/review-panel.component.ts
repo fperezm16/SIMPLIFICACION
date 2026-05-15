@@ -862,19 +862,40 @@ export class ReviewPanelComponent implements OnChanges {
     const refreshed = this.data.find((row) => Number(row.id) === Number(this.selected?.id));
     if (!refreshed) return;
 
+    const previousSelected = this.selected;
+    const preserveReviewComments =
+      this.reviewComments !== (previousSelected.comentarios_revision || '');
+    const preserveAssignedAnalista =
+      this.edit?.assigned_analista_id !== undefined &&
+      this.edit?.assigned_analista_id !== previousSelected.assigned_analista_id;
+    const preserveAssignedEmisor =
+      this.edit?.assigned_emisor_id !== undefined &&
+      this.edit?.assigned_emisor_id !== previousSelected.assigned_emisor_id;
+    const preserveAssignedAprobador =
+      this.edit?.assigned_aprobador_id !== undefined &&
+      this.edit?.assigned_aprobador_id !== previousSelected.assigned_aprobador_id;
+
     this.selected = { ...this.selected, ...refreshed };
 
     if (this.edit) {
       this.edit = {
         ...this.edit,
-        comentarios_revision: refreshed.comentarios_revision ?? undefined,
-        assigned_analista_id: refreshed.assigned_analista_id ?? null,
+        comentarios_revision: preserveReviewComments
+          ? this.edit.comentarios_revision
+          : refreshed.comentarios_revision ?? undefined,
+        assigned_analista_id: preserveAssignedAnalista
+          ? this.edit.assigned_analista_id
+          : refreshed.assigned_analista_id ?? null,
         assigned_analista_name: refreshed.assigned_analista_name ?? null,
         assigned_analista_email: refreshed.assigned_analista_email ?? null,
-        assigned_emisor_id: refreshed.assigned_emisor_id ?? null,
+        assigned_emisor_id: preserveAssignedEmisor
+          ? this.edit.assigned_emisor_id
+          : refreshed.assigned_emisor_id ?? null,
         assigned_emisor_name: refreshed.assigned_emisor_name ?? null,
         assigned_emisor_email: refreshed.assigned_emisor_email ?? null,
-        assigned_aprobador_id: refreshed.assigned_aprobador_id ?? null,
+        assigned_aprobador_id: preserveAssignedAprobador
+          ? this.edit.assigned_aprobador_id
+          : refreshed.assigned_aprobador_id ?? null,
         assigned_aprobador_name: refreshed.assigned_aprobador_name ?? null,
         assigned_aprobador_email: refreshed.assigned_aprobador_email ?? null,
         sent_to_emisor_at: refreshed.sent_to_emisor_at ?? null,
@@ -883,7 +904,9 @@ export class ReviewPanelComponent implements OnChanges {
         delivered_at: refreshed.delivered_at ?? null
       };
     }
-    this.reviewComments = refreshed.comentarios_revision || '';
+    if (!preserveReviewComments) {
+      this.reviewComments = refreshed.comentarios_revision || '';
+    }
   }
 
   private visibleRows() {

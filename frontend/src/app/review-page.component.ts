@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { AuthService } from './auth.service';
 import { ReviewPanelComponent } from './review-panel.component';
 import { Submission } from './submission.model';
@@ -231,9 +231,10 @@ type FinancialApprovedHistoryDetail = {
     button[disabled] { opacity: 0.6; cursor: not-allowed; }
   `]
 })
-export class ReviewPageComponent implements OnInit {
+export class ReviewPageComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
+  private autoRefreshHandle: ReturnType<typeof setInterval> | null = null;
   readonly apiBase = API_BASE;
   submissions: Submission[] = [];
   approvedHistory: FinancialApprovedHistoryItem[] = [];
@@ -246,9 +247,18 @@ export class ReviewPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetch();
+    this.startAutoRefresh();
+  }
+
+  ngOnDestroy(): void {
+    if (this.autoRefreshHandle) {
+      clearInterval(this.autoRefreshHandle);
+      this.autoRefreshHandle = null;
+    }
   }
 
   fetch() {
+    if (this.loading) return;
     this.loading = true;
     this.http.get<Submission[]>(`${this.apiBase}/submissions`).subscribe({
       next: (data) => {
@@ -262,6 +272,13 @@ export class ReviewPageComponent implements OnInit {
         this.approvedHistory = [];
       }
     });
+  }
+
+  private startAutoRefresh() {
+    this.autoRefreshHandle = setInterval(() => {
+      if (document.hidden) return;
+      this.fetch();
+    }, 10000);
   }
 
   showFinancialApprovedHistory() {

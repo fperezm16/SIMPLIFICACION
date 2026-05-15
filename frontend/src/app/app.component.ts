@@ -44,14 +44,8 @@ import { AuthService } from './auth.service';
             <span class="chip">{{ user.name || user.email }} <small class="role">({{ user.role || 'user' }})</small></span>
             <button (click)="logout()">Cerrar sesión</button>
           </div>
-          <ng-template #guest>
-            <a class="cta" routerLink="/auth">Ingresar</a>
-          </ng-template>
-          <ng-template #guestNav>
-            <nav class="nav">
-              <a routerLink="/auth" routerLinkActive="active">Acceso</a>
-            </nav>
-          </ng-template>
+          <ng-template #guest></ng-template>
+          <ng-template #guestNav></ng-template>
         </div>
       </header>
       <main class="shell__body">
