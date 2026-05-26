@@ -15,7 +15,7 @@ require("dotenv").config();
 const paymentRoutes = require('../routes/paymentRoutes');
 const app = express();
 const PORT = process.env.PORT || 4000;
-const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
 const AILA_ROLE_RECEPCION = "recepcion_aila";
 const AILA_ROLE_RECEPCION_AVSEC = "recepcion_avsec";
 const AILA_ROLE_ADMINISTRACION = "administracion_aila";
@@ -4759,6 +4759,9 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     const row = current.rows[0];
     const isFinancial = String(row.unidad_clave || "").toUpperCase() === "FINANCIERO";
     const isPaymentPassword = isFinancialPaymentPasswordFlow(row);
+    if (isFinancial && !isPaymentPassword) {
+      return res.status(400).json({ error: "En este proceso financiero el PDF del emisor queda omitido hasta la aprobación del aprobador." });
+    }
     if (isFinancial && !isPaymentPassword && isAnalyst) {
       return res.status(400).json({ error: "En financiero el documento PDF debe cargarlo el emisor." });
     }
@@ -5238,7 +5241,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     if (submissionUnit !== "FINANCIERO" && isEmitter) {
       return res.status(400).json({ error: "El rol emisor solo envía a aprobador procesos financieros." });
     }
-    if (!isAilaGeneric && !submission.analyst_pdf) {
+    if (!isAilaGeneric && submissionUnit !== "FINANCIERO" && !submission.analyst_pdf) {
       return res.status(400).json({
         error: submissionUnit === "FINANCIERO"
           ? "Debes cargar el documento PDF de este proceso antes de enviarlo al aprobador."

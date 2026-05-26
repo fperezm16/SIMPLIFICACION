@@ -193,6 +193,35 @@
   color: #0d2238;
 }
 
+.reference-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 18px;
+  border: 1px solid #0b8fd9;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0b8fd9, #31a8e8);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 8px 18px rgba(11, 143, 217, 0.22);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.reference-download:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(11, 143, 217, 0.28);
+  filter: brightness(1.02);
+}
+
+.reference-download:active {
+  transform: translateY(0);
+}
+
 @media (max-width: 800px) {
   .finance-grid.two-col {
     grid-template-columns: 1fr;

@@ -69,13 +69,16 @@
           <div class="full-row upload-block">
             <span class="upload-title">Carta de Representaci&oacute;n <span class="required-reference">*</span></span>
             <p class="field-hint">Adjunta la carta de representaci&oacute;n en PDF. Tama&ntilde;o m&aacute;ximo aceptado: <span class="limit-reference">10 MB por PDF</span></p>
-          <label class="upload-inline">
-            <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onCartaRepresentacionSelected($event)">
-            <span>{{ cartaRepresentacionFile?.name || existingCartaRepresentacionFilename || 'Seleccionar PDF de Carta de Representación...' }}</span>
-          </label>
-          <p class="field-hint">En caso de que la solicitud sea realizada por un tercero, la carta debe estar firmada y sellada con el sello de la empresa.</p>
-          <small class="error" *ngIf="cartaRepresentacionError">{{ cartaRepresentacionError }}</small>
-        </div>
+            <label class="upload-inline">
+              <input type="file" accept="application/pdf" [disabled]="isSubmitting" (change)="onCartaRepresentacionSelected($event)">
+              <span>{{ cartaRepresentacionFile?.name || existingCartaRepresentacionFilename || 'Seleccionar PDF de Carta de Representación...' }}</span>
+            </label>
+            <p class="field-hint">En caso de que la solicitud sea realizada por un tercero, la carta debe estar firmada y sellada con el sello de la empresa.</p>
+            <a class="reference-download" href="assets/carta-representacion-ejemplo.docx" download="Carta de representacion ejemplo.docx">
+              Descargar carta de ejemplo
+            </a>
+            <small class="error" *ngIf="cartaRepresentacionError">{{ cartaRepresentacionError }}</small>
+          </div>
         </div>
       </section>
 

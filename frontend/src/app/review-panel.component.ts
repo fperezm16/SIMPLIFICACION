@@ -62,7 +62,7 @@ type TableDocument = {
           </label>
         </div>
       </header>
-      <div class="status-legend" *ngIf="role === 'revisor'">
+      <div class="status-legend" *ngIf="isInternalRole()">
         <span class="chip ok">Asignado</span>
         <span class="chip warn">Pendiente</span>
         <span class="chip bad">No abierto</span>
@@ -563,9 +563,9 @@ type TableDocument = {
     .filters { font-size: 14px; display: flex; align-items: center; gap: 8px; }
     .status-legend { display: flex; gap: 8px; margin: 8px 0 10px; }
     .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); }
-    .chip.ok { background: #dcfce7; border-color: #86efac; }
-    .chip.warn { background: #fef9c3; border-color: #fde047; }
-    .chip.bad { background: #fee2e2; border-color: #fca5a5; }
+    .chip.ok { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .chip.warn { background: #fef9c3; border-color: #fde047; color: #854d0e; }
+    .chip.bad { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
     select { margin-left: 6px; padding: 8px 12px; min-width: 220px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; }
     .process-list { display: grid; gap: 12px; max-height: 520px; overflow: auto; padding: 4px 6px 4px 0; }
     .process-card {
@@ -802,7 +802,7 @@ export class ReviewPanelComponent implements OnChanges {
   private http = inject(HttpClient);
   private analystsService = inject(AnalystsService);
   private auth = inject(AuthService);
-  private readonly maxPdfSizeBytes = 10 * 1024 * 1024;
+  private readonly maxPdfSizeBytes = 50 * 1024 * 1024;
   private readonly financialDeclaraguateProcessCodes = new Set([
     'cancelacion_matricula',
     'solvencia_aeronavegabilidad',
@@ -1741,9 +1741,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.role === 'analista' && Number(row.assigned_analista_id) !== Number(this.currentUserId)) return false;
         return true;
       }
-      if (!(this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor')) return false;
-      if (this.role === 'emisor' && Number(row.assigned_emisor_id) !== Number(this.currentUserId)) return false;
-      return true;
+      return false;
     }
     if (!(this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor')) return false;
     if (this.role === 'analista' && Number(row.assigned_analista_id) !== Number(this.currentUserId)) return false;
@@ -1755,6 +1753,9 @@ export class ReviewPanelComponent implements OnChanges {
       return false;
     }
     if (this.isFinancialSubmission(row || null)) {
+      if (!this.isFinancialPaymentPasswordFlow(row || null)) {
+        return Boolean(row?.id && (row.has_analyst_pdf || row.analyst_pdf_filename));
+      }
       return Boolean(
         row?.id &&
         (this.canUploadAnalystPdf(row) ||
@@ -2020,11 +2021,16 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   statusClass(row: Submission) {
-    if (this.role !== 'revisor') return '';
-    if (row.returned_at) return 'state-returned';
-    if (row.assigned_analista_id) return 'state-assigned';
+    if (row.returned_at || row.returned_to_analista_at) return 'state-returned';
+    if (row.assigned_aprobador_id || row.sent_to_aprobador_at || row.assigned_emisor_id || row.sent_to_emisor_at || row.assigned_analista_id) {
+      return 'state-assigned';
+    }
     if (!row.receptor_opened_at) return 'state-unopened';
     return 'state-pending';
+  }
+
+  isInternalRole() {
+    return this.role !== 'user';
   }
 
   stateLabel(row: Submission) {

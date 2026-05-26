@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+﻿const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { pool } = require("../config/db");
 const { sendMail } = require("../config/mailer");
@@ -6,7 +6,7 @@ const { sendMail } = require("../config/mailer");
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const EMAIL_VERIFY_EXPIRES_MINUTES = 60;
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
-const FULL_NAME_REGEX = /^\p{L}+(?:[-']\p{L}+)?\s+\p{L}+(?:[-']\p{L}+)?$/u;
+const FULL_NAME_REGEX = /^\p{L}+(?:[-']\p{L}+)?(?:\s+\p{L}+(?:[-']\p{L}+)?){1,}$/u;
 
 function sanitizeText(value, maxLen = 255) {
   if (value === null || value === undefined) return "";
@@ -41,6 +41,48 @@ function isDevelopmentVerificationEnabled() {
   return ["1", "true", "yes", "on"].includes(
     String(process.env.ALLOW_DEV_AUTH_LINKS || "").trim().toLowerCase()
   );
+}
+
+function getRecaptchaSecret() {
+  return String(process.env.RECAPTCHA_SECRET_KEY || "").trim();
+}
+
+function isLocalRecaptchaBypassAllowed(token) {
+  const allowBypass = ["1", "true", "yes", "on"].includes(
+    String(process.env.RECAPTCHA_ALLOW_LOCAL_BYPASS || "").trim().toLowerCase()
+  );
+  return allowBypass && String(token || "").trim() === "dev-local-bypass";
+}
+
+async function verifyRecaptchaToken(token, remoteIp) {
+  if (isLocalRecaptchaBypassAllowed(token)) {
+    return true;
+  }
+
+  const secret = getRecaptchaSecret();
+  if (!secret) {
+    throw new Error("RECAPTCHA_SECRET_KEY no está configurado");
+  }
+
+  const payload = new URLSearchParams();
+  payload.set("secret", secret);
+  payload.set("response", String(token || "").trim());
+  if (remoteIp) payload.set("remoteip", String(remoteIp).trim());
+
+  const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: payload.toString()
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudo validar reCAPTCHA");
+  }
+
+  const result = await response.json();
+  return result?.success === true;
 }
 
 function signAuthToken(user) {
@@ -231,12 +273,16 @@ async function register(req, res) {
   const email = normalizeEmail(req.body?.email);
   const password = String(req.body?.password || "");
   const name = sanitizeText(req.body?.name, 120) || null;
+  const recaptchaToken = String(req.body?.recaptchaToken || "").trim();
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: "Correo y contraseña son obligatorios." });
   }
+  if (!recaptchaToken) {
+    return res.status(400).json({ error: "Completa la verificación reCAPTCHA." });
+  }
   if (!isValidFullName(name)) {
-    return res.status(400).json({ error: "Ingresa un nombre y un apellido." });
+    return res.status(400).json({ error: "Ingresa al menos nombre y apellido." });
   }
   if (!EMAIL_REGEX.test(email)) {
     return res.status(400).json({ error: "Correo no válido." });
@@ -246,6 +292,11 @@ async function register(req, res) {
   }
 
   try {
+    const recaptchaValid = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    if (!recaptchaValid) {
+      return res.status(400).json({ error: "Verificación reCAPTCHA inválida." });
+    }
+
     const existing = await pool.query(
       "SELECT id, email_verified, name, email FROM users WHERE LOWER(email) = LOWER($1)",
       [email]
@@ -395,11 +446,20 @@ async function resendVerification(req, res) {
 
 async function forgotPassword(req, res) {
   const email = normalizeEmail(req.body?.email);
+  const recaptchaToken = String(req.body?.recaptchaToken || "").trim();
   if (!email) {
     return res.status(400).json({ error: "Correo requerido." });
   }
+  if (!recaptchaToken) {
+    return res.status(400).json({ error: "Completa la verificación reCAPTCHA." });
+  }
 
   try {
+    const recaptchaValid = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    if (!recaptchaValid) {
+      return res.status(400).json({ error: "Verificación reCAPTCHA inválida." });
+    }
+
     const result = await pool.query(
       `SELECT id, name, email
        FROM users
@@ -496,12 +556,21 @@ async function resetPassword(req, res) {
 async function login(req, res) {
   const email = normalizeEmail(req.body?.email);
   const password = String(req.body?.password || "");
+  const recaptchaToken = String(req.body?.recaptchaToken || "").trim();
 
   if (!email || !password) {
     return res.status(400).json({ error: "Correo y contraseña son obligatorios." });
   }
+  if (!recaptchaToken) {
+    return res.status(400).json({ error: "Completa la verificación reCAPTCHA." });
+  }
 
   try {
+    const recaptchaValid = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    if (!recaptchaValid) {
+      return res.status(400).json({ error: "Verificación reCAPTCHA inválida." });
+    }
+
     const result = await pool.query(
       `SELECT id, email, name, password_hash, role, email_verified
        FROM users

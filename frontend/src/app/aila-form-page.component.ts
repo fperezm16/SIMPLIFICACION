@@ -106,7 +106,7 @@ export class AilaFormPageComponent implements OnInit {
   escortRows = Array.from({ length: this.minEscortRows }, (_, i) => i + 1);
   itemRows = Array.from({ length: this.minItemRows }, (_, i) => i + 1);
   readonly vehicleRows = Array.from({ length: 3 }, (_, i) => i + 1);
-  readonly maxPdfSizeBytes = 10 * 1024 * 1024;
+  readonly maxPdfSizeBytes = 50 * 1024 * 1024;
 
   form = this.fb.group({
     fecha: [''],

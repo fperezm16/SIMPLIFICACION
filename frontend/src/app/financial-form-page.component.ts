@@ -114,67 +114,67 @@ export class FinancialFormPageComponent implements OnInit {
   readonly processOptions: GestionOption[] = [
     {
       value: 'renovacion_arrendamiento',
-      label: 'Solvencia por renovaci\u00f3n de Contrato por Arrendamiento',
+      label: 'Solvencia por renovación de contrato por arrendamiento',
       requiredFields: ['area', 'nomenclatura_area']
     },
     {
       value: 'gestion_tia',
-      label: 'Solvencia por gesti\u00f3n de Tarjeta de Identificaci\u00f3n Aeroportuaria',
+      label: 'Solvencia por gestión de tarjeta de identificación aeroportuaria',
       requiredFields: ['area', 'nomenclatura_area', 'anio']
     },
     {
       value: 'derecho_inspeccion',
-      label: 'Derecho De Inspecci\u00f3n y Aproximaci\u00f3n Matr\u00edcula Guatemalteca',
+      label: 'Derecho de inspección y aproximación matrícula guatemalteca',
       amountOptions: ['Q1,000.00', 'Q300.00'],
       requiredFields: ['matricula', 'peso_kg', 'monto_referencia']
     },
     {
       value: 'cancelacion_matricula',
-      label: 'Solvencia aeronave por cancelaci\u00f3n de matr\u00edcula',
+      label: 'Solvencia de aeronave por cancelación de matrícula',
       requiredFields: ['matricula']
     },
     {
       value: 'certificado_operativo',
-      label: 'Certificado Operativo',
+      label: 'Certificado operativo',
       requiredFields: ['certificado_operativo_subtipo']
     },
     {
       value: 'certificado_operador_aereo',
-      label: 'Certificado Operador A\u00e9reo',
+      label: 'Certificado operador aéreo',
       amountOptions: ['Q1,000.00'],
       requiredFields: ['matricula', 'monto_referencia']
     },
     {
       value: 'cambio_datos_certificados',
-      label: 'Cambio De Datos En Los Certificados',
+      label: 'Cambio de datos en los certificados',
       requiredFields: ['matricula']
     },
     {
       value: 'autorizacion_vuelo_ferry',
-      label: 'Autorizaci\u00f3n para Vuelo Ferry',
+      label: 'Autorización para vuelo ferry',
       amountOptions: ['Q225.00'],
       requiredFields: ['matricula', 'monto_referencia']
     },
     {
       value: 'inspeccion_taller',
-      label: 'Inspecci\u00f3n de Taller',
+      label: 'Inspección de taller',
       amountOptions: ['Q200.00'],
       requiredFields: ['nombre_taller', 'monto_referencia']
     },
     {
       value: 'permiso_especial_vuelo',
-      label: 'Emisi\u00f3n y/o Renovaci\u00f3n de Permiso Especial de Vuelo para Aeronaves (GNA 03)',
+      label: 'Emisión y/o renovación de permiso especial de vuelo para aeronaves (GNA 03)',
       amountOptions: ['Q1,000.00'],
       requiredFields: ['matricula', 'monto_referencia']
     },
     {
       value: 'solvencia_aeronavegabilidad',
-      label: 'Solvencia Aeronave Primer/Renovaci\u00f3n Certificado de Aeronavegabilidad',
+      label: 'Solvencia de aeronave primer/renovación de certificado de aeronavegabilidad',
       requiredFields: ['matricula']
     },
     {
       value: 'solvencia_financiera_aeronave',
-      label: 'Solvencia financiera de Aeronave',
+      label: 'Solvencia financiera de aeronave',
       requiredFields: ['matricula']
     }
   ];
@@ -286,7 +286,7 @@ export class FinancialFormPageComponent implements OnInit {
   status: { type: 'success' | 'error'; message: string } | null = null;
   editingReturnedId: number | null = null;
   loadingReturnedEdit = false;
-  readonly maxPdfSizeBytes = 10 * 1024 * 1024;
+  readonly maxPdfSizeBytes = 50 * 1024 * 1024;
   readonly declaraguateSlots = [0, 1, 2, 3, 4];
   cartaRepresentacionFile: File | null = null;
   cartaRepresentacionError = '';

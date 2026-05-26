@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+﻿import { CommonModule } from '@angular/common';
+import { AfterViewInit, Component, OnInit, inject } from '@angular/core';
 import {
   AbstractControl,
   FormBuilder,
@@ -12,7 +12,27 @@ import { AuthService } from './auth.service';
 
 type Status = { type: 'success' | 'error'; message: string } | null;
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
-const FULL_NAME_PATTERN = /^\p{L}+(?:[-']\p{L}+)?\s+\p{L}+(?:[-']\p{L}+)?$/u;
+type CaptchaMode = Exclude<AuthMode, 'reset'>;
+const FULL_NAME_PATTERN = /^\p{L}+(?:[-']\p{L}+)?(?:\s+\p{L}+(?:[-']\p{L}+)?){1,}$/u;
+const RECAPTCHA_SITE_KEY = '6Ld_jvlsAAAAAOky1H6kWD_2l4ZuEyLKGCYxYz2B';
+const DEV_RECAPTCHA_BYPASS_TOKEN = 'dev-local-bypass';
+
+declare global {
+  interface Window {
+    grecaptcha?: {
+      render: (
+        container: string | HTMLElement,
+        parameters: {
+          sitekey: string;
+          callback?: (token: string) => void;
+          'expired-callback'?: () => void;
+          'error-callback'?: () => void;
+        }
+      ) => number;
+      reset: (widgetId?: number) => void;
+    };
+  }
+}
 
 function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
   const password = String(control.get('password')?.value || '');
@@ -44,6 +64,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <input type="password" formControlName="password" autocomplete="current-password" />
               <span class="error" *ngIf="getLoginError('password')">{{ getLoginError('password') }}</span>
             </label>
+            <div class="captcha-wrap" *ngIf="recaptchaEnabled; else devBypassHint"><div [id]="captchaContainerId('login')"></div></div>
             <button type="submit" [disabled]="loading">Entrar</button>
           </form>
           <div class="helper-row">
@@ -75,6 +96,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <input type="password" formControlName="password" autocomplete="new-password" />
               <span class="error" *ngIf="getRegisterError('password')">{{ getRegisterError('password') }}</span>
             </label>
+            <div class="captcha-wrap" *ngIf="recaptchaEnabled; else devBypassHint"><div [id]="captchaContainerId('register')"></div></div>
             <button type="submit" [disabled]="loading">Crear cuenta</button>
           </form>
         </div>
@@ -87,6 +109,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <input type="email" formControlName="email" autocomplete="email" />
               <span class="error" *ngIf="getForgotError('email')">{{ getForgotError('email') }}</span>
             </label>
+            <div class="captcha-wrap" *ngIf="recaptchaEnabled; else devBypassHint"><div [id]="captchaContainerId('forgot')"></div></div>
             <button type="submit" [disabled]="loading">Enviar enlace</button>
           </form>
           <div class="helper-row">
@@ -95,6 +118,10 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
             </button>
           </div>
         </div>
+
+        <ng-template #devBypassHint>
+          <div class="captcha-bypass">reCAPTCHA desactivado en entorno local.</div>
+        </ng-template>
 
         <div *ngIf="mode === 'reset'">
           <h2>Nueva contraseña</h2>
@@ -145,6 +172,8 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
     .form-grid { display: grid; gap: 10px; margin-top: 8px; }
     label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
     input { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; }
+    .captcha-wrap { min-height: 78px; display: flex; align-items: center; }
+    .captcha-bypass { min-height: 42px; display: flex; align-items: center; color: #64748b; font-size: 13px; }
     button[type="submit"] { padding: 10px 12px; border: 1px solid #0b8fd9; background: linear-gradient(90deg, #0b8fd9, #31a8e8); color: #fff; border-radius: 999px; cursor: pointer; font-weight: 700; }
     button[disabled] { opacity: 0.6; cursor: not-allowed; }
     .helper-row { margin-top: 8px; display: grid; gap: 4px; }
@@ -166,7 +195,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
     .dev-link a { color: inherit; font-weight: 600; }
   `]
 })
-export class AuthPageComponent implements OnInit {
+export class AuthPageComponent implements OnInit, AfterViewInit {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
@@ -180,6 +209,11 @@ export class AuthPageComponent implements OnInit {
   devVerifyUrl = '';
   devResetUrl = '';
   resetToken = '';
+  recaptchaReady = false;
+  readonly recaptchaEnabled = false;
+  private recaptchaScriptLoading = false;
+  private recaptchaWidgets: Partial<Record<CaptchaMode, number>> = {};
+  private recaptchaTokens: Partial<Record<CaptchaMode, string>> = {};
 
   loginForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -202,6 +236,7 @@ export class AuthPageComponent implements OnInit {
   }, { validators: passwordMatchValidator });
 
   ngOnInit(): void {
+    this.ensureRecaptchaScript();
     const verifyToken = String(this.route.snapshot.queryParamMap.get('verify') || '').trim();
     const resetToken = String(this.route.snapshot.queryParamMap.get('reset') || '').trim();
 
@@ -230,11 +265,20 @@ export class AuthPageComponent implements OnInit {
     });
   }
 
+  ngAfterViewInit(): void {
+    this.scheduleCaptchaRender();
+  }
+
   switchMode(mode: AuthMode) {
     this.mode = mode;
     this.status = null;
     this.devVerifyUrl = '';
     this.devResetUrl = '';
+    this.scheduleCaptchaRender();
+  }
+
+  captchaContainerId(mode: CaptchaMode) {
+    return `recaptcha-${mode}`;
   }
 
   getLoginError(field: 'email' | 'password'): string | null {
@@ -249,7 +293,7 @@ export class AuthPageComponent implements OnInit {
     const control = this.registerForm.get(field);
     if (!control || !control.touched || !control.invalid) return null;
     if (control.errors?.['required']) return 'Obligatorio';
-    if (field === 'name' && control.errors?.['pattern']) return 'Ingresa un nombre y un apellido';
+    if (field === 'name' && control.errors?.['pattern']) return 'Ingresa al menos nombre y apellido';
     if (control.errors?.['email']) return 'Correo no válido';
     if (control.errors?.['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
     return 'Valor no válido';
@@ -285,9 +329,14 @@ export class AuthPageComponent implements OnInit {
       this.loginForm.markAllAsTouched();
       return;
     }
+    const recaptchaToken = this.getRecaptchaToken('login');
+    if (!recaptchaToken) {
+      this.status = { type: 'error', message: 'Completa la verificación reCAPTCHA.' };
+      return;
+    }
     const { email, password } = this.loginForm.value;
     this.loading = true;
-    this.auth.login(email || '', password || '').subscribe({
+    this.auth.login(email || '', password || '', recaptchaToken).subscribe({
       next: () => {
         this.loading = false;
         this.router.navigateByUrl('/');
@@ -296,6 +345,7 @@ export class AuthPageComponent implements OnInit {
         this.loading = false;
         this.status = { type: 'error', message: err?.error?.error || 'No se pudo iniciar sesión.' };
         this.canResendVerification = err?.error?.code === 'EMAIL_NOT_VERIFIED';
+        this.resetCaptcha('login');
       }
     });
   }
@@ -309,12 +359,19 @@ export class AuthPageComponent implements OnInit {
       return;
     }
 
+    const recaptchaToken = this.getRecaptchaToken('register');
+    if (!recaptchaToken) {
+      this.status = { type: 'error', message: 'Completa la verificación reCAPTCHA.' };
+      return;
+    }
+
     const { name, email, password } = this.registerForm.value;
     this.loading = true;
     this.auth.register({
       name: name || '',
       email: email || '',
-      password: password || ''
+      password: password || '',
+      recaptchaToken
     }).subscribe({
       next: (resp) => {
         this.loading = false;
@@ -326,10 +383,13 @@ export class AuthPageComponent implements OnInit {
         this.mode = 'login';
         this.canResendVerification = resp.requires_verification === true;
         this.loginForm.patchValue({ email: email || '' });
+        this.resetCaptcha('register');
+        this.scheduleCaptchaRender();
       },
       error: (err) => {
         this.loading = false;
         this.status = { type: 'error', message: err?.error?.error || 'No se pudo registrar el usuario.' };
+        this.resetCaptcha('register');
       }
     });
   }
@@ -367,9 +427,15 @@ export class AuthPageComponent implements OnInit {
       return;
     }
 
+    const recaptchaToken = this.getRecaptchaToken('forgot');
+    if (!recaptchaToken) {
+      this.status = { type: 'error', message: 'Completa la verificación reCAPTCHA.' };
+      return;
+    }
+
     const email = String(this.forgotForm.value.email || '').trim();
     this.loading = true;
-    this.auth.forgotPassword(email).subscribe({
+    this.auth.forgotPassword(email, recaptchaToken).subscribe({
       next: (resp) => {
         this.loading = false;
         this.status = {
@@ -377,10 +443,12 @@ export class AuthPageComponent implements OnInit {
           message: resp?.message || 'Si existe una cuenta con ese correo, enviaremos un enlace.'
         };
         this.devResetUrl = resp?.dev_reset_url || '';
+        this.resetCaptcha('forgot');
       },
       error: (err) => {
         this.loading = false;
         this.status = { type: 'error', message: err?.error?.error || 'No se pudo enviar el enlace.' };
+        this.resetCaptcha('forgot');
       }
     });
   }
@@ -411,6 +479,7 @@ export class AuthPageComponent implements OnInit {
         this.resetToken = '';
         this.resetForm.reset();
         this.clearResetQueryParam();
+        this.scheduleCaptchaRender();
       },
       error: (err) => {
         this.loading = false;
@@ -421,6 +490,76 @@ export class AuthPageComponent implements OnInit {
       }
     });
   }
+
+  private ensureRecaptchaScript() {
+    if (!this.recaptchaEnabled) {
+      this.recaptchaReady = true;
+      return;
+    }
+    if (window.grecaptcha) {
+      this.recaptchaReady = true;
+      this.scheduleCaptchaRender();
+      return;
+    }
+    if (this.recaptchaScriptLoading) return;
+    this.recaptchaScriptLoading = true;
+    const existing = document.querySelector('script[data-recaptcha="true"]') as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => {
+        this.recaptchaReady = true;
+        this.scheduleCaptchaRender();
+      }, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+    script.async = true;
+    script.defer = true;
+    script.dataset['recaptcha'] = 'true';
+    script.onload = () => {
+      this.recaptchaReady = true;
+      this.scheduleCaptchaRender();
+    };
+    document.head.appendChild(script);
+  }
+
+  private scheduleCaptchaRender() {
+    if (this.mode === 'reset' || !this.recaptchaEnabled) return;
+    setTimeout(() => this.renderCaptchaForMode(this.mode as CaptchaMode), 0);
+  }
+
+  private renderCaptchaForMode(mode: CaptchaMode) {
+    if (!this.recaptchaReady || !window.grecaptcha) return;
+    const containerId = this.captchaContainerId(mode);
+    const container = document.getElementById(containerId);
+    if (!container || this.recaptchaWidgets[mode] !== undefined) return;
+    this.recaptchaWidgets[mode] = window.grecaptcha.render(containerId, {
+      sitekey: RECAPTCHA_SITE_KEY,
+      callback: (token: string) => {
+        this.recaptchaTokens[mode] = token;
+      },
+      'expired-callback': () => {
+        this.recaptchaTokens[mode] = '';
+      },
+      'error-callback': () => {
+        this.recaptchaTokens[mode] = '';
+      }
+    });
+  }
+
+  private getRecaptchaToken(mode: CaptchaMode) {
+    if (!this.recaptchaEnabled) return DEV_RECAPTCHA_BYPASS_TOKEN;
+    return String(this.recaptchaTokens[mode] || '').trim();
+  }
+
+  private resetCaptcha(mode: CaptchaMode) {
+    const widgetId = this.recaptchaWidgets[mode];
+    this.recaptchaTokens[mode] = '';
+    if (widgetId !== undefined && window.grecaptcha) {
+      window.grecaptcha.reset(widgetId);
+    }
+  }
+
 
   private clearVerifyQueryParam() {
     this.router.navigate([], {

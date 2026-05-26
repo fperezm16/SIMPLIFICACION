@@ -31,7 +31,7 @@ export class FormPageComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private auth = inject(AuthService);
-  private readonly maxPdfSizeBytes = 10 * 1024 * 1024;
+  private readonly maxPdfSizeBytes = 50 * 1024 * 1024;
 
   readonly apiBase = API_BASE;
   readonly usoOptionsGeneral = [
