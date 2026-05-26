@@ -70,13 +70,13 @@ export class AuthService {
     return !!this.token;
   }
 
-  register(payload: { name: string; email: string; password: string; recaptchaToken: string; }) {
+  register(payload: { name: string; email: string; password: string; }) {
     return this.http.post<RegisterResponse>(`${API_BASE}/auth/register`, payload);
   }
 
-  login(email: string, password: string, recaptchaToken: string) {
+  login(email: string, password: string) {
     return this.http
-      .post<{ token: string; user: AuthUser }>(`${API_BASE}/auth/login`, { email, password, recaptchaToken })
+      .post<{ token: string; user: AuthUser }>(`${API_BASE}/auth/login`, { email, password })
       .pipe(tap(({ token, user }) => this.setSession(token, user)));
   }
 
@@ -91,8 +91,8 @@ export class AuthService {
     );
   }
 
-  forgotPassword(email: string, recaptchaToken: string) {
-    return this.http.post<PasswordRecoveryResponse>(`${API_BASE}/auth/forgot-password`, { email, recaptchaToken });
+  forgotPassword(email: string) {
+    return this.http.post<PasswordRecoveryResponse>(`${API_BASE}/auth/forgot-password`, { email });
   }
 
   resetPassword(token: string, password: string) {
