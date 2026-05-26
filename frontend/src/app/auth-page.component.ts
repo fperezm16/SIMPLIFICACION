@@ -249,7 +249,7 @@ export class AuthPageComponent implements OnInit {
     const control = this.registerForm.get(field);
     if (!control || !control.touched || !control.invalid) return null;
     if (control.errors?.['required']) return 'Obligatorio';
-    if (field === 'name' && control.errors?.['pattern']) return 'Ingresa nombre completo';
+    if (field === 'name' && control.errors?.['pattern']) return 'Ingresa al menos nombre y apellido';
     if (control.errors?.['email']) return 'Correo no válido';
     if (control.errors?.['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
     return 'Valor no válido';
