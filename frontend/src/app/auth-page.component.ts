@@ -63,7 +63,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
           <h2>Crea tu cuenta</h2>
           <p class="muted">Completa tu nombre, correo y contraseña.</p>
           <form [formGroup]="registerForm" (ngSubmit)="submitRegister()" class="form-grid">
-            <label>Nombre y apellido
+            <label>Nombre
               <input type="text" formControlName="name" autocomplete="name" />
               <span class="error" *ngIf="getRegisterError('name')">{{ getRegisterError('name') }}</span>
             </label>
