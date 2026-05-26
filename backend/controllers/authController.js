@@ -236,7 +236,7 @@ async function register(req, res) {
     return res.status(400).json({ error: "Correo y contraseña son obligatorios." });
   }
   if (!isValidFullName(name)) {
-    return res.status(400).json({ error: "Ingresa al menos nombre y apellido." });
+    return res.status(400).json({ error: "Ingresa nombre completo." });
   }
   if (!EMAIL_REGEX.test(email)) {
     return res.status(400).json({ error: "Correo no válido." });
