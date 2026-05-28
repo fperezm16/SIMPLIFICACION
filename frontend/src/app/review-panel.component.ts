@@ -910,30 +910,58 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   private visibleRows() {
-    let rows = this.data;
+    let rows = this.data.filter((d) => !d.delivered_at);
+    if (this.role === 'revisor') {
+      rows = rows.filter((d) => !d.assigned_analista_id || this.canMarkDelivered(d));
+    }
+    if (this.role === this.ailaRecepcionRole) {
+      rows = rows.filter((d) => this.isAilaGenericFlow(d) && !d.assigned_analista_id);
+    }
     if (this.role === 'analista') {
       if (!this.currentUserId) return [];
-      rows = rows.filter((d) => Number(d.assigned_analista_id) === Number(this.currentUserId));
+      rows = rows.filter((d) =>
+        Number(d.assigned_analista_id) === Number(this.currentUserId) &&
+        !d.sent_to_emisor_at &&
+        !d.sent_to_aprobador_at
+      );
     }
     if (this.role === this.ailaRecepcionAvsecRole) {
       if (!this.currentUserId) return [];
-      rows = rows.filter((d) => this.isAilaGenericFlow(d) && Number(d.assigned_analista_id) === Number(this.currentUserId));
+      rows = rows.filter((d) =>
+        this.isAilaGenericFlow(d) &&
+        Number(d.assigned_analista_id) === Number(this.currentUserId) &&
+        !d.sent_to_emisor_at &&
+        !d.sent_to_aprobador_at
+      );
     }
     if (this.role === 'emisor') {
       if (!this.currentUserId) return [];
-      rows = rows.filter((d) => Number(d.assigned_emisor_id) === Number(this.currentUserId));
+      rows = rows.filter((d) =>
+        Number(d.assigned_emisor_id) === Number(this.currentUserId) &&
+        !d.sent_to_aprobador_at &&
+        !d.delivered_at
+      );
     }
     if (this.role === this.ailaJefaturaAvsecRole) {
       if (!this.currentUserId) return [];
-      rows = rows.filter((d) => this.isAilaGenericFlow(d) && Number(d.assigned_emisor_id) === Number(this.currentUserId));
+      rows = rows.filter((d) =>
+        this.isAilaGenericFlow(d) &&
+        Number(d.assigned_emisor_id) === Number(this.currentUserId) &&
+        !d.sent_to_aprobador_at &&
+        !d.delivered_at
+      );
     }
     if (this.role === 'aprobador') {
       if (!this.currentUserId) return [];
-      rows = rows.filter((d) => Number(d.assigned_aprobador_id) === Number(this.currentUserId));
+      rows = rows.filter((d) => Number(d.assigned_aprobador_id) === Number(this.currentUserId) && !d.delivered_at);
     }
     if (this.role === this.ailaJefaturaAilaRole) {
       if (!this.currentUserId) return [];
-      rows = rows.filter((d) => this.isAilaGenericFlow(d) && Number(d.assigned_aprobador_id) === Number(this.currentUserId));
+      rows = rows.filter((d) =>
+        this.isAilaGenericFlow(d) &&
+        Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
+        !d.delivered_at
+      );
     }
     if (this.role === this.avsecFinancieroRole) {
       rows = rows.filter((d) => this.isFinancialAvsecFlow(d) && Boolean(d.approved_at) && Boolean(d.has_signed_pdf || d.signed_pdf_filename));
@@ -1497,6 +1525,9 @@ export class ReviewPanelComponent implements OnChanges {
           this.status = 'Analista asignado.';
           this.loadLogs(submissionId);
           this.saving = false;
+          if ((this.role === 'revisor' || this.role === this.ailaRecepcionRole) && (resp.analista_id ?? null)) {
+            this.cancel();
+          }
           this.updated.emit();
         },
         error: () => {
@@ -1530,6 +1561,9 @@ export class ReviewPanelComponent implements OnChanges {
               this.status = 'Actualizado.';
               this.loadLogs(submissionId);
               this.saving = false;
+              if ((this.role === 'revisor' || this.role === this.ailaRecepcionRole) && (resp.analista_id ?? null)) {
+                this.cancel();
+              }
               this.updated.emit();
             },
             error: () => {
@@ -2111,6 +2145,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
+        this.cancel();
         this.updated.emit();
       },
       error: (err) => {
@@ -2150,6 +2185,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
+        this.cancel();
         this.updated.emit();
       },
       error: (err) => {
@@ -2202,6 +2238,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
+        this.cancel();
         this.updated.emit();
       },
       error: (err) => {
@@ -2258,6 +2295,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
+        this.cancel();
         this.updated.emit();
       },
       error: () => {
@@ -2311,6 +2349,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
+        this.cancel();
         this.updated.emit();
       },
       error: () => {
@@ -2362,6 +2401,7 @@ export class ReviewPanelComponent implements OnChanges {
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
+        this.cancel();
         this.updated.emit();
       },
       error: (err) => {

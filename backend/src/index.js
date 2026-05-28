@@ -2030,6 +2030,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     normalizedGestionNombre.includes("certific") ||
     Boolean(tipo_certificacion)
   );
+  const isDvsoRequest = unidadClave === "DVSO";
   const isFinancialRequest = unidadClave === "FINANCIERO";
   const isAilaRequest = unidadClave === "AILA";
   const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
@@ -2042,6 +2043,12 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
       ["telefono", telefono],
       ["nit", nit]
     ]
+    : isDvsoRequest
+      ? [
+        ["nombre_propietario", nombre_propietario],
+        ["correo", correo],
+        ["telefono", telefono]
+      ]
     : isAilaRequest
       ? [
         ["empresa_arrendatario", nombre_propietario],
@@ -2055,7 +2062,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
       ["correo", correo],
       ["telefono", telefono]
     ];
-  if (!isRanCertificacionRequest && !isFinancialRequest && !isAilaRequest) {
+  if (!isRanCertificacionRequest && !isFinancialRequest && !isAilaRequest && !isDvsoRequest) {
     required.push(["uso", uso]);
   }
   if (requireOwnerDocument && !isFinancialRequest) {
@@ -2067,7 +2074,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (isRanReservaRequest && !isFinancialRequest) {
     required.push(["nombre_orden_pago", nombre_orden_pago]);
   }
-  if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest) {
+  if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !isDvsoRequest) {
     required.push(["matricula_tg", matricula_tg]);
     required.push(["numero_serie", numero_serie]);
   }
@@ -2215,7 +2222,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   }
   const numericValidationError = validateNumericSubmissionFields(
     { documento_propietario, telefono, autorizado_documento, autorizado_telefono },
-    { requireMainPhone: true, requireOwnerDocument: requireOwnerDocument || isFinancialRequest, flexibleMainPhone: isAilaRequest, flexibleOwnerDocument: unidadClave === "RAN" }
+    { requireMainPhone: true, requireOwnerDocument: requireOwnerDocument || isFinancialRequest, flexibleMainPhone: isAilaRequest || isDvsoRequest, flexibleOwnerDocument: unidadClave === "RAN" }
   );
   if (numericValidationError) {
     return res.status(400).json({ error: numericValidationError });
@@ -2571,14 +2578,19 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     if (isAnalyst) {
       params.push(req.user?.sub);
       where.push(`s.assigned_analista_id = $${params.length}`);
+      where.push(`s.sent_to_emisor_at IS NULL`);
+      where.push(`s.sent_to_aprobador_at IS NULL`);
     }
     if (isEmitter) {
       params.push(req.user?.sub);
       where.push(`s.assigned_emisor_id = $${params.length}`);
+      where.push(`s.sent_to_aprobador_at IS NULL`);
+      where.push(`s.delivered_at IS NULL`);
     }
     if (isApprover) {
       params.push(req.user?.sub);
       where.push(`s.assigned_aprobador_id = $${params.length}`);
+      where.push(`s.delivered_at IS NULL`);
     }
     if (isAilaReception) {
       where.push(`s.unidad_clave = 'AILA'`);
@@ -2587,18 +2599,23 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     if (isAilaAdministration) {
       params.push(req.user?.sub);
       where.push(`s.assigned_analista_id = $${params.length}`);
+      where.push(`s.sent_to_emisor_at IS NULL`);
+      where.push(`s.sent_to_aprobador_at IS NULL`);
       where.push(`s.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(s.detalle_formulario->>'tipo_permiso', s.uso, '')) = 'generico'`);
     }
     if (isAilaUetia) {
       params.push(req.user?.sub);
       where.push(`s.assigned_emisor_id = $${params.length}`);
+      where.push(`s.sent_to_aprobador_at IS NULL`);
+      where.push(`s.delivered_at IS NULL`);
       where.push(`s.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(s.detalle_formulario->>'tipo_permiso', s.uso, '')) = 'generico'`);
     }
     if (isAilaJefatura) {
       params.push(req.user?.sub);
       where.push(`s.assigned_aprobador_id = $${params.length}`);
+      where.push(`s.delivered_at IS NULL`);
       where.push(`s.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(s.detalle_formulario->>'tipo_permiso', s.uso, '')) = 'generico'`);
     }
@@ -2750,6 +2767,135 @@ app.get("/api/submissions/search", requireAuth, requireRole(...REVIEW_ROLES), as
   } catch (err) {
     console.error("Error searching submissions", err);
     return res.status(500).json({ error: "No se pudo realizar la búsqueda." });
+  }
+});
+
+app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), async (req, res) => {
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isEmitter = role === "emisor";
+    const isApprover = role === "aprobador";
+    const isAilaReception = role === AILA_ROLE_RECEPCION;
+    const isAilaAdministration = isAilaStage2Role(role);
+    const isAilaUetia = isAilaStage3Role(role);
+    const isAilaJefatura = isAilaStage4Role(role);
+    const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["sub.delivered_at IS NOT NULL"];
+    const params = [];
+
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`sub.unidad_clave = ANY($${params.length})`);
+    }
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`sub.assigned_analista_id = $${params.length}`);
+    }
+    if (isEmitter) {
+      params.push(req.user?.sub);
+      where.push(`sub.assigned_emisor_id = $${params.length}`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`(sub.approved_by_user_id = $${params.length} OR sub.assigned_aprobador_id = $${params.length})`);
+    }
+    if (isAilaReception) {
+      where.push(`sub.unidad_clave = 'AILA'`);
+      where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
+      where.push(`sub.assigned_analista_id IS NULL`);
+    }
+    if (isAilaAdministration) {
+      params.push(req.user?.sub);
+      where.push(`sub.assigned_analista_id = $${params.length}`);
+      where.push(`sub.unidad_clave = 'AILA'`);
+      where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
+    }
+    if (isAilaUetia) {
+      params.push(req.user?.sub);
+      where.push(`sub.assigned_emisor_id = $${params.length}`);
+      where.push(`sub.unidad_clave = 'AILA'`);
+      where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
+    }
+    if (isAilaJefatura) {
+      params.push(req.user?.sub);
+      where.push(`(sub.approved_by_user_id = $${params.length} OR sub.assigned_aprobador_id = $${params.length})`);
+      where.push(`sub.unidad_clave = 'AILA'`);
+      where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
+    }
+    if (isFinancialAvsec) {
+      where.push(`sub.unidad_clave = 'FINANCIERO'`);
+      where.push(`COALESCE(sub.detalle_formulario->>'gestion_grupo_codigo', '') = 'solvencias'`);
+      where.push(`COALESCE(sub.detalle_formulario->>'proceso_codigo', '') = 'gestion_tia'`);
+      where.push(`sub.approved_at IS NOT NULL`);
+      where.push(`sub.signed_pdf IS NOT NULL`);
+    }
+
+    const result = await pool.query(
+      `SELECT
+         s.id,
+         s.registro_codigo,
+         s.gestion_nombre,
+         s.unidad_clave,
+         s.nombre_propietario,
+         s.correo,
+         s.telefono,
+         s.persona_tipo,
+         s.created_at,
+         s.approved_at,
+         s.delivered_at,
+         s.assigned_analista_name,
+         s.assigned_emisor_name,
+         s.assigned_aprobador_name,
+         s.detalle_formulario,
+         s.analyst_pdf_filename,
+         s.signed_pdf_filename,
+         s.carta_representacion_filename,
+         s.dpi_filename,
+         approver.name AS approved_by_name,
+         approver.email AS approved_by_email,
+         delivered.name AS delivered_by_name,
+         delivered.email AS delivered_by_email
+       FROM (
+         SELECT
+           sub.id,
+           sub.registro_codigo,
+           sub.gestion_nombre,
+           sub.unidad_clave,
+           sub.nombre_propietario,
+           sub.correo,
+           sub.telefono,
+           sub.persona_tipo,
+           sub.created_at,
+           sub.approved_at,
+           sub.delivered_at,
+           sub.approved_by_user_id,
+           sub.delivered_by_user_id,
+           sub.detalle_formulario,
+           sub.analyst_pdf_filename,
+           sub.signed_pdf_filename,
+           sub.carta_representacion_filename,
+           sub.dpi_filename,
+           a.name AS assigned_analista_name,
+           e.name AS assigned_emisor_name,
+           ap.name AS assigned_aprobador_name
+         FROM submissions sub
+         LEFT JOIN users a ON a.id = sub.assigned_analista_id
+         LEFT JOIN users e ON e.id = sub.assigned_emisor_id
+         LEFT JOIN users ap ON ap.id = sub.assigned_aprobador_id
+         WHERE ${where.join(" AND ")}
+       ) s
+       LEFT JOIN users approver ON approver.id = s.approved_by_user_id
+       LEFT JOIN users delivered ON delivered.id = s.delivered_by_user_id
+       ORDER BY s.delivered_at DESC, s.id DESC`,
+      params
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error("Error reading submissions archive", err);
+    return res.status(500).json({ error: "No se pudo obtener el archivo de procesos." });
   }
 });
 
@@ -3562,9 +3708,10 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
   }
   const isAilaResubmit = String(req.body?.detalle_formulario?.tipo || '').trim().toLowerCase() === 'aila_permiso_trabajo';
   const isRanResubmit = String((req.body?.unidad_clave || existing.rows[0]?.unidad_clave || '')).trim().toUpperCase() === 'RAN';
+  const isDvsoResubmit = String((req.body?.unidad_clave || existing.rows[0]?.unidad_clave || '')).trim().toUpperCase() === 'DVSO';
   const numericValidationError = validateNumericSubmissionFields(
     { ...(req.body || {}), unidad_clave: req.body?.unidad_clave || existing.rows[0]?.unidad_clave || '' },
-    { onlyProvided: true, flexibleMainPhone: isAilaResubmit, flexibleOwnerDocument: isRanResubmit }
+    { onlyProvided: true, flexibleMainPhone: isAilaResubmit || isDvsoResubmit, flexibleOwnerDocument: isRanResubmit }
   );
   if (numericValidationError) {
     return res.status(400).json({ error: numericValidationError });
@@ -3695,6 +3842,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       Boolean(current.tipo_certificacion) ||
       Boolean(req.body?.tipo_certificacion)
     );
+    const isDvsoRequest = currentUnidad === "DVSO";
     const isFinancialRequest = currentUnidad === "FINANCIERO";
     const isAilaRequest = currentUnidad === "AILA";
     const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
@@ -3875,7 +4023,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     if (isRanReservaRequest && !finalNombreOrdenPago) {
       return res.status(400).json({ error: "En Reserva, PrÃ³rroga o CesiÃ³n de MatrÃ­cula el nombre para orden de pago es obligatorio." });
     }
-    if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !finalNumeroSerie) {
+    if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !isDvsoRequest && !finalNumeroSerie) {
       return res.status(400).json({ error: "NÃºmero de serie es obligatorio." });
     }
 

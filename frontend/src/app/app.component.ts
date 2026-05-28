@@ -31,6 +31,18 @@ import { AuthService } from './auth.service';
                   </div>
                 </div>
                 <div class="units-submenu">
+                  <button type="button" class="submenu-trigger">DVSO</button>
+                  <div class="units-submenu-panel">
+                    <a routerLink="/dvso/dvso-623" routerLinkActive="active-link">DVSO-623 Ala fija</a>
+                    <a routerLink="/dvso/dvso-623a" routerLinkActive="active-link">DVSO-623A Helicóptero</a>
+                    <a routerLink="/dvso/dvso-639" routerLinkActive="active-link">DVSO-639 Solicitud exportación</a>
+                    <a routerLink="/dvso/dvso-639a" routerLinkActive="active-link">DVSO-639A Anexo exportación</a>
+                    <a routerLink="/dvso/dvso-800" routerLinkActive="active-link">DVSO-800 Permiso de vuelo especial</a>
+                    <a routerLink="/dvso/dvso-801" routerLinkActive="active-link">DVSO-801 Dictamen técnico RPA</a>
+                    <a routerLink="/dvso/dvso-ops-805" routerLinkActive="active-link">DVSO-OPS-805 RPA turistas</a>
+                  </div>
+                </div>
+                <div class="units-submenu">
                   <button type="button" class="submenu-trigger">FINANCIERO</button>
                   <div class="units-submenu-panel">
                     <a routerLink="/financiero/solvencia-pago" [queryParams]="{ gestion: 'solvencias' }" routerLinkActive="active-link">Solicitud para emisión de solvencia financiera</a>

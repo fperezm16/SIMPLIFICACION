@@ -16,6 +16,7 @@ import { SearchPageComponent } from './search-page.component';
 import { supervisorGuard } from './supervisor.guard';
 import { FinancialFormPageComponent } from './financial-form-page.component';
 import { AilaFormPageComponent } from './aila-form-page.component';
+import { DvsoFormPageComponent } from './dvso-form-page.component';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -29,6 +30,8 @@ export const appConfig: ApplicationConfig = {
       { path: 'ran/formulario-2', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ran2' } },
       { path: 'ran/formulario-8', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ran8' } },
       { path: 'ran/formulario-drones', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ranUav' } },
+      { path: 'dvso', redirectTo: 'dvso/dvso-639', pathMatch: 'full' },
+      { path: 'dvso/:slug', component: DvsoFormPageComponent, canActivate: [formGuard] },
       { path: 'aila/permiso-trabajo', component: AilaFormPageComponent, canActivate: [formGuard] },
       { path: 'financiero/solvencia-pago', component: FinancialFormPageComponent, canActivate: [formGuard] },
       { path: 'revision', component: ReviewPageComponent, canActivate: [revisorGuard] },

@@ -1,0 +1,149 @@
+<div class="page">
+  <div class="document" *ngIf="currentConfig() as config">
+    <header class="doc-header" *ngIf="!isDvso623()">
+      <div class="logos">
+        <div class="logo-block">
+          <img class="mciv-official-logo" src="assets/mciv-oficial.png" alt="Ministerio de Comunicaciones, Infraestructura y Vivienda">
+        </div>
+        <div class="logo-block right">
+          <img class="dgac-official-logo" src="assets/dgac-oficial.png" alt="Dirección General de Aeronáutica Civil">
+        </div>
+      </div>
+      <div class="title">
+        <h1>{{ config.code }}</h1>
+        <p>Departamento de Vigilancia de la Seguridad Operacional</p>
+        <p>{{ config.shortLabel }}</p>
+      </div>
+    </header>
+
+    <section class="section intro-card" *ngIf="!isDvso623()">
+      <div>
+        <h2>{{ config.title }}</h2>
+        <p>{{ config.subtitle }}</p>
+      </div>
+      <a class="reference-download" [href]="config.pdfAsset" [download]="config.code + '.pdf'">
+        Descargar formato original
+      </a>
+    </section>
+
+    <section class="section date-card" *ngIf="!isDvso623()">
+      <label class="full-row">
+        Fecha
+        <input class="line-input" type="date" [value]="todayDate" readonly>
+      </label>
+    </section>
+
+    <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <ng-container *ngIf="isDvso623(); else genericDvsoForm">
+        <section class="section dvso-623-actions">
+          <a class="reference-download" [href]="config.pdfAsset" [download]="config.code + '.pdf'">
+            Descargar formato original
+          </a>
+        </section>
+
+        <section class="section dvso-623-shell">
+          <div class="dvso-623-scroll">
+            <div class="dvso-623-sheet">
+              <img class="dvso-623-template" src="assets/dvso/dvso-623-template.png" alt="Plantilla DVSO-623">
+
+              <input class="overlay-field cert-number" type="text" formControlName="numero_certificado" aria-label="Número de certificado">
+              <input class="overlay-field type-cert-number" type="text" formControlName="certificado_tipo_numero" aria-label="Número de certificado tipo">
+
+              <input class="overlay-field product" type="text" formControlName="producto_tipo" aria-label="Producto">
+              <input class="overlay-field manufacturer" type="text" formControlName="fabricante_aeronave" aria-label="Fabricante">
+              <input class="overlay-field model" type="text" formControlName="modelo_aeronave" aria-label="Modelo">
+              <input class="overlay-field serial" type="text" formControlName="serie_aeronave" aria-label="Número de serie">
+
+              <label class="overlay-check new-check" aria-label="Nuevo">
+                <input type="radio" formControlName="condicion_aeronave" value="nuevo">
+              </label>
+              <label class="overlay-check used-check" aria-label="Usado">
+                <input type="radio" formControlName="condicion_aeronave" value="usado">
+              </label>
+
+              <input class="overlay-field country" type="text" formControlName="pais_destino" aria-label="País al que se exporta">
+
+              <input class="overlay-field aircraft" type="text" formControlName="matricula_aeronave" aria-label="Aeronave">
+              <input class="overlay-field aircraft-time" type="text" formControlName="tiempo_total_aeronave" aria-label="Tiempo total de la aeronave">
+
+              <input class="overlay-field motor-brand" type="text" formControlName="motor_marca" aria-label="Motor marca">
+              <input class="overlay-field motor-model" type="text" formControlName="motor_modelo" aria-label="Motor modelo">
+              <input class="overlay-field motor-series" type="text" formControlName="motor_serie" aria-label="Motor serie">
+              <input class="overlay-field motor-total" type="text" formControlName="motor_tiempo_total" aria-label="Motor tiempo total">
+              <input class="overlay-field motor-tdr" type="text" formControlName="motor_tiempo_tdr" aria-label="Motor tiempo TDR">
+
+              <input class="overlay-field propeller-brand" type="text" formControlName="helice_marca" aria-label="Hélice marca">
+              <input class="overlay-field propeller-model" type="text" formControlName="helice_modelo" aria-label="Hélice modelo">
+              <input class="overlay-field propeller-series" type="text" formControlName="helice_serie" aria-label="Hélice serie">
+              <input class="overlay-field propeller-total" type="text" formControlName="helice_tiempo_total" aria-label="Hélice tiempo total">
+              <input class="overlay-field propeller-tdr" type="text" formControlName="helice_tiempo_tdr" aria-label="Hélice tiempo TDR">
+
+              <textarea class="overlay-area exceptions" rows="3" formControlName="excepciones" aria-label="Excepciones"></textarea>
+              <input class="overlay-field issue-date" type="date" formControlName="fecha_emision" aria-label="Fecha" readonly>
+            </div>
+          </div>
+
+          <div class="dvso-623-support">
+            <label class="full-row">
+              Correo de contacto <span class="required-reference">*</span>
+              <input class="line-input" type="email" formControlName="contacto_correo" readonly>
+            </label>
+          </div>
+        </section>
+      </ng-container>
+
+      <ng-template #genericDvsoForm>
+        <section class="section" *ngFor="let section of config.sections">
+          <div class="section-title">
+            <span>{{ section.title }}</span>
+          </div>
+          <p class="section-hint" *ngIf="section.description">{{ section.description }}</p>
+          <div class="dvso-grid">
+            <ng-container *ngFor="let field of section.fields">
+              <label [class.full-row]="field.full">
+                {{ field.label }} <span class="required-reference" *ngIf="field.required">*</span>
+
+                <ng-container [ngSwitch]="fieldType(field)">
+                  <textarea
+                    *ngSwitchCase="'textarea'"
+                    class="line-input"
+                    [rows]="fieldRows(field)"
+                    [formControlName]="field.key"
+                    [placeholder]="field.placeholder || ''"></textarea>
+
+                  <select
+                    *ngSwitchCase="'select'"
+                    class="line-input"
+                    [formControlName]="field.key">
+                    <option value="">Selecciona una opción</option>
+                    <option *ngFor="let option of field.options || []" [value]="option.value">{{ option.label }}</option>
+                  </select>
+
+                  <input
+                    *ngSwitchDefault
+                    class="line-input"
+                    [type]="fieldType(field)"
+                    [formControlName]="field.key"
+                    [placeholder]="field.placeholder || ''">
+                </ng-container>
+
+                <small class="field-hint" *ngIf="field.hint">{{ field.hint }}</small>
+                <small class="error" *ngIf="getFieldError(field)">{{ getFieldError(field) }}</small>
+              </label>
+            </ng-container>
+          </div>
+        </section>
+      </ng-template>
+
+      <div class="status" *ngIf="status" [class.ok]="status.type === 'success'" [class.error-box]="status.type === 'error'">
+        {{ status.message }}
+      </div>
+
+      <div class="actions">
+        <button type="submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Enviando...' : 'Guardar formulario DVSO' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
