@@ -10,6 +10,265 @@
   gap: 18px;
 }
 
+.dvso-639-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.dvso-801-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.dvso801-document {
+  border: 1px solid #d6dee8;
+  background: #ffffff;
+  padding: 22px 26px 18px;
+}
+
+.dvso-generic-document {
+  border: 1px solid #d6dee8;
+  background: #ffffff;
+  padding: 22px 26px 18px;
+}
+
+.dvso801-masthead {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  border: 1.5px solid #1f2937;
+  min-height: 124px;
+}
+
+.dvso801-logo-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border-right: 1.5px solid #1f2937;
+}
+
+.dvso801-logo-panel .dgac-official-logo {
+  max-width: 210px;
+  width: 100%;
+  height: auto;
+}
+
+.dvso801-title-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 18px;
+  text-align: center;
+}
+
+.dvso801-code {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #123654;
+}
+
+.dvso801-title-panel h2,
+.dvso801-title-panel p,
+.dvso801-heading h3 {
+  margin: 0;
+}
+
+.dvso801-title-panel h2 {
+  font-size: 16px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #111827;
+}
+
+.dvso801-title-panel p {
+  font-size: 15px;
+  font-weight: 700;
+  color: #173652;
+}
+
+.dvso801-heading {
+  margin: 18px 0 20px;
+  text-align: center;
+}
+
+.dvso801-heading h3 {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.dvso-generic-heading p {
+  margin: 8px 0 0;
+  color: #476178;
+  font-size: 15px;
+}
+
+.dvso-generic-meta {
+  margin-bottom: 20px;
+}
+
+.dvso-generic-fixed {
+  flex: 1;
+  min-height: 34px;
+  border-bottom: 1.5px solid #1f2937;
+  display: inline-flex;
+  align-items: center;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.dvso-generic-block {
+  margin-top: 22px;
+}
+
+.dvso-generic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 22px;
+}
+
+.dvso-generic-field {
+  display: grid;
+  gap: 8px;
+}
+
+.dvso-generic-label {
+  font-weight: 700;
+  color: #173652;
+}
+
+.dvso-generic-input {
+  min-height: 40px;
+  border: 0;
+  border-bottom: 1.5px solid #1f2937;
+  border-radius: 0;
+  padding: 6px 0 4px;
+  background: transparent;
+  color: #0f172a;
+  box-shadow: none;
+}
+
+.dvso-generic-input:focus {
+  border-color: #0b8fd9;
+  box-shadow: none;
+}
+
+.dvso-generic-textarea {
+  min-height: 104px;
+  border: 1px solid #1f2937;
+  padding: 12px 14px;
+}
+
+.dvso801-first-row {
+  margin-bottom: 20px;
+}
+
+.dvso801-block {
+  margin-top: 20px;
+}
+
+.dvso801-line-row,
+.dvso801-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dvso801-item-row {
+  margin-top: 14px;
+}
+
+.dvso801-item-number {
+  min-width: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.dvso801-inline-label,
+.dvso801-comments-label,
+.dvso801-signature-caption {
+  font-weight: 700;
+  color: #111827;
+}
+
+.dvso801-inline-label {
+  white-space: nowrap;
+}
+
+.dvso801-line-input,
+.dvso801-signature-line {
+  flex: 1;
+  border: 0;
+  border-bottom: 1.5px solid #1f2937;
+  border-radius: 0;
+  padding: 2px 0 4px;
+  min-height: 34px;
+  background: transparent;
+  color: #0f172a;
+  box-shadow: none;
+}
+
+.dvso801-line-input:focus,
+.dvso801-signature-line:focus {
+  border-color: #0b8fd9;
+  box-shadow: none;
+}
+
+.dvso801-comments {
+  display: grid;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.dvso801-comments-input {
+  min-height: 116px;
+  border: 1px solid #1f2937;
+  border-radius: 0;
+  padding: 12px 14px;
+  background: transparent;
+  resize: vertical;
+  color: #0f172a;
+}
+
+.dvso801-signature-block {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  margin-top: 26px;
+}
+
+.dvso801-signature-line {
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+}
+
+.dvso801-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid #cbd5e1;
+  font-size: 13px;
+  color: #334155;
+}
+
+.dvso801-footer-right {
+  display: grid;
+  justify-items: end;
+}
+
+.dvso801-footer-separator {
+  display: inline-block;
+  width: 20px;
+}
+
 .dvso-623-scroll {
   overflow-x: auto;
 }
@@ -27,6 +286,56 @@
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.dvso-639-sheet {
+  position: relative;
+  width: min(100%, 1224px);
+  min-width: 960px;
+  aspect-ratio: 1224 / 1584;
+  background: #fff;
+  overflow: hidden;
+}
+
+.dvso-639-template {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dvso-801-sheet {
+  position: relative;
+  width: min(100%, 1224px);
+  min-width: 960px;
+  aspect-ratio: 1224 / 1584;
+  background: #fff;
+  overflow: hidden;
+}
+
+.dvso-801-template {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dvso-801-sheet .overlay-field {
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent !important;
+  height: 1.35%;
+  padding: 0 2px 1px;
+  line-height: 1;
+  font-size: clamp(10px, 0.9vw, 15px);
+  transform: translateY(-42%);
+}
+
+.dvso-801-sheet .overlay-field:focus {
+  outline: none;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .overlay-field,
@@ -105,6 +414,45 @@
 .propeller-tdr { left: 72.5%; top: 64.2%; width: 12.2%; }
 .exceptions { left: 1.6%; top: 71.3%; width: 83%; height: 6.5%; }
 .issue-date { left: 13.6%; top: 78.7%; width: 12.4%; }
+
+.dvso639-matricula { left: 38.5%; top: 12.9%; width: 47.5%; }
+.dvso639-owner { left: 26.1%; top: 18.6%; width: 60.5%; }
+.dvso639-contact { left: 26.2%; top: 22.1%; width: 60.4%; }
+.dvso639-fabricante { left: 31.9%; top: 26.9%; width: 54.7%; }
+.dvso639-modelo { left: 31.9%; top: 30.0%; width: 54.7%; }
+.dvso639-serie { left: 31.9%; top: 33.2%; width: 54.7%; }
+.dvso639-categoria { left: 31.9%; top: 36.3%; width: 54.7%; }
+.dvso639-motores-modelo { left: 31.9%; top: 40.4%; width: 54.7%; }
+.dvso639-motores-serie { left: 31.9%; top: 44.8%; width: 54.7%; }
+.dvso639-helices-modelo { left: 31.9%; top: 49.2%; width: 54.7%; }
+.dvso639-helices-serie { left: 31.9%; top: 52.3%; width: 54.7%; }
+.dvso639-rotor-principal { left: 31.8%; top: 55.5%; width: 54.8%; }
+.dvso639-rotor-cola { left: 31.8%; top: 57.3%; width: 54.8%; }
+.dvso639-peso-rodaje { left: 31.9%; top: 60.5%; width: 54.7%; }
+.dvso639-peso-despegue { left: 31.9%; top: 62.1%; width: 54.7%; }
+.dvso639-pais { left: 32.0%; top: 64.4%; width: 54.6%; }
+.dvso639-importador { left: 26.0%; top: 67.5%; width: 60.6%; }
+.dvso639-info { left: 26.0%; top: 70.8%; width: 60.6%; height: 6.1%; }
+.dvso639-ubicacion { left: 26.0%; top: 78.8%; width: 60.6%; }
+.dvso639-solicitante { left: 13.9%; top: 87.8%; width: 23.5%; height: 3.5%; font-weight: 700; }
+.dvso639-cargo { left: 39.2%; top: 87.8%; width: 22.4%; height: 3.5%; font-weight: 700; }
+.dvso639-firma-fecha { left: 64.6%; top: 87.8%; width: 20.4%; height: 3.5%; font-weight: 700; }
+
+.dvso801-lugar-fecha { left: 37.0%; top: 22.8%; width: 39.5%; }
+.dvso801-entidad { left: 19.6%; top: 35.8%; width: 60.7%; }
+.dvso801-correo { left: 33.8%; top: 40.7%; width: 43.7%; }
+.dvso801-telefono { left: 33.8%; top: 45.4%; width: 44.8%; }
+.dvso801-marca { left: 25.2%; top: 54.1%; width: 54.0%; }
+.dvso801-modelo { left: 25.9%; top: 57.7%; width: 53.2%; }
+.dvso801-serie { left: 41.1%; top: 61.3%; width: 42.8%; }
+.dvso801-peso { left: 56.6%; top: 65.0%; width: 22.7%; }
+.dvso801-cantidad { left: 27.2%; top: 68.6%; width: 51.9%; }
+.dvso801-firma { left: 24.4%; top: 83.9%; width: 46.8%; text-align: center; }
+
+.dvso-801-support {
+  display: grid;
+  gap: 10px;
+}
 
 .dvso-623-support {
   display: grid;
@@ -189,6 +537,14 @@
     width: 960px;
   }
 
+  .dvso-639-sheet {
+    width: 960px;
+  }
+
+  .dvso-801-sheet {
+    width: 960px;
+  }
+
   .intro-card {
     flex-direction: column;
     align-items: flex-start;
@@ -196,5 +552,33 @@
 
   .dvso-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dvso801-masthead {
+    grid-template-columns: 1fr;
+  }
+
+  .dvso801-logo-panel {
+    border-right: 0;
+    border-bottom: 1.5px solid #1f2937;
+  }
+
+  .dvso801-line-row,
+  .dvso801-item-row,
+  .dvso801-footer {
+    display: grid;
+    gap: 8px;
+  }
+
+  .dvso-generic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dvso801-inline-label {
+    white-space: normal;
+  }
+
+  .dvso801-footer-right {
+    justify-items: start;
   }
 }

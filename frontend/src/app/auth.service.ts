@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   name?: string | null;
   role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'emisor' | 'aprobador' | 'avsec_financiero' | 'recepcion_aila' | 'recepcion_avsec' | 'jefatura_avsec' | 'jefatura_aila' | 'user' | string;
+  unit_access?: string[];
 }
 
 export interface RegisterResponse {
@@ -78,6 +79,13 @@ export class AuthService {
     return this.http
       .post<{ token: string; user: AuthUser }>(`${API_BASE}/auth/login`, { email, password })
       .pipe(tap(({ token, user }) => this.setSession(token, user)));
+  }
+
+  me() {
+    return this.http.get<AuthUser>(`${API_BASE}/auth/me`).pipe(tap((user) => {
+      const token = this.token;
+      if (token) this.setSession(token, user);
+    }));
   }
 
   verifyEmail(token: string) {

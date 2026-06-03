@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -53,9 +53,9 @@ const DVSO_FORMS: DvsoFormConfig[] = [
   {
     slug: 'dvso-623',
     code: 'DVSO-623',
-    shortLabel: 'Certificado exportaci?n ala fija',
+    shortLabel: 'Certificado exportación ala fija',
     title: 'FORMA DGAC DVSO-623 CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACI?N ALA FIJA',
-    subtitle: 'Certificado de aeronavegabilidad para exportaci?n de aeronaves de ala fija.',
+    subtitle: 'Certificado de aeronavegabilidad para exportación de aeronaves de ala fija.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-623-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION-ALA-FIJA.pdf',
     payloadMap: {
       nameField: 'producto_tipo',
@@ -71,15 +71,15 @@ const DVSO_FORMS: DvsoFormConfig[] = [
       {
         title: 'Datos del certificado',
         fields: [
-          { key: 'numero_certificado', label: 'N?mero de certificado', required: true },
-          { key: 'certificado_tipo_numero', label: 'N?mero de certificado tipo', required: true },
+          { key: 'numero_certificado', label: 'Número de certificado', required: true },
+          { key: 'certificado_tipo_numero', label: 'Número de certificado tipo', required: true },
           { key: 'producto_tipo', label: 'Producto', required: true },
           { key: 'fabricante_aeronave', label: 'Fabricante', required: true },
           { key: 'modelo_aeronave', label: 'Modelo', required: true },
-          { key: 'serie_aeronave', label: 'N?mero de serie', required: true },
+          { key: 'serie_aeronave', label: 'Número de serie', required: true },
           {
             key: 'condicion_aeronave',
-            label: 'Condici?n',
+            label: 'Condición',
             type: 'select',
             required: true,
             options: [
@@ -87,7 +87,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
               { value: 'usado', label: 'Usado' }
             ]
           },
-          { key: 'pais_destino', label: 'Pa?s al que se exporta', required: true },
+          { key: 'pais_destino', label: 'País al que se exporta', required: true },
           { key: 'matricula_aeronave', label: 'Aeronave', required: true },
           { key: 'tiempo_total_aeronave', label: 'Tiempo total de la aeronave', required: true },
           { key: 'motor_marca', label: 'Motor - Marca', required: true },
@@ -95,14 +95,14 @@ const DVSO_FORMS: DvsoFormConfig[] = [
           { key: 'motor_serie', label: 'Motor - Serie(s)', required: true },
           { key: 'motor_tiempo_total', label: 'Motor - Tiempo total', required: true },
           { key: 'motor_tiempo_tdr', label: 'Motor - Tiempo TDR', required: true },
-          { key: 'helice_marca', label: 'H?lice - Marca', required: true },
-          { key: 'helice_modelo', label: 'H?lice - Modelo', required: true },
-          { key: 'helice_serie', label: 'H?lice - Serie(s)', required: true },
-          { key: 'helice_tiempo_total', label: 'H?lice - Tiempo total', required: true },
-          { key: 'helice_tiempo_tdr', label: 'H?lice - Tiempo TDR', required: true },
+          { key: 'helice_marca', label: 'Hélice - Marca', required: true },
+          { key: 'helice_modelo', label: 'Hélice - Modelo', required: true },
+          { key: 'helice_serie', label: 'Hélice - Serie(s)', required: true },
+          { key: 'helice_tiempo_total', label: 'Hélice - Tiempo total', required: true },
+          { key: 'helice_tiempo_tdr', label: 'Hélice - Tiempo TDR', required: true },
           { key: 'excepciones', label: 'Excepciones', type: 'textarea', rows: 3, full: true },
           { key: 'fecha_emision', label: 'Fecha', type: 'date', required: true },
-          { key: 'contacto_correo', label: 'Correo electr?nico de contacto', type: 'email', required: true }
+          { key: 'contacto_correo', label: 'Correo electrónico de contacto', type: 'email', required: true }
         ]
       }
     ]
@@ -179,60 +179,44 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     slug: 'dvso-639',
     code: 'DVSO-639',
     shortLabel: 'Solicitud certificado exportación',
-    title: 'FORMA DGAC DVSO-639 SOLICITUD PARA CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACIÓN',
+    title: 'FORMA DGAC DVSO-639 SOLICITUD PARA CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACI?N',
     subtitle: 'Solicitud del certificado de aeronavegabilidad para exportación.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-639-SOLICITUD-PARA-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION.pdf',
     payloadMap: {
-      nameField: 'propietario_nombre',
-      addressField: 'propietario_direccion',
-      phoneField: 'propietario_telefono',
-      emailField: 'propietario_correo',
+      nameField: 'propietario_nombre_direccion',
+      addressField: 'propietario_nombre_direccion',
+      phoneField: 'propietario_contacto',
+      emailField: 'propietario_contacto',
       registrationField: 'matricula_aeronave',
       serialField: 'serie_aeronave',
       notesField: 'informacion_adicional'
     },
     sections: [
       {
-        title: 'Datos del propietario',
+        title: 'Datos de la solicitud',
         fields: [
           { key: 'matricula_aeronave', label: 'Matrícula de la aeronave', required: true },
-          { key: 'propietario_nombre', label: 'Nombre del propietario', required: true },
-          { key: 'propietario_direccion', label: 'Dirección del propietario', required: true, full: true },
-          { key: 'propietario_telefono', label: 'Número de teléfono del propietario', type: 'tel', required: true },
-          { key: 'propietario_correo', label: 'Correo electrónico del propietario', type: 'email', required: true }
-        ]
-      },
-      {
-        title: 'Detalles de la aeronave',
-        fields: [
+          { key: 'propietario_nombre_direccion', label: 'Nombre y dirección del propietario', required: true, full: true },
+          { key: 'propietario_contacto', label: 'Número de teléfono y correo electrónico del propietario', required: true, full: true },
           { key: 'fabricante_aeronave', label: 'Fabricante de la aeronave', required: true },
           { key: 'tipo_modelo_aeronave', label: 'Tipo y modelo de la aeronave', required: true },
           { key: 'serie_aeronave', label: 'Número de serie de la aeronave', required: true },
           { key: 'categoria_aeronave', label: 'Categoría de la aeronave', required: true },
-          { key: 'motores_detalle', label: 'Detalle de motor(es)', type: 'textarea', rows: 3, full: true, required: true },
-          { key: 'helices_detalle', label: 'Detalle de hélice(s)', type: 'textarea', rows: 3, full: true },
+          { key: 'motores_modelo', label: 'Tipo y modelo de motores', required: true, full: true },
+          { key: 'motores_serie', label: 'Número de serie de los motores', required: true, full: true },
+          { key: 'helices_modelo', label: 'Tipo y modelo de hélice(s)', full: true },
+          { key: 'helices_serie', label: 'Número de serie(s)', full: true },
           { key: 'rotor_principal', label: 'Rotor principal (si aplica)', full: true },
           { key: 'rotor_cola', label: 'Rotor de cola (si aplica)', full: true },
-          { key: 'peso_maximo_rodaje', label: 'Peso máximo de rodaje (kg)', type: 'number' },
-          { key: 'peso_maximo_despegue', label: 'Peso máximo de despegue (kg)', type: 'number' }
-        ]
-      },
-      {
-        title: 'Datos de exportación',
-        fields: [
+          { key: 'peso_maximo_rodaje', label: 'Peso m?ximo de rodaje (kg)', type: 'text' },
+          { key: 'peso_maximo_despegue', label: 'Peso m?ximo de despegue (kg)', type: 'text' },
           { key: 'pais_importacion', label: 'País de importación', required: true },
-          { key: 'importador_nombre', label: 'Nombre del importador', required: true },
-          { key: 'importador_direccion', label: 'Dirección del importador', required: true, full: true },
-          { key: 'ubicacion_inspeccion', label: 'Ubicación de la aeronave para inspección física', required: true, full: true },
-          { key: 'informacion_adicional', label: 'Información adicional o requisitos especiales del Estado importador', type: 'textarea', rows: 4, full: true }
-        ]
-      },
-      {
-        title: 'Declaración',
-        fields: [
+          { key: 'importador_nombre_direccion', label: 'Nombre y dirección del importador', required: true, full: true },
+          { key: 'informacion_adicional', label: 'Información adicional o requisitos especiales del Estado importador', type: 'textarea', rows: 4, full: true },
+          { key: 'ubicacion_inspeccion', label: 'Ubicación de la aeronave para efectuar inspección física', required: true, full: true },
           { key: 'solicitante_nombre', label: 'Nombre del solicitante', required: true },
           { key: 'solicitante_cargo', label: 'Cargo del solicitante', required: true },
-          { key: 'declaracion_veracidad', label: 'Declaración de veracidad de la información', type: 'textarea', rows: 3, full: true, required: true }
+          { key: 'firma_fecha', label: 'Firma y fecha', required: true }
         ]
       }
     ]
@@ -399,7 +383,8 @@ const DVSO_FORMS: DvsoFormConfig[] = [
           { key: 'serie_rpa', label: 'Número de serie (si corresponde)', required: true },
           { key: 'peso_rpa', label: 'Peso de la RPA', type: 'number', required: true },
           { key: 'cantidad_rpa', label: 'Cantidad', type: 'number', required: true },
-          { key: 'uso_previsto', label: 'Uso previsto / comentarios', type: 'textarea', rows: 4, full: true }
+          { key: 'uso_previsto', label: 'Uso previsto / comentarios', type: 'textarea', rows: 4, full: true },
+          { key: 'firma_solicitante', label: 'Firma', full: true }
         ]
       }
     ]
@@ -473,6 +458,8 @@ export class DvsoFormPageComponent implements OnInit {
   readonly forms = DVSO_FORMS;
   readonly currentConfig = signal<DvsoFormConfig | null>(null);
   readonly todayDate = new Date().toISOString().slice(0, 10);
+  readonly todayDisplayDate = this.formatDisplayDate(this.todayDate);
+  readonly dvso801PresentationPlace = `Guatemala, ${this.formatDisplayDate(this.todayDate)}`;
   readonly pageTitle = computed(() => this.currentConfig()?.title || 'Formulario DVSO');
 
   status: { type: 'success' | 'error'; message: string } | null = null;
@@ -493,6 +480,14 @@ export class DvsoFormPageComponent implements OnInit {
     return this.currentConfig()?.slug === 'dvso-623';
   }
 
+  isDvso639() {
+    return this.currentConfig()?.slug === 'dvso-639';
+  }
+
+  isDvso801() {
+    return this.currentConfig()?.slug === 'dvso-801';
+  }
+
   buildForm(config: DvsoFormConfig) {
     const controls: Record<string, unknown[]> = {};
     for (const section of config.sections) {
@@ -506,11 +501,26 @@ export class DvsoFormPageComponent implements OnInit {
     this.form = this.fb.group(controls);
     if (config.slug === 'dvso-623') {
       this.form.patchValue({
-        fecha_emision: this.todayDate,
-        contacto_correo: this.auth.currentUser?.email || ''
+        fecha_emision: this.todayDate
+      }, { emitEvent: false });
+    }
+    if (config.slug === 'dvso-639') {
+      this.form.patchValue({
+        firma_fecha: this.todayDate
+      }, { emitEvent: false });
+    }
+    if (config.slug === 'dvso-801') {
+      this.form.patchValue({
+        lugar_fecha_presentacion: this.dvso801PresentationPlace
       }, { emitEvent: false });
     }
     this.status = null;
+  }
+
+  private formatDisplayDate(value: string) {
+    const [year, month, day] = String(value || '').split('-');
+    if (!year || !month || !day) return value;
+    return `${day}/${month}/${year}`;
   }
 
   fieldType(field: DvsoField) {
@@ -519,6 +529,14 @@ export class DvsoFormPageComponent implements OnInit {
 
   fieldRows(field: DvsoField) {
     return field.rows || 3;
+  }
+
+  isReadonlyField(field: DvsoField) {
+    const slug = this.currentConfig()?.slug;
+    if (!slug) return false;
+    if (slug === 'dvso-623') return field.key === 'fecha_emision';
+    if (slug === 'dvso-639') return field.key === 'firma_fecha';
+    return false;
   }
 
   getFieldError(field: DvsoField): string | null {
@@ -539,25 +557,47 @@ export class DvsoFormPageComponent implements OnInit {
     }
 
     const values = this.form.getRawValue() as Record<string, string>;
-    const payload = this.buildPayload(config, values);
-
     this.isSubmitting = true;
-    this.http.post(`${this.apiBase}/submissions`, payload).subscribe({
-      next: (saved: any) => {
-        const registro = saved?.registro_codigo ? ` Correlativo: ${saved.registro_codigo}.` : '';
-        this.status = { type: 'success', message: `Formulario DVSO enviado correctamente.${registro}` };
-        this.form.reset();
-        this.buildForm(config);
+    this.buildPayload(config, values)
+      .then((payload) => {
+        this.http.post(`${this.apiBase}/submissions`, payload).subscribe({
+          next: (saved: any) => {
+            const registro = saved?.registro_codigo ? ` Correlativo: ${saved.registro_codigo}.` : '';
+            this.status = { type: 'success', message: `Formulario DVSO enviado correctamente.${registro}` };
+            this.form.reset();
+            this.buildForm(config);
+            this.isSubmitting = false;
+          },
+          error: (err) => {
+            this.status = { type: 'error', message: err?.error?.error || 'No se pudo enviar el formulario DVSO.' };
+            this.isSubmitting = false;
+          }
+        });
+      })
+      .catch(() => {
+        this.status = { type: 'error', message: 'No se pudo preparar el PDF original del formulario 801.' };
         this.isSubmitting = false;
-      },
-      error: (err) => {
-        this.status = { type: 'error', message: err?.error?.error || 'No se pudo enviar el formulario DVSO.' };
-        this.isSubmitting = false;
-      }
-    });
+      });
   }
 
-  private buildPayload(config: DvsoFormConfig, values: Record<string, string>) {
+  private async buildPayload(config: DvsoFormConfig, values: Record<string, string>) {
+    if (config.slug === 'dvso-639') {
+      return this.buildDvso639Payload(config, values);
+    }
+    const payload = this.buildBasePayload(config, values);
+    if (config.slug === 'dvso-801') {
+      const originalForm = await this.buildDvso801OriginalPdf(values);
+      return {
+        ...payload,
+        original_form_pdf_base64: originalForm.base64,
+        original_form_filename: originalForm.filename,
+        original_form_mime: 'application/pdf'
+      };
+    }
+    return payload;
+  }
+
+  private buildBasePayload(config: DvsoFormConfig, values: Record<string, string>) {
     const map = config.payloadMap;
     const detail = {
       tipo: 'dvso',
@@ -583,4 +623,110 @@ export class DvsoFormPageComponent implements OnInit {
     };
   }
 
+  private async buildDvso801OriginalPdf(values: Record<string, string>) {
+    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+    const bytes = await fetch('assets/dvso/FORMA-DGAC-DVSO-801-SOLICITUD-DICTAMEN-TECNICO-AERONAVE-PILOTADAS-A-DISTANCIA-RPA.pdf')
+      .then((response) => response.arrayBuffer());
+    const pdfDoc = await PDFDocument.load(bytes);
+    const page = pdfDoc.getPage(0);
+    const { width, height } = page.getSize();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const ink = rgb(0.1, 0.17, 0.28);
+
+    const writeField = (
+      value: string,
+      left: number,
+      top: number,
+      fieldWidth: number,
+      opts: { size?: number; align?: 'left' | 'center' } = {}
+    ) => {
+      const text = String(value || '').trim();
+      if (!text) return;
+      const size = opts.size || 10;
+      const y = height - (top * height) - size;
+      const x = left * width;
+      const maxWidth = fieldWidth * width;
+      const activeFont = opts.align === 'center' ? boldFont : font;
+      const textWidth = activeFont.widthOfTextAtSize(text, size);
+      const drawX = opts.align === 'center'
+        ? x + Math.max(0, (maxWidth - textWidth) / 2)
+        : x + 2;
+      page.drawText(text, {
+        x: drawX,
+        y,
+        size,
+        font: activeFont,
+        color: ink,
+        maxWidth
+      });
+    };
+
+    writeField(values['lugar_fecha_presentacion'], 0.37, 0.228, 0.395);
+    writeField(values['entidad_nombre'], 0.196, 0.358, 0.607);
+    writeField(values['correo_contacto'], 0.338, 0.407, 0.437);
+    writeField(values['telefono_contacto'], 0.338, 0.454, 0.448);
+    writeField(values['marca_rpa'], 0.252, 0.541, 0.54);
+    writeField(values['modelo_rpa'], 0.259, 0.577, 0.532);
+    writeField(values['serie_rpa'], 0.411, 0.613, 0.428);
+    writeField(values['peso_rpa'], 0.566, 0.65, 0.227);
+    writeField(values['cantidad_rpa'], 0.272, 0.686, 0.519);
+    writeField(values['firma_solicitante'], 0.244, 0.839, 0.468, { size: 11, align: 'center' });
+
+    return {
+      base64: this.bytesToBase64(await pdfDoc.save()),
+      filename: `dvso-801-${this.todayDate}.pdf`
+    };
+  }
+
+  private bytesToBase64(bytes: Uint8Array) {
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      const chunk = bytes.subarray(index, index + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    return btoa(binary);
+  }
+
+  private buildDvso639Payload(config: DvsoFormConfig, values: Record<string, string>) {
+    const ownerLine = String(values['propietario_nombre_direccion'] || '').trim();
+    const ownerContactLine = String(values['propietario_contacto'] || '').trim();
+    const emailMatch = ownerContactLine.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    const phoneMatch = ownerContactLine.match(/[\d+\-()\s]{8,}/);
+    const importerLine = String(values['importador_nombre_direccion'] || '').trim();
+
+    const detail = {
+      tipo: 'dvso',
+      codigo: config.code,
+      slug: config.slug,
+      titulo: config.title,
+      ...values
+    };
+
+    return {
+      unidad_clave: 'DVSO',
+      gestion_nombre: config.title,
+      nombre_propietario: ownerLine,
+      representante_legal: String(values['solicitante_nombre'] || '').trim() || null,
+      documento_propietario: null,
+      direccion: ownerLine || 'N/D',
+      telefono: phoneMatch ? phoneMatch[0].trim() : 'N/D',
+      correo: emailMatch ? emailMatch[0].trim() : String(this.auth.currentUser?.email || '').trim(),
+      uso: config.code,
+      matricula_tg: String(values['matricula_aeronave'] || '').trim() || null,
+      numero_serie: String(values['serie_aeronave'] || '').trim() || null,
+      especificaciones: [
+        values['informacion_adicional'],
+        importerLine ? `Importador: ${importerLine}` : '',
+        values['ubicacion_inspeccion'] ? `Ubicación inspección: ${values['ubicacion_inspeccion']}` : '',
+        values['firma_fecha'] ? `Firma y fecha: ${values['firma_fecha']}` : ''
+      ].filter(Boolean).join('\n'),
+      detalle_formulario: detail
+    };
+  }
+
 }
+
+
+

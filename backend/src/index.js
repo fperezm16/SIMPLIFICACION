@@ -1548,6 +1548,13 @@ function resolveBrowserExecutablePath() {
 }
 
 async function buildSubmissionPdfBuffer(submission) {
+  const isDvso801Original =
+    String(submission?.unidad_clave || "").toUpperCase() === "DVSO" &&
+    String(submission?.detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801" &&
+    submission?.original_form_pdf;
+  if (isDvso801Original) {
+    return submission.original_form_pdf;
+  }
   const executablePath = resolveBrowserExecutablePath();
   if (!executablePath) {
     console.error("No se encontro Chrome/Edge para generar el PDF. Se usara PDF de respaldo.");
@@ -1755,6 +1762,10 @@ function normalizeUnitKey(value) {
 }
 
 function buildSupervisorDashboard(rows) {
+  if (isDvso801Request && !originalFormPdfBuffer) {
+    return res.status(400).json({ error: "El formulario 801 debe enviarse usando el PDF original completado." });
+  }
+
   const now = new Date();
   const unitMap = new Map();
   const processRows = [];
@@ -1923,6 +1934,29 @@ app.use(express.json({ limit: "100mb" }));
 app.use("/api/payments", paymentRoutes);
 app.use("/api/auth", authRouter);
 
+app.get("/api/auth/me", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, email, name, role, unit_access FROM users WHERE id = $1",
+      [req.user?.sub]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Usuario no encontrado." });
+    }
+    const user = result.rows[0];
+    return res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      unit_access: normalizeUnitAccess(user.unit_access)
+    });
+  } catch (err) {
+    console.error("Error obteniendo perfil actual", err);
+    return res.status(500).json({ error: "No se pudo obtener el perfil actual." });
+  }
+});
+
 
 
 app.get("/api/health", (_req, res) => {
@@ -2010,6 +2044,9 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     carta_representacion_pdf_base64,
     carta_representacion_filename,
     carta_representacion_mime,
+    original_form_pdf_base64,
+    original_form_filename,
+    original_form_mime,
     payment_id
   } = req.body;
 
@@ -2031,6 +2068,9 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     Boolean(tipo_certificacion)
   );
   const isDvsoRequest = unidadClave === "DVSO";
+  const isDvso801Request =
+    isDvsoRequest &&
+    String(detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801";
   const isFinancialRequest = unidadClave === "FINANCIERO";
   const isAilaRequest = unidadClave === "AILA";
   const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
@@ -2106,6 +2146,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   let ailaEscortPwd1PdfBuffer;
   let ailaEscortPwd2PdfBuffer;
   let ailaEscortPwd3PdfBuffer;
+  let originalFormPdfBuffer;
   try {
     dpiPdfBuffer = decodePdfBase64(dpi_pdf_base64, "El PDF de DPI");
     financialDeclaraguate2PdfBuffer = decodePdfBase64(financial_declaraguate_2_pdf_base64, "El PDF Declaraguate 2");
@@ -2122,6 +2163,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     ailaEscortPwd1PdfBuffer = decodePdfBase64(aila_escort_pwd_1_pdf_base64, "El PDF del escolta 1");
     ailaEscortPwd2PdfBuffer = decodePdfBase64(aila_escort_pwd_2_pdf_base64, "El PDF del escolta 2");
     ailaEscortPwd3PdfBuffer = decodePdfBase64(aila_escort_pwd_3_pdf_base64, "El PDF del escolta 3");
+    originalFormPdfBuffer = decodePdfBase64(original_form_pdf_base64, "El PDF original del formulario");
   } catch (err) {
     return res.status(400).json({ error: err.message || "Uno de los PDFs no es valido." });
   }
@@ -2366,6 +2408,9 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
           carta_representacion_pdf,
           carta_representacion_filename,
           carta_representacion_mime,
+          original_form_pdf,
+          original_form_filename,
+          original_form_mime,
           created_by_user_id,
           payment_id
         )
@@ -2375,7 +2420,8 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
           $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
           $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,
           $41,$42,$43,$44,$45,$46,$47,$48,$49,$50,
-          $51,$52,$53,$54,$55,$56,$57,$58,$59,$60,$61,$62
+          $51,$52,$53,$54,$55,$56,$57,$58,$59,$60,
+          $61,$62,$63,$64,$65
         )
         RETURNING *
       `,
@@ -2440,6 +2486,9 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
         cartaRepresentacionPdfBuffer,
         carta_representacion_filename || null,
         carta_representacion_mime || null,
+        originalFormPdfBuffer,
+        original_form_filename || null,
+        original_form_mime || null,
         req.user?.sub || null,
         payment_id || null
       ]
@@ -2522,7 +2571,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     await registerSubmissionLog({
       submissionId: created.id,
       eventCode: "usuario_envio",
-      eventLabel: "Usuario enviÃ³ el formulario",
+      eventLabel: "Usuario envió el formulario",
       eventDetail: `${unidadClave === "FINANCIERO" ? "DEPARTAMENTO FINANCIERO" : `Unidad ${unidadClave}`}${gestionNombre ? ` - ${gestionNombre}` : ""}`,
       actorUserId: req.user?.sub || null,
       actorRole: req.user?.role || "user",
@@ -2773,9 +2822,6 @@ app.get("/api/submissions/search", requireAuth, requireRole(...REVIEW_ROLES), as
 app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), async (req, res) => {
   try {
     const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
-    const isAnalyst = role === "analista";
-    const isEmitter = role === "emisor";
-    const isApprover = role === "aprobador";
     const isAilaReception = role === AILA_ROLE_RECEPCION;
     const isAilaAdministration = isAilaStage2Role(role);
     const isAilaUetia = isAilaStage3Role(role);
@@ -2790,38 +2836,19 @@ app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), a
       params.push(unitAccess);
       where.push(`sub.unidad_clave = ANY($${params.length})`);
     }
-    if (isAnalyst) {
-      params.push(req.user?.sub);
-      where.push(`sub.assigned_analista_id = $${params.length}`);
-    }
-    if (isEmitter) {
-      params.push(req.user?.sub);
-      where.push(`sub.assigned_emisor_id = $${params.length}`);
-    }
-    if (isApprover) {
-      params.push(req.user?.sub);
-      where.push(`(sub.approved_by_user_id = $${params.length} OR sub.assigned_aprobador_id = $${params.length})`);
-    }
     if (isAilaReception) {
       where.push(`sub.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
-      where.push(`sub.assigned_analista_id IS NULL`);
     }
     if (isAilaAdministration) {
-      params.push(req.user?.sub);
-      where.push(`sub.assigned_analista_id = $${params.length}`);
       where.push(`sub.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
     }
     if (isAilaUetia) {
-      params.push(req.user?.sub);
-      where.push(`sub.assigned_emisor_id = $${params.length}`);
       where.push(`sub.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
     }
     if (isAilaJefatura) {
-      params.push(req.user?.sub);
-      where.push(`(sub.approved_by_user_id = $${params.length} OR sub.assigned_aprobador_id = $${params.length})`);
       where.push(`sub.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
     }
@@ -2997,6 +3024,7 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
 
 app.get("/api/financial-approved-history", requireAuth, requireRole("aprobador"), async (req, res) => {
   try {
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
     const result = await pool.query(
       `SELECT
          s.id,
@@ -3018,7 +3046,7 @@ app.get("/api/financial-approved-history", requireAuth, requireRole("aprobador")
          ORDER BY sl.created_at DESC, sl.id DESC
          LIMIT 1
        ) l ON true
-       WHERE s.unidad_clave = 'FINANCIERO'
+       WHERE s.unidad_clave = ANY($2)
          AND s.approved_by_user_id = $1
          AND (
            s.approved_at IS NOT NULL
@@ -3026,7 +3054,7 @@ app.get("/api/financial-approved-history", requireAuth, requireRole("aprobador")
            OR l.created_at IS NOT NULL
          )
        ORDER BY COALESCE(l.created_at, s.approved_at, s.sent_to_aprobador_at, s.created_at) DESC, s.id DESC`,
-      [req.user?.sub]
+      [req.user?.sub, unitAccess]
     );
     return res.json(result.rows);
   } catch (err) {
@@ -3041,6 +3069,7 @@ app.get("/api/financial-approved-history/:id", requireAuth, requireRole("aprobad
     return res.status(400).json({ error: "ID no válido." });
   }
   try {
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
     const submissionResult = await pool.query(
       `SELECT
          s.id,
@@ -3063,9 +3092,9 @@ app.get("/api/financial-approved-history/:id", requireAuth, requireRole("aprobad
        LEFT JOIN users e ON e.id = s.assigned_emisor_id
        LEFT JOIN users ap ON ap.id = s.assigned_aprobador_id
        WHERE s.id = $1
-         AND s.unidad_clave = 'FINANCIERO'
+         AND s.unidad_clave = ANY($3)
          AND s.approved_by_user_id = $2`,
-      [submissionId, req.user?.sub]
+      [submissionId, req.user?.sub, unitAccess]
     );
     if (!submissionResult.rowCount) {
       return res.status(404).json({ error: "Proceso aprobado no encontrado." });
@@ -3098,6 +3127,192 @@ app.get("/api/financial-approved-history/:id", requireAuth, requireRole("aprobad
   } catch (err) {
     console.error("Error reading financial approved history detail", err);
     return res.status(500).json({ error: "No se pudo obtener el detalle del proceso aprobado." });
+  }
+});
+
+app.get("/api/approver-dashboard", requireAuth, requireRole("aprobador"), async (req, res) => {
+  try {
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
+    const dashboardUnits = unitAccess.filter((unit) => unit === "RAN" || unit === "FINANCIERO");
+    if (!dashboardUnits.length) {
+      return res.json({
+        units: [],
+        summary: {
+          active_total: 0,
+          pending_approval_total: 0,
+          approved_total: 0,
+          delivered_total: 0
+        },
+        stage_timings: [],
+        process_bottlenecks: [],
+        active_assignments: []
+      });
+    }
+
+    const result = await pool.query(
+      `SELECT
+         s.id,
+         s.registro_codigo,
+         s.gestion_nombre,
+         s.unidad_clave,
+         s.nombre_propietario,
+         s.created_at,
+         s.sent_to_emisor_at,
+         s.sent_to_aprobador_at,
+         s.approved_at,
+         s.delivered_at,
+         s.assigned_analista_id,
+         s.assigned_emisor_id,
+         s.assigned_aprobador_id,
+         analyst.name AS assigned_analista_name,
+         analyst.email AS assigned_analista_email,
+         emitter.name AS assigned_emisor_name,
+         emitter.email AS assigned_emisor_email,
+         approver.name AS assigned_aprobador_name,
+         approver.email AS assigned_aprobador_email
+       FROM submissions s
+       LEFT JOIN users analyst ON analyst.id = s.assigned_analista_id
+       LEFT JOIN users emitter ON emitter.id = s.assigned_emisor_id
+       LEFT JOIN users approver ON approver.id = s.assigned_aprobador_id
+       WHERE s.unidad_clave = ANY($1::TEXT[])
+       ORDER BY s.created_at DESC, s.id DESC`,
+      [dashboardUnits]
+    );
+
+    const rows = result.rows;
+    const now = Date.now();
+    const toMs = (value) => {
+      if (!value) return null;
+      const time = new Date(value).getTime();
+      return Number.isNaN(time) ? null : time;
+    };
+    const hoursBetween = (start, end) => {
+      const startMs = toMs(start);
+      const endMs = toMs(end);
+      if (startMs === null || endMs === null || endMs < startMs) return null;
+      return (endMs - startMs) / 36e5;
+    };
+
+    const activeAssignments = rows
+      .filter((row) => !row.delivered_at)
+      .map((row) => {
+        const stage =
+          row.approved_at ? "Aprobado pendiente de entrega" :
+          (row.assigned_aprobador_id || row.sent_to_aprobador_at) ? "En aprobación" :
+          (row.assigned_emisor_id || row.sent_to_emisor_at) ? "En emisor" :
+          row.assigned_analista_id ? "En analista" :
+          "Sin asignar";
+
+        const responsibleName =
+          stage === "En aprobación"
+            ? (row.assigned_aprobador_name || row.assigned_aprobador_email || "Sin asignar")
+            : stage === "En emisor"
+              ? (row.assigned_emisor_name || row.assigned_emisor_email || "Sin asignar")
+              : stage === "En analista"
+                ? (row.assigned_analista_name || row.assigned_analista_email || "Sin asignar")
+                : stage === "Aprobado pendiente de entrega"
+                  ? (row.assigned_aprobador_name || row.assigned_aprobador_email || "Aprobado")
+                  : "Sin asignar";
+
+        const createdMs = toMs(row.created_at);
+        return {
+          id: row.id,
+          registro_codigo: row.registro_codigo,
+          gestion_nombre: row.gestion_nombre,
+          unidad_clave: row.unidad_clave,
+          nombre_propietario: row.nombre_propietario,
+          current_stage: stage,
+          responsible_name: responsibleName,
+          age_hours: createdMs === null ? null : Number(((now - createdMs) / 36e5).toFixed(1)),
+          assigned_analista_name: row.assigned_analista_name || row.assigned_analista_email || null,
+          assigned_emisor_name: row.assigned_emisor_name || row.assigned_emisor_email || null,
+          assigned_aprobador_name: row.assigned_aprobador_name || row.assigned_aprobador_email || null
+        };
+      });
+
+    const stageMetrics = [
+      {
+        key: "analyst",
+        label: "Análisis inicial",
+        values: rows
+          .map((row) => hoursBetween(row.created_at, row.sent_to_emisor_at || row.sent_to_aprobador_at || row.approved_at || row.delivered_at))
+          .filter((value) => value !== null)
+      },
+      {
+        key: "emitter",
+        label: "Emisión",
+        values: rows
+          .map((row) => hoursBetween(row.sent_to_emisor_at, row.sent_to_aprobador_at || row.approved_at || row.delivered_at))
+          .filter((value) => value !== null)
+      },
+      {
+        key: "approver",
+        label: "Aprobación",
+        values: rows
+          .map((row) => hoursBetween(row.sent_to_aprobador_at, row.approved_at || row.delivered_at))
+          .filter((value) => value !== null)
+      },
+      {
+        key: "closure",
+        label: "Entrega / cierre",
+        values: rows
+          .map((row) => hoursBetween(row.approved_at, row.delivered_at))
+          .filter((value) => value !== null)
+      }
+    ].map((metric) => ({
+      key: metric.key,
+      label: metric.label,
+      average_hours: metric.values.length
+        ? Number((metric.values.reduce((sum, value) => sum + value, 0) / metric.values.length).toFixed(1))
+        : null,
+      max_hours: metric.values.length ? Number(Math.max(...metric.values).toFixed(1)) : null,
+      sample_size: metric.values.length
+    }));
+
+    const bottleneckMap = new Map();
+    for (const row of rows) {
+      const processName = String(row.gestion_nombre || "Proceso sin nombre");
+      if (!bottleneckMap.has(processName)) {
+        bottleneckMap.set(processName, {
+          gestion_nombre: processName,
+          unidad_clave: row.unidad_clave,
+          total: 0,
+          cycleHours: []
+        });
+      }
+      const item = bottleneckMap.get(processName);
+      item.total += 1;
+      const cycle = hoursBetween(row.created_at, row.delivered_at || row.approved_at);
+      if (cycle !== null) item.cycleHours.push(cycle);
+    }
+
+    const processBottlenecks = Array.from(bottleneckMap.values())
+      .map((item) => ({
+        gestion_nombre: item.gestion_nombre,
+        unidad_clave: item.unidad_clave,
+        total: item.total,
+        average_cycle_hours: item.cycleHours.length
+          ? Number((item.cycleHours.reduce((sum, value) => sum + value, 0) / item.cycleHours.length).toFixed(1))
+          : null
+      }))
+      .sort((a, b) => (b.average_cycle_hours || 0) - (a.average_cycle_hours || 0))
+      .slice(0, 8);
+
+    return res.json({
+      units: dashboardUnits,
+      summary: {
+        active_total: rows.filter((row) => !row.delivered_at).length,
+        pending_approval_total: rows.filter((row) => !row.approved_at && (row.assigned_aprobador_id || row.sent_to_aprobador_at)).length,
+        approved_total: rows.filter((row) => Boolean(row.approved_at) && !row.delivered_at).length,
+        delivered_total: rows.filter((row) => Boolean(row.delivered_at)).length
+      },
+      stage_timings: stageMetrics,
+      process_bottlenecks: processBottlenecks,
+      active_assignments: activeAssignments
+    });
+  } catch (err) {
+    console.error("Error reading approver dashboard", err);
+    return res.status(500).json({ error: "No se pudo obtener el dashboard del aprobador." });
   }
 });
 
@@ -3401,7 +3616,7 @@ app.post("/api/my-submissions/:id/feedback", requireAuth, requireRole("user"), a
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "usuario_califica",
-      eventLabel: "Usuario calificÃ³ el proceso",
+      eventLabel: "Usuario calificó el proceso",
       eventDetail: `CalificaciÃ³n: ${ratingRaw}/5`,
       actorUserId: req.user?.sub || null,
       actorRole: req.user?.role || "user",
@@ -3480,6 +3695,9 @@ app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin")
          rpa_registro_representante_filename,
          rpa_registro_entidad_filename,
          rpa_documento_estado_filename,
+         original_form_pdf,
+         original_form_filename,
+         original_form_mime,
          (dpi_pdf IS NOT NULL) AS has_dpi,
          (acta_pdf IS NOT NULL) AS has_acta,
          (registro_mercantil_pdf IS NOT NULL) AS has_registro_mercantil,
@@ -3498,6 +3716,21 @@ app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin")
     const submission = result.rows[0];
     if (!submission.approved_at) {
       return res.status(400).json({ error: "El formulario aÃºn no estÃ¡ aprobado." });
+    }
+
+    const isDvso801Original =
+      String(submission.unidad_clave || "").toUpperCase() === "DVSO" &&
+      String(submission.detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801" &&
+      submission.original_form_pdf;
+    if (isDvso801Original) {
+      const fallbackCode = String(submission.registro_codigo || `REG-${id}`).replace(/[^A-Za-z0-9-_]+/g, "-");
+      const filename = sanitizeHeaderFilename(
+        submission.original_form_filename || `dvso-801-${fallbackCode}.pdf`,
+        `dvso-801-${fallbackCode}.pdf`
+      );
+      res.setHeader("Content-Type", submission.original_form_mime || "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.send(submission.original_form_pdf);
     }
 
     const pdfBuffer = await buildSubmissionPdfBuffer(submission);
@@ -3656,7 +3889,10 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     aila_escort_pwd_3_mime,
     carta_representacion_pdf_base64,
     carta_representacion_filename,
-    carta_representacion_mime
+    carta_representacion_mime,
+    original_form_pdf_base64,
+    original_form_filename,
+    original_form_mime
   } = req.body || {};
 
   const allowed = [
@@ -3733,6 +3969,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
   let ailaEscortPwd1PdfBuffer;
   let ailaEscortPwd2PdfBuffer;
   let ailaEscortPwd3PdfBuffer;
+  let originalFormPdfBuffer;
   if (updatesCorreo) {
     const correoValidation = await validateEmailAddress(req.body?.correo);
     if (!correoValidation.ok) {
@@ -3756,6 +3993,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     ailaEscortPwd1PdfBuffer = decodePdfBase64(aila_escort_pwd_1_pdf_base64, "El PDF del escolta 1");
     ailaEscortPwd2PdfBuffer = decodePdfBase64(aila_escort_pwd_2_pdf_base64, "El PDF del escolta 2");
     ailaEscortPwd3PdfBuffer = decodePdfBase64(aila_escort_pwd_3_pdf_base64, "El PDF del escolta 3");
+    originalFormPdfBuffer = decodePdfBase64(original_form_pdf_base64, "El PDF original del formulario");
   } catch (err) {
     return res.status(400).json({ error: err.message || "Uno de los PDFs no es valido." });
   }
@@ -3843,6 +4081,9 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       Boolean(req.body?.tipo_certificacion)
     );
     const isDvsoRequest = currentUnidad === "DVSO";
+    const isDvso801Resubmit =
+      isDvsoRequest &&
+      String(req.body?.detalle_formulario?.slug || current.detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801";
     const isFinancialRequest = currentUnidad === "FINANCIERO";
     const isAilaRequest = currentUnidad === "AILA";
     const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
@@ -3875,6 +4116,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     const hasAilaEscortPwd1After = Boolean(aila_escort_pwd_1_pdf_base64) || Boolean(current.has_aila_escort_pwd_1);
     const hasAilaEscortPwd2After = Boolean(aila_escort_pwd_2_pdf_base64) || Boolean(current.has_aila_escort_pwd_2);
     const hasAilaEscortPwd3After = Boolean(aila_escort_pwd_3_pdf_base64) || Boolean(current.has_aila_escort_pwd_3);
+    const hasOriginalFormAfter = Boolean(original_form_pdf_base64);
     const nextDetail = req.body?.detalle_formulario && typeof req.body.detalle_formulario === "object" ? req.body.detalle_formulario : current.detalle_formulario || {};
     const ailaHasTools = Array.isArray(nextDetail.herramientas) && nextDetail.herramientas.length > 0;
     const ailaHasVehicles = Array.isArray(nextDetail.vehiculos) && nextDetail.vehiculos.length > 0;
@@ -3994,6 +4236,9 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     }
     if (isAilaRequest && ailaFilledEscortIndexes.includes(3) && !hasAilaEscortPwd3After) {
       return res.status(400).json({ error: ailaExpiredEscortIndexes.includes(3) ? "Debes adjuntar el PDF de la contraseña del escolta 3." : "Debes adjuntar el PDF de la T.I.A. del escolta 3." });
+    }
+    if (isDvso801Resubmit && !hasOriginalFormAfter) {
+      return res.status(400).json({ error: "El formulario 801 debe reenviarse usando el PDF original completado." });
     }
     if (isAilaRequest && ailaHasVehicles && !hasRpaRegistroRepresentanteAfter) {
       return res.status(400).json({ error: "Debes adjuntar la tarjeta de circulaciÃ³n de cada vehÃ­culo." });
@@ -4200,6 +4445,18 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       idx++;
     }
 
+    if (originalFormPdfBuffer) {
+      updates.push(`original_form_pdf = $${idx}`);
+      values.push(originalFormPdfBuffer);
+      idx++;
+      updates.push(`original_form_filename = $${idx}`);
+      values.push(original_form_filename || null);
+      idx++;
+      updates.push(`original_form_mime = $${idx}`);
+      values.push(original_form_mime || null);
+      idx++;
+    }
+
     if (ailaEscortPwd1PdfBuffer) {
       updates.push(`aila_escort_pwd_1_pdf = $${idx}`);
       values.push(ailaEscortPwd1PdfBuffer);
@@ -4276,7 +4533,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "usuario_reenvio",
-      eventLabel: "Usuario reenviÃ³ correcciones",
+      eventLabel: "Usuario reenvió correcciones",
       eventDetail: reassignedAnalystId
         ? `Reasignado al analista #${reassignedAnalystId}`
         : "Pendiente de nueva asignacion",
@@ -5544,7 +5801,7 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "devolucion_analista",
-      eventLabel: "Aprobador devolviÃ³ al analista",
+      eventLabel: "Aprobador devolvió al analista",
       eventDetail: reason,
       actorUserId: req.user?.sub || null,
       actorRole: role
@@ -5815,7 +6072,7 @@ app.post("/api/submissions/:id/open", requireAuth, requireRole("revisor", "admin
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "receptor_abre",
-      eventLabel: "Receptor abriÃ³ el formulario",
+      eventLabel: "Receptor abrió el formulario",
       actorUserId: req.user?.sub || null,
       actorRole: role
     });
@@ -5900,7 +6157,7 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "asignado_analista",
-        eventLabel: isAilaGeneric ? "Formulario asignado a RecepciÃ³n AVSEC" : "Formulario asignado a analista",
+        eventLabel: isAilaGeneric ? "Formulario asignado a Recepción AVSEC" : "Formulario asignado a analista",
       eventDetail: comentariosRevision || userRow.rows[0].name || userRow.rows[0].email || `ID ${analista_id}`,
       actorUserId: req.user?.sub || null,
       actorRole: role,

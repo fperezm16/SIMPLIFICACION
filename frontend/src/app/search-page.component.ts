@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { API_BASE } from './api.config';
+import { AuthService } from './auth.service';
 import { Submission } from './submission.model';
 
 @Component({
@@ -25,9 +26,9 @@ import { Submission } from './submission.model';
           </label>
           <label>
             Unidad
-            <select [(ngModel)]="selectedUnit">
-              <option value="TODAS">Todas</option>
-              <option *ngFor="let unit of units" [value]="unit">{{ unit }}</option>
+            <select [(ngModel)]="selectedUnit" [disabled]="availableUnits().length <= 1">
+              <option *ngIf="availableUnits().length > 1" value="">Todas</option>
+              <option *ngFor="let unit of availableUnits()" [value]="unit">{{ unit }}</option>
             </select>
           </label>
           <div class="actions">
@@ -229,10 +230,23 @@ import { Submission } from './submission.model';
     }
   `]
 })
-export class SearchPageComponent {
+export class SearchPageComponent implements OnInit {
   private http = inject(HttpClient);
+  private auth = inject(AuthService);
   readonly apiBase = API_BASE;
   readonly units = ['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO'];
+  readonly userUnits = signal<string[]>([]);
+  readonly availableUnits = computed(() => {
+    const source = this.userUnits().length
+      ? this.userUnits()
+      : (Array.isArray(this.auth.currentUser?.unit_access) ? this.auth.currentUser!.unit_access! : []);
+    const assigned = Array.isArray(source)
+      ? source
+          .map((unit) => String(unit || '').trim().toUpperCase())
+          .filter((unit) => this.units.includes(unit))
+      : [];
+    return assigned;
+  });
   query = '';
   selectedUnit = 'TODAS';
   loading = false;
@@ -241,6 +255,24 @@ export class SearchPageComponent {
   expandedId: number | null = null;
   results: Submission[] = [];
 
+  ngOnInit(): void {
+    const currentUnits = Array.isArray(this.auth.currentUser?.unit_access) ? this.auth.currentUser!.unit_access! : [];
+    if (currentUnits.length) {
+      this.userUnits.set(currentUnits.map((unit) => String(unit || '').trim().toUpperCase()).filter((unit) => this.units.includes(unit)));
+      this.syncSelectedUnit();
+    }
+    this.auth.me().subscribe({
+      next: (user) => {
+        const units = Array.isArray(user.unit_access) ? user.unit_access : [];
+        this.userUnits.set(units.map((unit) => String(unit || '').trim().toUpperCase()).filter((unit) => this.units.includes(unit)));
+        this.syncSelectedUnit();
+      },
+      error: () => {
+        this.syncSelectedUnit();
+      }
+    });
+  }
+
   search() {
     this.loading = true;
     this.searched = true;
@@ -248,7 +280,7 @@ export class SearchPageComponent {
     this.expandedId = null;
     let params = new HttpParams();
     if (this.query.trim()) params = params.set('q', this.query.trim());
-    if (this.selectedUnit && this.selectedUnit !== 'TODAS') params = params.set('unit', this.selectedUnit);
+    if (this.selectedUnit) params = params.set('unit', this.selectedUnit);
     this.http.get<Submission[]>(`${this.apiBase}/submissions/search`, { params }).subscribe({
       next: (data) => {
         this.results = data;
@@ -264,11 +296,24 @@ export class SearchPageComponent {
 
   clearSearch() {
     this.query = '';
-    this.selectedUnit = 'TODAS';
+    this.selectedUnit = this.availableUnits().length === 1 ? this.availableUnits()[0] : '';
     this.results = [];
     this.error = '';
     this.searched = false;
     this.expandedId = null;
+  }
+
+  private syncSelectedUnit() {
+    const units = this.availableUnits();
+    if (units.length === 1) {
+      this.selectedUnit = units[0];
+      return;
+    }
+    if (units.length > 1) {
+      if (!units.includes(this.selectedUnit)) this.selectedUnit = '';
+      return;
+    }
+    this.selectedUnit = '';
   }
 
   toggle(id: number) {

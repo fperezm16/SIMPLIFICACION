@@ -21,6 +21,11 @@ function isValidFullName(name = "") {
   return FULL_NAME_REGEX.test(sanitizeText(name, 120));
 }
 
+function normalizeUnitAccess(unitAccess) {
+  if (!Array.isArray(unitAccess)) return [];
+  return [...new Set(unitAccess.map((item) => String(item || "").trim().toUpperCase()).filter(Boolean))];
+}
+
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -503,7 +508,7 @@ async function login(req, res) {
 
   try {
     const result = await pool.query(
-      `SELECT id, email, name, password_hash, role, email_verified
+      `SELECT id, email, name, password_hash, role, unit_access, email_verified
        FROM users
        WHERE LOWER(email) = LOWER($1)`,
       [email]
@@ -533,7 +538,8 @@ async function login(req, res) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        unit_access: normalizeUnitAccess(user.unit_access)
       }
     });
   } catch (err) {

@@ -1397,11 +1397,35 @@ export class ReviewPanelComponent implements OnChanges {
     const text = value === null || value === undefined ? '' : String(value);
     if (!text) return '';
     if (!/[ÃÂ�]/.test(text)) return text;
+
+    const replacements: Record<string, string> = {
+      'Ã¡': 'á',
+      'Ã©': 'é',
+      'Ã­': 'í',
+      'Ã³': 'ó',
+      'Ãº': 'ú',
+      'Ã': 'Á',
+      'Ã‰': 'É',
+      'Ã': 'Í',
+      'Ã“': 'Ó',
+      'Ãš': 'Ú',
+      'Ã±': 'ñ',
+      'Ã‘': 'Ñ',
+      'Â·': '·'
+    };
+
+    let normalized = text;
+    for (const [from, to] of Object.entries(replacements)) {
+      normalized = normalized.split(from).join(to);
+    }
+
+    if (!/[ÃÂ�]/.test(normalized)) return normalized;
+
     try {
-      const bytes = Uint8Array.from(Array.from(text).map((char) => char.charCodeAt(0) & 0xff));
+      const bytes = Uint8Array.from(Array.from(normalized).map((char) => char.charCodeAt(0) & 0xff));
       return new TextDecoder('utf-8').decode(bytes);
     } catch {
-      return text;
+      return normalized;
     }
   }
 
