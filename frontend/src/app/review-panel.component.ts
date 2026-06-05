@@ -352,7 +352,7 @@ type TableDocument = {
             <textarea rows="3" [(ngModel)]="returnReason" [disabled]="returning"></textarea>
           </label>
           <label *ngIf="canWriteReceptionComments(selected)">
-            Observaciones / comentarios
+            {{ reviewCommentsLabel(selected) }}
             <textarea rows="3" [(ngModel)]="reviewComments" [disabled]="saving || sendingToEmitter"></textarea>
           </label>
           <label *ngIf="analysts.length && canAssign">Asignar a {{ assignStageLabel(selected) }}
@@ -529,7 +529,13 @@ type TableDocument = {
             {{ sendingToApprover ? 'Enviando...' : sendToApproverLabel(selected) }}
           </button>
           <button *ngIf="canApproveSelected() && !selected?.approved_at" class="approve" (click)="approve()" [disabled]="saving || approving || requiresSignedPdfBeforeApprove(selected)">
-            {{ approving ? 'Aprobando...' : 'Marcar aprobado' }}
+            {{ approving ? 'Aprobando...' : (isDvsoSubmission(selected) ? 'Aprobar y devolver a asistente' : 'Marcar aprobado') }}
+          </button>
+          <button *ngIf="canReturnToDvsoJefatura()" class="send-approver" (click)="returnToDvsoJefatura()" [disabled]="saving || returning">
+            {{ returning ? 'Devolviendo...' : 'Devolver a jefatura DVSO' }}
+          </button>
+          <button *ngIf="canSendSelectedToDvsoReception()" class="send-approver" (click)="sendToDvsoReception()" [disabled]="saving || sendingToEmitter">
+            {{ sendingToEmitter ? 'Trasladando...' : 'Trasladar a recepción DVSO' }}
           </button>
           <button *ngIf="canMarkDelivered(selected)" class="deliver" (click)="markDelivered()" [disabled]="saving || delivering">
             {{ delivering ? 'Marcando...' : deliveryActionLabel(selected) }}
@@ -838,15 +844,19 @@ export class ReviewPanelComponent implements OnChanges {
   readonly ailaRecepcionAvsecRole = 'recepcion_avsec';
   readonly ailaJefaturaAvsecRole = 'jefatura_avsec';
   readonly ailaJefaturaAilaRole = 'jefatura_aila';
+  readonly dvsoRecepcionRole = 'recepcion_dvso';
+  readonly dvsoAsistenteRole = 'asistente_dvso';
+  readonly dvsoJefaturaRole = 'jefatura_dvso';
+  readonly dvsoInspectorRole = 'inspector_dvso';
   currentUserId = this.auth.currentUser?.id || null;
   canEdit = false;
-  canApprove = this.role === 'aprobador' || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
-  canSendToEmitter = this.role === 'analista' || this.role === this.ailaRecepcionAvsecRole || this.role === 'admin' || this.role === 'supervisor';
-  canSendToApprover = this.role === 'emisor' || this.role === this.ailaJefaturaAvsecRole || this.role === 'admin' || this.role === 'supervisor';
-  canDeliverRole = this.role === 'revisor';
-  canAssign = this.role === 'revisor' || this.role === this.ailaRecepcionRole || this.role === 'admin' || this.role === 'supervisor';
-  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
-  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === 'admin' || this.role === 'supervisor';
+  canApprove = this.role === 'aprobador' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
+  canSendToEmitter = this.role === 'analista' || this.role === this.ailaRecepcionAvsecRole || this.role === this.dvsoAsistenteRole || this.role === 'admin' || this.role === 'supervisor';
+  canSendToApprover = this.role === 'emisor' || this.role === this.ailaJefaturaAvsecRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
+  canDeliverRole = this.role === 'revisor' || this.role === this.dvsoRecepcionRole;
+  canAssign = this.role === 'revisor' || this.role === this.ailaRecepcionRole || this.role === this.dvsoRecepcionRole || this.role === 'admin' || this.role === 'supervisor';
+  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
+  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
   canReturnToAnalyst = this.role === 'aprobador';
 
   financialProcessFieldLabel() {
@@ -917,6 +927,12 @@ export class ReviewPanelComponent implements OnChanges {
     if (this.role === this.ailaRecepcionRole) {
       rows = rows.filter((d) => this.isAilaGenericFlow(d) && !d.assigned_analista_id);
     }
+    if (this.role === this.dvsoRecepcionRole) {
+      rows = rows.filter((d) =>
+        this.isDvsoSubmission(d) &&
+        (this.dvsoStage(d) === 'recepcion' || this.dvsoStage(d) === 'recepcion_entrega')
+      );
+    }
     if (this.role === 'analista') {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) =>
@@ -932,6 +948,14 @@ export class ReviewPanelComponent implements OnChanges {
         Number(d.assigned_analista_id) === Number(this.currentUserId) &&
         !d.sent_to_emisor_at &&
         !d.sent_to_aprobador_at
+      );
+    }
+    if (this.role === this.dvsoAsistenteRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) =>
+        this.isDvsoSubmission(d) &&
+        Number(d.assigned_analista_id) === Number(this.currentUserId) &&
+        (this.dvsoStage(d) === 'asistente_revision' || this.dvsoStage(d) === 'asistente_sello')
       );
     }
     if (this.role === 'emisor') {
@@ -951,9 +975,25 @@ export class ReviewPanelComponent implements OnChanges {
         !d.delivered_at
       );
     }
+    if (this.role === this.dvsoJefaturaRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) =>
+        this.isDvsoSubmission(d) &&
+        Number(d.assigned_emisor_id) === Number(this.currentUserId) &&
+        (this.dvsoStage(d) === 'jefatura_revision' || this.dvsoStage(d) === 'jefatura_aprobacion')
+      );
+    }
     if (this.role === 'aprobador') {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) => Number(d.assigned_aprobador_id) === Number(this.currentUserId) && !d.delivered_at);
+    }
+    if (this.role === this.dvsoInspectorRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) =>
+        this.isDvsoSubmission(d) &&
+        Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
+        this.dvsoStage(d) === 'inspector_revision'
+      );
     }
     if (this.role === this.ailaJefaturaAilaRole) {
       if (!this.currentUserId) return [];
@@ -1008,6 +1048,7 @@ export class ReviewPanelComponent implements OnChanges {
   showsEmitterField(row: Submission | null) {
     if (!row) return false;
     if (this.isAilaGenericFlow(row)) return true;
+    if (this.isDvsoSubmission(row)) return true;
     return this.isFinancialSubmission(row) && !this.isFinancialPaymentPasswordFlow(row);
   }
 
@@ -1041,6 +1082,18 @@ export class ReviewPanelComponent implements OnChanges {
   isAilaSubmission(row: Submission | null) {
     if (!row) return false;
     return String(row.unidad_clave || '').toUpperCase() === 'AILA';
+  }
+
+  isDvsoSubmission(row: Submission | null | undefined) {
+    return String(row?.unidad_clave || '').toUpperCase() === 'DVSO';
+  }
+
+  dvsoStage(row: Submission | null | undefined) {
+    if (!this.isDvsoSubmission(row)) return '';
+    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    return String(detail['dvso_stage'] || 'recepcion').trim().toLowerCase();
   }
 
   isAilaGenericFlow(row: Submission | null | undefined) {
@@ -1270,6 +1323,11 @@ export class ReviewPanelComponent implements OnChanges {
       if (stage === 'emisor') return 'Jefatura AVSEC';
       return 'Jefatura AILA';
     }
+    if (this.isDvsoSubmission(row)) {
+      if (stage === 'analista') return 'Asistente DVSO';
+      if (stage === 'emisor') return 'Jefatura DVSO';
+      return 'Inspector DVSO';
+    }
     if (stage === 'analista') return 'Analista';
     if (stage === 'emisor') return 'Emisor';
     return 'Aprobador';
@@ -1284,11 +1342,15 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   sendToEmitterLabel(row: Submission | null | undefined) {
-    return this.isAilaGenericFlow(row) ? 'Enviar a Jefatura AVSEC' : 'Enviar a emisor';
+    if (this.isAilaGenericFlow(row)) return 'Enviar a Jefatura AVSEC';
+    if (this.isDvsoSubmission(row)) return 'Enviar a Jefatura DVSO';
+    return 'Enviar a emisor';
   }
 
   sendToApproverLabel(row: Submission | null | undefined) {
-    return this.isAilaGenericFlow(row) ? 'Enviar a Jefatura AILA' : 'Enviar a aprobador';
+    if (this.isAilaGenericFlow(row)) return 'Enviar a Jefatura AILA';
+    if (this.isDvsoSubmission(row)) return 'Enviar a Inspector DVSO';
+    return 'Enviar a aprobador';
   }
 
   shouldShowRegistroMercantil(row: Submission | null | undefined) {
@@ -1611,7 +1673,9 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   primaryActionLabel() {
-    if (!this.canEdit && this.canAssign) return 'Asignar analista';
+    if (!this.canEdit && this.canAssign) {
+      return this.isDvsoSubmission(this.selected) ? 'Asignar asistente DVSO' : 'Asignar analista';
+    }
     return 'Guardar cambios';
   }
 
@@ -1702,6 +1766,13 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canSendSelectedToEmitter() {
+    if (this.isDvsoSubmission(this.selected)) {
+      if (!this.selected) return false;
+      if (this.dvsoStage(this.selected) !== 'asistente_revision') return false;
+      if (this.role === 'admin' || this.role === 'supervisor') return true;
+      return this.role === this.dvsoAsistenteRole &&
+        Number(this.selected.assigned_analista_id) === Number(this.currentUserId);
+    }
     if (this.isAilaGenericFlow(this.selected)) {
       if (!this.selected) return false;
       if (this.role === 'admin' || this.role === 'supervisor') return true;
@@ -1711,18 +1782,55 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canWriteReceptionComments(row: Submission | null | undefined) {
+    if (row && this.isDvsoSubmission(row)) {
+      return this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
+    }
     if (!row || !this.isAilaGenericFlow(row)) return false;
     return this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === 'admin' || this.role === 'supervisor';
+  }
+
+  reviewCommentsLabel(row: Submission | null | undefined) {
+    if (row && this.isDvsoSubmission(row)) {
+      if (this.role === this.dvsoAsistenteRole) return 'Comentarios para jefatura DVSO';
+      if (this.role === this.dvsoJefaturaRole) return 'Comentarios para inspector DVSO';
+      return 'Comentarios DVSO';
+    }
+    return 'Observaciones / comentarios';
   }
 
   canReturnToUserSelected() {
     if (!this.canReturn) return false;
     if (this.role === 'emisor' && this.isFinancialSubmission(this.selected)) return false;
+    if (this.isDvsoSubmission(this.selected)) {
+      return this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
+    }
     return true;
+  }
+
+  canReturnToDvsoJefatura() {
+    if (!this.selected?.id || !this.isDvsoSubmission(this.selected)) return false;
+    if (this.dvsoStage(this.selected) !== 'inspector_revision') return false;
+    if (this.role === 'admin' || this.role === 'supervisor') return true;
+    return this.role === this.dvsoInspectorRole &&
+      Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
+  }
+
+  canSendSelectedToDvsoReception() {
+    if (!this.selected?.id || !this.isDvsoSubmission(this.selected)) return false;
+    if (this.dvsoStage(this.selected) !== 'asistente_sello') return false;
+    if (this.role === 'admin' || this.role === 'supervisor') return true;
+    return this.role === this.dvsoAsistenteRole &&
+      Number(this.selected.assigned_analista_id) === Number(this.currentUserId);
   }
 
   canSendSelectedToApprover() {
     if (!this.selected || this.isFinancialPaymentPasswordFlow(this.selected)) return false;
+    if (this.isDvsoSubmission(this.selected)) {
+      if (this.dvsoStage(this.selected) !== 'jefatura_revision') return false;
+      if (this.role === 'admin' || this.role === 'supervisor') return true;
+      return this.role === this.dvsoJefaturaRole &&
+        Number(this.selected.assigned_emisor_id) === Number(this.currentUserId);
+    }
     if (this.role === 'admin' || this.role === 'supervisor') return true;
     if (this.isAilaGenericFlow(this.selected)) {
       return this.role === this.ailaJefaturaAvsecRole && Number(this.selected.assigned_emisor_id) === Number(this.currentUserId);
@@ -1752,6 +1860,13 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canApproveSelected() {
+    if (this.isDvsoSubmission(this.selected)) {
+      if (!this.selected) return false;
+      if (this.dvsoStage(this.selected) !== 'jefatura_aprobacion') return false;
+      if (this.role === 'admin' || this.role === 'supervisor') return true;
+      return this.role === this.dvsoJefaturaRole &&
+        Number(this.selected.assigned_emisor_id) === Number(this.currentUserId);
+    }
     return this.canApprove && !this.isFinancialPaymentPasswordFlow(this.selected);
   }
 
@@ -1785,6 +1900,7 @@ export class ReviewPanelComponent implements OnChanges {
   showSignedPdfPanel(row: Submission | null | undefined) {
     if (!row?.id) return false;
     if (this.isAilaGenericFlow(row)) return false;
+    if (this.isDvsoSubmission(row)) return false;
     if (this.isFinancialApproverView(row)) return false;
     return String(row.unidad_clave || '').toUpperCase() !== 'RAN';
   }
@@ -1808,6 +1924,9 @@ export class ReviewPanelComponent implements OnChanges {
 
   canShowBoletaPanel(row: Submission | null | undefined) {
     if (this.isAilaGenericFlow(row || null)) {
+      return false;
+    }
+    if (this.isDvsoSubmission(row || null)) {
       return false;
     }
     if (this.isFinancialSubmission(row || null)) {
@@ -2092,6 +2211,17 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   stateLabel(row: Submission) {
+    if (this.isDvsoSubmission(row)) {
+      const stage = this.dvsoStage(row);
+      if (row.delivered_at) return 'Entregado';
+      if (row.returned_at) return 'Devuelto';
+      if (stage === 'recepcion_entrega') return 'En recepción';
+      if (stage === 'asistente_sello') return 'En sello';
+      if (stage === 'jefatura_aprobacion') return 'En jefatura';
+      if (stage === 'inspector_revision') return 'En inspección';
+      if (stage === 'jefatura_revision') return 'En jefatura';
+      if (stage === 'asistente_revision') return 'En asistente';
+    }
     if (row.returned_at) return 'Devuelto';
     if (row.returned_to_analista_at) return 'Devuelto a analista';
     if (this.isFinancialPaymentPasswordFlow(row) && row.delivered_at) return 'Finalizado';
@@ -2120,7 +2250,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   private markAsOpened(row: Submission) {
-    if (this.role !== 'revisor' || !row.id || row.receptor_opened_at) return;
+    if ((this.role !== 'revisor' && this.role !== this.dvsoRecepcionRole) || !row.id || row.receptor_opened_at) return;
     this.http.post<{ receptor_opened_at: string }>(`${this.apiBase}/submissions/${row.id}/open`, {}).subscribe({
       next: (resp) => {
         row.receptor_opened_at = resp.receptor_opened_at;
@@ -2137,7 +2267,7 @@ export class ReviewPanelComponent implements OnChanges {
   sendToEmitter() {
     if (!this.selected || !this.selected.id || !this.canSendSelectedToEmitter()) return;
     this.sendingToEmitter = true;
-    this.status = 'Enviando a emisor...';
+    this.status = this.isDvsoSubmission(this.selected) ? 'Enviando a jefatura DVSO...' : 'Enviando a emisor...';
     this.http.post<{ assigned_emisor_id: number; sent_to_emisor_at: string; assigned_emisor_name?: string | null; assigned_emisor_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-emisor`,
       {
@@ -2154,6 +2284,9 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.returned_to_analista_at = null;
           this.selected.returned_to_analista_reason = null;
           this.selected.comentarios_revision = this.reviewComments.trim() || undefined;
+          if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'jefatura_revision' };
+          }
         }
         if (this.edit) {
           this.edit.assigned_emisor_id = resp.assigned_emisor_id;
@@ -2163,9 +2296,12 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.returned_to_analista_at = null;
           this.edit.returned_to_analista_reason = null;
           this.edit.comentarios_revision = this.reviewComments.trim() || undefined;
+          if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'jefatura_revision' };
+          }
         }
         this.sendingToEmitter = false;
-        this.status = 'Formulario enviado al emisor.';
+        this.status = this.isDvsoSubmission(this.selected) ? 'Formulario enviado a jefatura DVSO.' : 'Formulario enviado al emisor.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
@@ -2182,10 +2318,13 @@ export class ReviewPanelComponent implements OnChanges {
   sendToApprover() {
     if (!this.selected || !this.selected.id || !this.canSendSelectedToApprover()) return;
     this.sendingToApprover = true;
-    this.status = 'Enviando a aprobador...';
+    this.status = this.isDvsoSubmission(this.selected) ? 'Enviando a inspector DVSO...' : 'Enviando a aprobador...';
     this.http.post<{ assigned_aprobador_id: number; sent_to_aprobador_at: string; assigned_aprobador_name?: string | null; assigned_aprobador_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-approver`,
-      { aprobador_id: this.edit?.assigned_aprobador_id || null }
+      {
+        aprobador_id: this.edit?.assigned_aprobador_id || null,
+        comentarios_revision: this.reviewComments.trim() || null
+      }
     ).subscribe({
       next: (resp) => {
         if (this.selected) {
@@ -2195,6 +2334,9 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.assigned_aprobador_email = resp.assigned_aprobador_email || null;
           this.selected.returned_to_analista_at = null;
           this.selected.returned_to_analista_reason = null;
+          if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'inspector_revision' };
+          }
         }
         if (this.edit) {
           this.edit.assigned_aprobador_id = resp.assigned_aprobador_id;
@@ -2203,9 +2345,12 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.assigned_aprobador_email = resp.assigned_aprobador_email || null;
           this.edit.returned_to_analista_at = null;
           this.edit.returned_to_analista_reason = null;
+          if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'inspector_revision' };
+          }
         }
         this.sendingToApprover = false;
-        this.status = 'Formulario enviado al aprobador.';
+        this.status = this.isDvsoSubmission(this.selected) ? 'Formulario enviado al inspector DVSO.' : 'Formulario enviado al aprobador.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
@@ -2242,6 +2387,9 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.delivered_at = null;
           this.selected.returned_at = null;
           this.selected.returned_reason = null;
+          if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'asistente_sello' };
+          }
         }
         if (this.edit) {
           this.edit.approved_at = resp.approved_at;
@@ -2253,6 +2401,9 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.delivered_at = null;
           this.edit.returned_at = null;
           this.edit.returned_reason = null;
+          if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'asistente_sello' };
+          }
         }
         this.returnReason = '';
         this.approving = false;
@@ -2383,10 +2534,88 @@ export class ReviewPanelComponent implements OnChanges {
     });
   }
 
+  returnToDvsoJefatura() {
+    if (!this.selected?.id || !this.canReturnToDvsoJefatura()) return;
+    const reason = this.returnReason.trim() || this.reviewComments.trim();
+    if (!reason) {
+      this.status = 'Debes indicar el comentario para jefatura DVSO.';
+      return;
+    }
+    this.returning = true;
+    this.status = 'Devolviendo a jefatura DVSO...';
+    this.http.post<{ comentarios_revision?: string | null; assigned_aprobador_id?: number | null; sent_to_aprobador_at?: string | null }>(
+      `${this.apiBase}/submissions/${this.selected.id}/dvso-return-to-jefatura`,
+      { reason }
+    ).subscribe({
+      next: (resp) => {
+        if (this.selected) {
+          this.selected.comentarios_revision = resp.comentarios_revision || reason;
+          this.selected.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
+          this.selected.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
+          if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object') {
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'jefatura_aprobacion' };
+          }
+        }
+        if (this.edit) {
+          this.edit.comentarios_revision = resp.comentarios_revision || reason;
+          this.edit.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
+          this.edit.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
+          if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object') {
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'jefatura_aprobacion' };
+          }
+        }
+        this.returning = false;
+        this.status = 'Proceso devuelto a jefatura DVSO.';
+        if (this.selected?.id) this.loadLogs(this.selected.id);
+        this.cancel();
+        this.updated.emit();
+      },
+      error: (err) => {
+        this.returning = false;
+        this.status = err?.error?.error || 'No se pudo devolver el proceso a jefatura DVSO.';
+      }
+    });
+  }
+
+  sendToDvsoReception() {
+    if (!this.selected?.id || !this.canSendSelectedToDvsoReception()) return;
+    this.sendingToEmitter = true;
+    this.status = 'Trasladando a recepción DVSO...';
+    this.http.post<{ comentarios_revision?: string | null }>(
+      `${this.apiBase}/submissions/${this.selected.id}/dvso-send-to-reception`,
+      { comentarios_revision: this.reviewComments.trim() || null }
+    ).subscribe({
+      next: (resp) => {
+        if (this.selected) {
+          this.selected.comentarios_revision = resp.comentarios_revision || this.reviewComments.trim() || undefined;
+          if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object') {
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'recepcion_entrega' };
+          }
+        }
+        if (this.edit) {
+          this.edit.comentarios_revision = resp.comentarios_revision || this.reviewComments.trim() || undefined;
+          if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object') {
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'recepcion_entrega' };
+          }
+        }
+        this.sendingToEmitter = false;
+        this.status = 'Proceso trasladado a recepción DVSO.';
+        if (this.selected?.id) this.loadLogs(this.selected.id);
+        this.cancel();
+        this.updated.emit();
+      },
+      error: (err) => {
+        this.sendingToEmitter = false;
+        this.status = err?.error?.error || 'No se pudo trasladar el proceso a recepción DVSO.';
+      }
+    });
+  }
+
   canMarkDelivered(row: Submission | null | undefined) {
     if (!this.canDeliverRole || !row?.id) return false;
     const unit = String(row.unidad_clave || '').toUpperCase();
     if (unit === 'RAN') return Boolean(row.approved_at) && !row.delivered_at;
+    if (unit === 'DVSO') return Boolean(row.approved_at) && this.dvsoStage(row) === 'recepcion_entrega' && !row.delivered_at;
     if (unit === 'FINANCIERO') {
       if (this.isFinancialPaymentPasswordFlow(row)) {
         return Boolean(row.has_analyst_pdf || row.analyst_pdf_filename) && !row.delivered_at;
