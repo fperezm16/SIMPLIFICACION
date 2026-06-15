@@ -1,4 +1,4 @@
-﻿const express = require("express");
+const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
@@ -880,7 +880,7 @@ function buildSubmissionPdfHtml(submission) {
         <div class="title">
           <h1>Solicitud solvencia de pago</h1>
           <p>Departamento Financiero - Unidad Control de Ingresos</p>
-          <span class="mode-pill">Unidad FINANCIERO</span>
+          <span class="mode-pill">DEPARTAMENTO FINANCIERO</span>
         </div>
         <div class="meta-row">
           <div class="meta-item"><span class="label">Fecha:</span><span class="line-value">${renderValue(formatDateOnly(submission.fecha || submission.created_at))}</span></div>
@@ -3126,7 +3126,7 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
 
 app.get("/api/financial-approved-history", requireAuth, requireRole("aprobador"), async (req, res) => {
   try {
-    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub, []);
     const result = await pool.query(
       `SELECT
          s.id,
@@ -3171,7 +3171,7 @@ app.get("/api/financial-approved-history/:id", requireAuth, requireRole("aprobad
     return res.status(400).json({ error: "ID no válido." });
   }
   try {
-    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub, []);
     const submissionResult = await pool.query(
       `SELECT
          s.id,
@@ -3234,7 +3234,7 @@ app.get("/api/financial-approved-history/:id", requireAuth, requireRole("aprobad
 
 app.get("/api/approver-dashboard", requireAuth, requireRole("aprobador"), async (req, res) => {
   try {
-    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub, []);
     const dashboardUnits = unitAccess.filter((unit) => unit === "RAN" || unit === "FINANCIERO");
     if (!dashboardUnits.length) {
       return res.json({
@@ -6755,7 +6755,6 @@ app.listen(PORT, async () => {
     process.exit(1);
   }
 });
-
 
 
 

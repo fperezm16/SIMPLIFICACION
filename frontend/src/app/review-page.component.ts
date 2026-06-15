@@ -137,11 +137,11 @@ type ApproverDashboardPayload = {
         <div class="history-head">
           <div>
             <h3>Dashboard de aprobaci&oacute;n</h3>
-            <p class="muted">Vista operativa de RAN y Financiero con tiempos, cuellos de botella y responsables actuales.</p>
+            <p class="muted">Vista operativa de las unidades asignadas al aprobador con tiempos, cuellos de botella y responsables actuales.</p>
           </div>
         </div>
         <div class="history-empty" *ngIf="loadingDashboard">Cargando dashboard...</div>
-        <div class="history-empty" *ngIf="!loadingDashboard && !dashboardUnits.length">No hay unidades de RAN o Financiero asignadas a este aprobador.</div>
+        <div class="history-empty" *ngIf="!loadingDashboard && !dashboardUnits.length">No hay unidades asignadas a este aprobador para el dashboard.</div>
         <ng-container *ngIf="!loadingDashboard && dashboardUnits.length">
           <section class="dashboard-hero">
             <span class="dashboard-unit-pill" *ngFor="let unit of dashboardUnits">{{ unit }}</span>
@@ -869,8 +869,12 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
 
   showApproverDashboard() {
     if (this.auth.currentUser?.role !== 'aprobador') return false;
+    return this.approverDashboardUnits().length > 0;
+  }
+
+  approverDashboardUnits() {
     const units = Array.isArray(this.auth.currentUser?.unit_access) ? this.auth.currentUser!.unit_access! : [];
-    return units.some((unit) => {
+    return units.filter((unit) => {
       const normalized = String(unit || '').trim().toUpperCase();
       return normalized === 'RAN' || normalized === 'FINANCIERO';
     });
@@ -891,7 +895,8 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
   }
 
   fetchDashboard(silent = false) {
-    if (!this.showApproverDashboard()) {
+    const allowedUnits = this.approverDashboardUnits().map((unit) => String(unit || '').trim().toUpperCase());
+    if (!allowedUnits.length) {
       this.dashboardUnits = [];
       this.dashboardStageTimings = [];
       this.dashboardProcessBottlenecks = [];
@@ -903,11 +908,16 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
     }
     this.http.get<ApproverDashboardPayload>(`${this.apiBase}/approver-dashboard`).subscribe({
       next: (data) => {
-        this.dashboardUnits = data.units || [];
+        const responseUnits = Array.isArray(data.units) ? data.units : [];
+        this.dashboardUnits = responseUnits.filter((unit) => allowedUnits.includes(String(unit || '').trim().toUpperCase()));
         this.dashboardSummary = data.summary || this.dashboardSummary;
         this.dashboardStageTimings = data.stage_timings || [];
-        this.dashboardProcessBottlenecks = data.process_bottlenecks || [];
-        this.dashboardAssignments = data.active_assignments || [];
+        this.dashboardProcessBottlenecks = (data.process_bottlenecks || []).filter((item) =>
+          allowedUnits.includes(String(item?.unidad_clave || '').trim().toUpperCase())
+        );
+        this.dashboardAssignments = (data.active_assignments || []).filter((item) =>
+          allowedUnits.includes(String(item?.unidad_clave || '').trim().toUpperCase())
+        );
         this.loadingDashboard = false;
       },
       error: () => {
