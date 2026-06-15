@@ -1,10 +1,11 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { AuthService } from './auth.service';
 import { ReviewPanelComponent } from './review-panel.component';
 import { Submission } from './submission.model';
 import { API_BASE } from './api.config';
+import { isUnitVisibleInCurrentRuntime } from './runtime-flags';
 
 type FinancialApprovedHistoryItem = {
   id: number;
@@ -824,7 +825,7 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
     }
     this.http.get<Submission[]>(`${this.apiBase}/submissions`).subscribe({
       next: (data) => {
-        this.submissions = data;
+        this.submissions = (data || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave));
         this.loading = false;
         this.restoreScrollPosition();
         this.fetchDashboard(silent);
@@ -940,7 +941,7 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
     }
     this.http.get<ArchiveItem[]>(`${this.apiBase}/submissions/archive`).subscribe({
       next: (data) => {
-        this.archiveItems = data;
+        this.archiveItems = (data || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave));
         this.loadingArchive = false;
       },
       error: () => {
@@ -1092,3 +1093,4 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
     return Math.max(8, Math.min(100, (value / max) * 100));
   }
 }
+

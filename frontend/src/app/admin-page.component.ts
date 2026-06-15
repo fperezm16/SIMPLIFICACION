@@ -1,8 +1,9 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { API_BASE } from './api.config';
+import { filterVisibleUnitsInCurrentRuntime, hideDvsoInCurrentRuntime } from './runtime-flags';
 
 type UserRow = {
   id: number;
@@ -157,8 +158,12 @@ export class AdminPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
   readonly roles = ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'avsec_financiero', 'admin', 'supervisor'];
-  readonly unitOptions = ['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO'];
-  private readonly unitRoles = new Set(['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'avsec_financiero']);
+  readonly unitOptions: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
+  private readonly unitRoles = new Set(
+    hideDvsoInCurrentRuntime()
+      ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero']
+      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'avsec_financiero']
+  );
 
   users: UserRow[] = [];
   loading = false;
@@ -328,4 +333,3 @@ export class AdminPageComponent implements OnInit {
     });
   }
 }
-

@@ -1,10 +1,11 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
+import { isUnitVisibleInCurrentRuntime } from './runtime-flags';
 import { Submission } from './submission.model';
 
 type UnitGroup = { unit: string; rows: Submission[] };
@@ -423,7 +424,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.http.get<Submission[]>(`${this.apiBase}/my-submissions`).subscribe({
       next: (rows) => {
-        this.allRows = rows || [];
+        this.allRows = (rows || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave));
         this.groups = this.groupByUnit(this.allRows);
         this.maybeOpenApprovedNotice();
         this.loading = false;
@@ -871,6 +872,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
     const map = new Map<string, Submission[]>();
     for (const row of rows) {
       const unit = this.inferUnit(row);
+      if (!isUnitVisibleInCurrentRuntime(unit)) continue;
       if (!map.has(unit)) map.set(unit, []);
       map.get(unit)?.push(row);
     }
@@ -995,6 +997,5 @@ export class HomePageComponent implements OnInit, OnDestroy {
     localStorage.setItem(storageKey, JSON.stringify(seen));
   }
 }
-
 
 

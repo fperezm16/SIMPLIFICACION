@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { API_BASE } from './api.config';
+import { filterVisibleUnitsInCurrentRuntime, isUnitVisibleInCurrentRuntime } from './runtime-flags';
 
 type UnitStats = {
   unit: string;
@@ -501,7 +502,7 @@ type StatusLegendItem = {
 export class SupervisorPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
-  readonly units = ['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO'];
+  readonly units: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
   readonly statusView = [
     { key: 'enviado', label: 'Enviado', css: 's-enviado' },
     { key: 'en_recepcion', label: 'Receptor', css: 's-en_recepcion' },
@@ -530,7 +531,13 @@ export class SupervisorPageComponent implements OnInit {
 
     this.http.get<DashboardResponse>(`${this.apiBase}/supervisor/dashboard`, { params }).subscribe({
       next: (data) => {
-        this.dashboard = data;
+        this.dashboard = data
+          ? {
+              ...data,
+              by_unit: (data.by_unit || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unit)),
+              processes: (data.processes || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave))
+            }
+          : null;
         this.loading = false;
       },
       error: (err) => {

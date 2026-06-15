@@ -1,7 +1,8 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
+import { hideDvsoInCurrentRuntime } from './runtime-flags';
 
 @Component({
     selector: 'app-root',
@@ -30,7 +31,7 @@ import { AuthService } from './auth.service';
                     <a routerLink="/ran/formulario-drones" routerLinkActive="active-link">UAV / RPA - Distintivo</a>
                   </div>
                 </div>
-                <div class="units-submenu">
+                <div class="units-submenu" *ngIf="showDvsoUnit()">
                   <button type="button" class="submenu-trigger">DVSO</button>
                   <div class="units-submenu-panel">
                     <a routerLink="/dvso/dvso-623" routerLinkActive="active-link">DVSO-623 Ala fija</a>
@@ -207,10 +208,13 @@ export class AppComponent {
     return role === 'user' || role === 'admin';
   }
 
+  showDvsoUnit() {
+    return !hideDvsoInCurrentRuntime();
+  }
+
   logout() {
     this.auth.logout();
     this.router.navigateByUrl('/auth');
   }
 }
-
 

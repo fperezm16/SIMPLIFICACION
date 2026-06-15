@@ -4,6 +4,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
+import { filterVisibleUnitsInCurrentRuntime, isUnitVisibleInCurrentRuntime } from './runtime-flags';
 import { Submission } from './submission.model';
 
 @Component({
@@ -234,7 +235,7 @@ export class SearchPageComponent implements OnInit {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
   readonly apiBase = API_BASE;
-  readonly units = ['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO'];
+  readonly units: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
   readonly userUnits = signal<string[]>([]);
   readonly availableUnits = computed(() => {
     const source = this.userUnits().length
@@ -283,7 +284,7 @@ export class SearchPageComponent implements OnInit {
     if (this.selectedUnit) params = params.set('unit', this.selectedUnit);
     this.http.get<Submission[]>(`${this.apiBase}/submissions/search`, { params }).subscribe({
       next: (data) => {
-        this.results = data;
+        this.results = (data || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave));
         this.loading = false;
       },
       error: (err) => {
