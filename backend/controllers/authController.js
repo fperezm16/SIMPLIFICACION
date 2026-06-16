@@ -101,8 +101,7 @@ async function verifyRecaptchaToken(token, req) {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         secret: getRecaptchaSecretKey(),
-        response: normalizedToken,
-        remoteip: getClientIp(req)
+        response: normalizedToken
       })
     });
     if (!response.ok) {
@@ -110,6 +109,10 @@ async function verifyRecaptchaToken(token, req) {
     }
     const data = await response.json();
     if (!data?.success) {
+      console.error("reCAPTCHA rechazado por Google", {
+        errorCodes: data?.["error-codes"] || [],
+        hostname: data?.hostname || null
+      });
       return { ok: false, error: "La verificación de seguridad no fue válida." };
     }
     return { ok: true };
