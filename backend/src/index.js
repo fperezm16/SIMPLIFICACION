@@ -1,4 +1,4 @@
-const express = require("express");
+﻿const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
@@ -16,6 +16,8 @@ const paymentRoutes = require('../routes/paymentRoutes');
 const app = express();
 const PORT = process.env.PORT || 4000;
 const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
+const PASSWORD_POLICY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PASSWORD_POLICY_MESSAGE = "La contraseña debe tener al menos 8 caracteres e incluir al menos una letra mayúscula, un número y un carácter especial (por ejemplo: !@#$%).";
 const AILA_ROLE_RECEPCION = "recepcion_aila";
 const AILA_ROLE_RECEPCION_AVSEC = "recepcion_avsec";
 const AILA_ROLE_ADMINISTRACION = "administracion_aila";
@@ -143,6 +145,49 @@ function isDvsoJefaturaRole(role = "") {
 
 function isDvsoInspectorRole(role = "") {
   return String(role || "").trim().toLowerCase() === DVSO_ROLE_INSPECTOR;
+}
+
+function currentStageOpenMarkerKey(row = {}, role = "", userId = null) {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  const markerUser = userId ? String(userId) : "self";
+  const rowId = String(row.id || "base");
+  if (normalizedRole === "revisor") {
+    return `revisor:${markerUser}:${rowId}`;
+  }
+  if (normalizedRole === AILA_ROLE_RECEPCION) {
+    return `aila_recepcion:${markerUser}:${rowId}`;
+  }
+  if (normalizedRole === AILA_ROLE_RECEPCION_AVSEC) {
+    return `aila_recepcion_avsec:${markerUser}:${rowId}:${row.assigned_analista_id || "na"}`;
+  }
+  if (normalizedRole === AILA_ROLE_JEFATURA_AVSEC) {
+    return `aila_jefatura_avsec:${markerUser}:${rowId}:${row.assigned_emisor_id || "na"}`;
+  }
+  if (normalizedRole === AILA_ROLE_JEFATURA_AILA) {
+    return `aila_jefatura_aila:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
+  }
+  if (normalizedRole === DVSO_ROLE_RECEPCION) {
+    return `dvso_${getDvsoStage(row) || "recepcion"}:${markerUser}:${rowId}`;
+  }
+  if (normalizedRole === DVSO_ROLE_ASISTENTE) {
+    return `dvso_${getDvsoStage(row) || "asistente_revision"}:${markerUser}:${rowId}:${row.assigned_analista_id || "na"}`;
+  }
+  if (normalizedRole === DVSO_ROLE_JEFATURA) {
+    return `dvso_${getDvsoStage(row) || "jefatura_revision"}:${markerUser}:${rowId}:${row.assigned_emisor_id || "na"}`;
+  }
+  if (normalizedRole === DVSO_ROLE_INSPECTOR) {
+    return `dvso_inspector_revision:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
+  }
+  if (normalizedRole === "analista") {
+    return `analista:${markerUser}:${rowId}:${row.assigned_analista_id || "na"}`;
+  }
+  if (normalizedRole === "emisor") {
+    return `emisor:${markerUser}:${rowId}:${row.assigned_emisor_id || "na"}`;
+  }
+  if (normalizedRole === "aprobador") {
+    return `aprobador:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
+  }
+  return "";
 }
 
 function isAilaGenericWorkflow(row = {}) {
@@ -1830,10 +1875,6 @@ function normalizeUnitKey(value) {
 }
 
 function buildSupervisorDashboard(rows) {
-  if (isDvso801Request && !originalFormPdfBuffer) {
-    return res.status(400).json({ error: "El formulario 801 debe enviarse usando el PDF original completado." });
-  }
-
   const now = new Date();
   const unitMap = new Map();
   const processRows = [];
@@ -2687,6 +2728,10 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     const isAilaAdministration = isAilaStage2Role(role);
     const isAilaUetia = isAilaStage3Role(role);
     const isAilaJefatura = isAilaStage4Role(role);
+    const isDvsoReception = isDvsoReceptionRole(role);
+    const isDvsoAssistant = isDvsoAssistantRole(role);
+    const isDvsoJefatura = isDvsoJefaturaRole(role);
+    const isDvsoInspector = isDvsoInspectorRole(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
@@ -3126,7 +3171,7 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
 
 app.get("/api/financial-approved-history", requireAuth, requireRole("aprobador"), async (req, res) => {
   try {
-    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub, []);
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
     const result = await pool.query(
       `SELECT
          s.id,
@@ -3171,7 +3216,7 @@ app.get("/api/financial-approved-history/:id", requireAuth, requireRole("aprobad
     return res.status(400).json({ error: "ID no válido." });
   }
   try {
-    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub, []);
+    const unitAccess = await getCurrentUserUnitAccess(req.user?.sub);
     const submissionResult = await pool.query(
       `SELECT
          s.id,
@@ -6373,8 +6418,8 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
   }
 });
 
-// Revisor/admin/supervisor/recepción DVSO marca formulario como abierto
-app.post("/api/submissions/:id/open", requireAuth, requireRole("revisor", DVSO_ROLE_RECEPCION, "admin", "supervisor"), async (req, res) => {
+// Roles internos marcan su etapa actual como abierta
+app.post("/api/submissions/:id/open", requireAuth, requireRole(...REVIEW_ROLES), async (req, res) => {
   const { id } = req.params;
   try {
     const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
@@ -6386,24 +6431,51 @@ app.post("/api/submissions/:id/open", requireAuth, requireRole("revisor", DVSO_R
       params.push(unitAccess);
       where.push(`unidad_clave = ANY($${params.length})`);
     }
-    const result = await pool.query(
-      `UPDATE submissions
-       SET receptor_opened_at = COALESCE(receptor_opened_at, NOW())
-       WHERE ${where.join(" AND ")}
-       RETURNING id, receptor_opened_at`,
+    const current = await pool.query(
+      `SELECT id, created_at, unidad_clave, detalle_formulario, assigned_analista_id, assigned_emisor_id, assigned_aprobador_id,
+              sent_to_emisor_at, sent_to_aprobador_at, returned_to_analista_at
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
       params
     );
-    if (!result.rowCount) {
+    if (!current.rowCount) {
       return res.status(404).json({ error: "Registro no encontrado" });
     }
+    const row = current.rows[0];
+    const detail = normalizeSubmissionDetail(row.detalle_formulario);
+    const openMarkers = detail.opened_stage_markers && typeof detail.opened_stage_markers === "object"
+      ? { ...detail.opened_stage_markers }
+      : {};
+    const markerKey = currentStageOpenMarkerKey(row, role, req.user?.sub);
+    if (markerKey) {
+      openMarkers[markerKey] = new Date().toISOString();
+    }
+    const updatedDetail = {
+      ...detail,
+      opened_stage_markers: openMarkers
+    };
+    const updateWhere = ["id = $1"];
+    const updateParams = [id, updatedDetail];
+    if (isUnitRestricted) {
+      updateParams.push(unitAccess);
+      updateWhere.push(`unidad_clave = ANY($${updateParams.length})`);
+    }
+    const updateResult = await pool.query(
+      `UPDATE submissions
+       SET receptor_opened_at = COALESCE(receptor_opened_at, NOW()),
+           detalle_formulario = $2
+       WHERE ${updateWhere.join(" AND ")}
+       RETURNING id, receptor_opened_at, detalle_formulario`,
+      updateParams
+    );
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "receptor_abre",
-      eventLabel: "Receptor abrió el formulario",
+      eventLabel: "Recepción abrió el formulario",
       actorUserId: req.user?.sub || null,
       actorRole: role
     });
-    return res.json(result.rows[0]);
+    return res.json(updateResult.rows[0]);
   } catch (err) {
     console.error("Error marcando formulario como abierto", err);
     return res.status(500).json({ error: "No se pudo marcar como abierto" });
@@ -6642,8 +6714,8 @@ app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
   if (!ALLOWED_ROLES.includes(normalizedRole)) {
     return res.status(400).json({ error: "Rol no vÃ¡lido" });
   }
-  if (String(password).length < 8) {
-    return res.status(400).json({ error: "La contraseÃ±a debe tener al menos 8 caracteres." });
+  if (!PASSWORD_POLICY_REGEX.test(String(password || ""))) {
+    return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
   }
   const emailValidation = await validateEmailAddress(email);
   if (!emailValidation.ok) {
@@ -6755,6 +6827,8 @@ app.listen(PORT, async () => {
     process.exit(1);
   }
 });
+
+
 
 
 

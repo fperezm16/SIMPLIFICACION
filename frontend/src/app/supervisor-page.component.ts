@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -172,7 +172,7 @@ type StatusLegendItem = {
         <div class="stats-grid">
           <div class="card">
             <h4>Distribuci&oacute;n de estados</h4>
-            <div class="stack-track" [attr.aria-label]="'Distribución de estados ' + unitLabel(unitStat.unit)">
+            <div class="stack-track" [attr.aria-label]="'DistribuciÃ³n de estados ' + unitLabel(unitStat.unit)">
               <span
                 *ngFor="let item of statusLegend(unitStat)"
                 [class]="item.css"
@@ -502,7 +502,7 @@ type StatusLegendItem = {
 export class SupervisorPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
-  readonly units: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
+  readonly units = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
   readonly statusView = [
     { key: 'enviado', label: 'Enviado', css: 's-enviado' },
     { key: 'en_recepcion', label: 'Receptor', css: 's-en_recepcion' },
@@ -654,7 +654,7 @@ export class SupervisorPageComponent implements OnInit {
     const normalized = String(unit || 'GENERAL').toUpperCase();
     if (normalized === 'RAN') return 'Unidad RAN';
     if (normalized === 'DVSO') return 'Unidad DVSO';
-    if (normalized === 'AILA') return 'Administración AILA';
+    if (normalized === 'AILA') return 'AdministraciÃ³n AILA';
     if (normalized === 'FINANCIERO') return 'Unidad FINANCIERO';
     return 'Unidad GENERAL';
   }
@@ -673,3 +673,4 @@ export class SupervisorPageComponent implements OnInit {
     return `status-${normalized}`;
   }
 }
+

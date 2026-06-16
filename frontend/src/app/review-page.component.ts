@@ -285,16 +285,16 @@ type ApproverDashboardPayload = {
               <div><span>Correo:</span> {{ row.correo || 'Sin correo' }}</div>
             </div>
             <div class="detail-grid archive-detail">
-              <div><span>Fecha de envío:</span> {{ row.created_at | date:'short' }}</div>
-              <div><span>Fecha de aprobación:</span> {{ row.approved_at ? (row.approved_at | date:'short') : 'No aplica' }}</div>
+              <div><span>Fecha de envÃ­o:</span> {{ row.created_at | date:'short' }}</div>
+              <div><span>Fecha de aprobaciÃ³n:</span> {{ row.approved_at ? (row.approved_at | date:'short') : 'No aplica' }}</div>
               <div><span>Fecha de entrega:</span> {{ row.delivered_at ? (row.delivered_at | date:'short') : 'No aplica' }}</div>
-              <div><span>Tipo de persona:</span> {{ row.persona_tipo === 'juridica' ? 'Jurídica' : 'Individual' }}</div>
+              <div><span>Tipo de persona:</span> {{ row.persona_tipo === 'juridica' ? 'JurÃ­dica' : 'Individual' }}</div>
               <div><span>Analista:</span> {{ row.assigned_analista_name || 'No aplica' }}</div>
               <div><span>Emisor:</span> {{ row.assigned_emisor_name || 'No aplica' }}</div>
               <div><span>Aprobador asignado:</span> {{ row.assigned_aprobador_name || 'No aplica' }}</div>
               <div><span>Aprobado por:</span> {{ row.approved_by_name || row.approved_by_email || 'No aplica' }}</div>
               <div><span>Entregado por:</span> {{ row.delivered_by_name || row.delivered_by_email || 'No aplica' }}</div>
-              <div><span>Teléfono:</span> {{ row.telefono || 'N/D' }}</div>
+              <div><span>TelÃ©fono:</span> {{ row.telefono || 'N/D' }}</div>
             </div>
             <div class="archive-documents" *ngIf="archiveDocuments(row).length">
               <span class="archive-documents-label">Documentos</span>
@@ -350,7 +350,7 @@ type ApproverDashboardPayload = {
                     <span>{{ log.created_at | date:'short' }}</span>
                   </div>
                   <div class="detail-log-meta">
-                    {{ normalizeDisplayText(log.actor_name || log.actor_email || 'Sistema') }}<span *ngIf="log.actor_role"> · {{ normalizeDisplayText(log.actor_role) }}</span>
+                    {{ normalizeDisplayText(log.actor_name || log.actor_email || 'Sistema') }}<span *ngIf="log.actor_role"> Â· {{ normalizeDisplayText(log.actor_role) }}</span>
                   </div>
                   <div class="detail-log-detail" *ngIf="log.event_detail">{{ normalizeDisplayText(log.event_detail) }}</div>
                 </div>
@@ -825,7 +825,7 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
     }
     this.http.get<Submission[]>(`${this.apiBase}/submissions`).subscribe({
       next: (data) => {
-        this.submissions = (data || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave));
+        this.submissions = this.mergeLocalSubmissionState((data || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave)));
         this.loading = false;
         this.restoreScrollPosition();
         this.fetchDashboard(silent);
@@ -843,6 +843,37 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
         this.dashboardAssignments = [];
         this.restoreScrollPosition();
       }
+    });
+  }
+
+  private mergeLocalSubmissionState(nextRows: Submission[]) {
+    const previousById = new Map(this.submissions.map((row) => [Number(row.id), row]));
+    return nextRows.map((row) => {
+      const previous = previousById.get(Number(row.id));
+      if (!previous) return row;
+      const previousDetail = previous.detalle_formulario && typeof previous.detalle_formulario === 'object'
+        ? previous.detalle_formulario as Record<string, unknown>
+        : {};
+      const nextDetail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+        ? row.detalle_formulario as Record<string, unknown>
+        : {};
+      const previousMarkers = previousDetail['opened_stage_markers'] && typeof previousDetail['opened_stage_markers'] === 'object'
+        ? previousDetail['opened_stage_markers'] as Record<string, unknown>
+        : {};
+      const nextMarkers = nextDetail['opened_stage_markers'] && typeof nextDetail['opened_stage_markers'] === 'object'
+        ? nextDetail['opened_stage_markers'] as Record<string, unknown>
+        : {};
+      if (!Object.keys(previousMarkers).length) return row;
+      return {
+        ...row,
+        detalle_formulario: {
+          ...nextDetail,
+          opened_stage_markers: {
+            ...previousMarkers,
+            ...nextMarkers
+          }
+        }
+      };
     });
   }
 
@@ -998,7 +1029,7 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
   archiveDocuments(row: ArchiveItem) {
     const docs: Array<{ key: 'dpi' | 'carta' | 'boleta' | 'signed'; label: string }> = [];
     if (row.dpi_filename) docs.push({ key: 'dpi', label: 'DPI adjunto' });
-    if (row.carta_representacion_filename) docs.push({ key: 'carta', label: 'Carta de representación' });
+    if (row.carta_representacion_filename) docs.push({ key: 'carta', label: 'Carta de representaciÃ³n' });
     if (row.analyst_pdf_filename) docs.push({ key: 'boleta', label: 'Boleta / documento del proceso' });
     if (row.signed_pdf_filename) docs.push({ key: 'signed', label: 'Documento firmado' });
     return docs;
@@ -1022,22 +1053,22 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
   normalizeDisplayText(value: unknown): string {
     const text = value === null || value === undefined ? '' : String(value);
     if (!text) return '';
-    if (!/[ÃÂ�]/.test(text)) return text;
+    if (!/[ÃƒÃ‚ï¿½]/.test(text)) return text;
 
     const replacements: Record<string, string> = {
-      'Ã¡': 'á',
-      'Ã©': 'é',
-      'Ã­': 'í',
-      'Ã³': 'ó',
-      'Ãº': 'ú',
-      'Ã': 'Á',
-      'Ã‰': 'É',
-      'Ã': 'Í',
-      'Ã“': 'Ó',
-      'Ãš': 'Ú',
-      'Ã±': 'ñ',
-      'Ã‘': 'Ñ',
-      'Â·': '·'
+      'ÃƒÂ¡': 'Ã¡',
+      'ÃƒÂ©': 'Ã©',
+      'ÃƒÂ­': 'Ã­',
+      'ÃƒÂ³': 'Ã³',
+      'ÃƒÂº': 'Ãº',
+      'ÃƒÂ': 'Ã',
+      'Ãƒâ€°': 'Ã‰',
+      'ÃƒÂ': 'Ã',
+      'Ãƒâ€œ': 'Ã“',
+      'ÃƒÅ¡': 'Ãš',
+      'ÃƒÂ±': 'Ã±',
+      'Ãƒâ€˜': 'Ã‘',
+      'Ã‚Â·': 'Â·'
     };
 
     let normalized = text;
@@ -1045,7 +1076,7 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
       normalized = normalized.split(from).join(to);
     }
 
-    if (!/[ÃÂ�]/.test(normalized)) return normalized;
+    if (!/[ÃƒÃ‚ï¿½]/.test(normalized)) return normalized;
 
     try {
       const bytes = Uint8Array.from(Array.from(normalized).map((char) => char.charCodeAt(0) & 0xff));

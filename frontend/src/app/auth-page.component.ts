@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import {
   AbstractControl,
@@ -8,17 +8,35 @@ import {
   Validators
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AuthService } from './auth.service';
+import { AuthService, RecaptchaConfig } from './auth.service';
 
 type Status = { type: 'success' | 'error'; message: string } | null;
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 const FULL_NAME_PATTERN = /^\p{L}+(?:[-']\p{L}+)?(?:\s+\p{L}+(?:[-']\p{L}+)?){1,}$/u;
+const PASSWORD_POLICY_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+declare global {
+  interface Window {
+    grecaptcha?: {
+      ready(cb: () => void): void;
+      render(container: string | HTMLElement, parameters: Record<string, unknown>): number;
+      reset(widgetId?: number): void;
+      getResponse(widgetId?: number): string;
+    };
+  }
+}
 
 function passwordMatchValidator(control: AbstractControl): ValidationErrors | null {
   const password = String(control.get('password')?.value || '');
   const confirmPassword = String(control.get('confirmPassword')?.value || '');
   if (!password || !confirmPassword) return null;
   return password === confirmPassword ? null : { passwordMismatch: true };
+}
+
+function passwordPolicyValidator(control: AbstractControl): ValidationErrors | null {
+  const password = String(control.value || '');
+  if (!password) return null;
+  return PASSWORD_POLICY_PATTERN.test(password) ? null : { passwordPolicy: true };
 }
 
 @Component({
@@ -44,6 +62,10 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <input type="password" formControlName="password" autocomplete="current-password" />
               <span class="error" *ngIf="getLoginError('password')">{{ getLoginError('password') }}</span>
             </label>
+            <div *ngIf="recaptchaEnabled" class="recaptcha-block">
+              <div id="login-recaptcha"></div>
+              <span class="error" *ngIf="loginRecaptchaError">{{ loginRecaptchaError }}</span>
+            </div>
             <button type="submit" [disabled]="loading">Entrar</button>
           </form>
           <div class="helper-row">
@@ -87,6 +109,10 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
               <input type="email" formControlName="email" autocomplete="email" />
               <span class="error" *ngIf="getForgotError('email')">{{ getForgotError('email') }}</span>
             </label>
+            <div *ngIf="recaptchaEnabled" class="recaptcha-block">
+              <div id="forgot-recaptcha"></div>
+              <span class="error" *ngIf="forgotRecaptchaError">{{ forgotRecaptchaError }}</span>
+            </div>
             <button type="submit" [disabled]="loading">Enviar enlace</button>
           </form>
           <div class="helper-row">
@@ -159,6 +185,7 @@ function passwordMatchValidator(control: AbstractControl): ValidationErrors | nu
       text-decoration: underline;
     }
     .error { color: #b91c1c; font-size: 12px; }
+    .recaptcha-block { display: grid; gap: 6px; }
     .status-box { margin-top: 12px; padding: 10px; border-radius: 10px; font-size: 14px; }
     .status-box.success { background: #ecfdf3; color: #166534; border: 1px solid #bbf7d0; }
     .status-box.error-box { background: #fef2f2; color: #b91c1c; border: 1px solid #fecdd3; }
@@ -180,6 +207,15 @@ export class AuthPageComponent implements OnInit {
   devVerifyUrl = '';
   devResetUrl = '';
   resetToken = '';
+  recaptchaEnabled = false;
+  recaptchaSiteKey = '';
+  loginRecaptchaError = '';
+  forgotRecaptchaError = '';
+  private recaptchaScriptPromise: Promise<void> | null = null;
+  private loginRecaptchaWidgetId: number | null = null;
+  private forgotRecaptchaWidgetId: number | null = null;
+  private loginRecaptchaToken = '';
+  private forgotRecaptchaToken = '';
 
   loginForm = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -193,15 +229,16 @@ export class AuthPageComponent implements OnInit {
   registerForm = this.fb.group({
     name: ['', [Validators.required, Validators.pattern(FULL_NAME_PATTERN)]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]]
+    password: ['', [Validators.required, Validators.minLength(8), passwordPolicyValidator]]
   });
 
   resetForm = this.fb.group({
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(8), passwordPolicyValidator]],
     confirmPassword: ['', [Validators.required]]
   }, { validators: passwordMatchValidator });
 
   ngOnInit(): void {
+    this.loadRecaptchaConfig();
     const verifyToken = String(this.route.snapshot.queryParamMap.get('verify') || '').trim();
     const resetToken = String(this.route.snapshot.queryParamMap.get('reset') || '').trim();
 
@@ -235,6 +272,9 @@ export class AuthPageComponent implements OnInit {
     this.status = null;
     this.devVerifyUrl = '';
     this.devResetUrl = '';
+    this.loginRecaptchaError = '';
+    this.forgotRecaptchaError = '';
+    this.queueRecaptchaRender();
   }
 
   getLoginError(field: 'email' | 'password'): string | null {
@@ -252,6 +292,7 @@ export class AuthPageComponent implements OnInit {
     if (field === 'name' && control.errors?.['pattern']) return 'Ingresa al menos nombre y apellido';
     if (control.errors?.['email']) return 'Correo no válido';
     if (control.errors?.['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
+    if (control.errors?.['passwordPolicy']) return 'La contraseña debe tener al menos 8 caracteres e incluir al menos una letra mayúscula, un número y un carácter especial (por ejemplo: !@#$%).';
     return 'Valor no válido';
   }
 
@@ -270,6 +311,9 @@ export class AuthPageComponent implements OnInit {
     if (control.touched && control.errors?.['minlength']) {
       return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
     }
+    if (field === 'password' && control.touched && control.errors?.['passwordPolicy']) {
+      return 'La contraseña debe tener al menos 8 caracteres e incluir al menos una letra mayúscula, un número y un carácter especial (por ejemplo: !@#$%).';
+    }
     if (field === 'confirmPassword' && control.touched && this.resetForm.errors?.['passwordMismatch']) {
       return 'Las contraseñas no coinciden';
     }
@@ -281,19 +325,27 @@ export class AuthPageComponent implements OnInit {
     this.devVerifyUrl = '';
     this.devResetUrl = '';
     this.canResendVerification = false;
+    this.loginRecaptchaError = '';
     if (this.loginForm.invalid) {
       this.loginForm.markAllAsTouched();
       return;
     }
+    const recaptchaToken = this.resolveRecaptchaToken('login');
+    if (this.recaptchaEnabled && !recaptchaToken) {
+      this.loginRecaptchaError = 'Completa la verificación de seguridad.';
+      return;
+    }
     const { email, password } = this.loginForm.value;
     this.loading = true;
-    this.auth.login(email || '', password || '').subscribe({
+    this.auth.login(email || '', password || '', recaptchaToken).subscribe({
       next: () => {
         this.loading = false;
+        this.resetRecaptcha('login');
         this.router.navigateByUrl('/');
       },
       error: (err) => {
         this.loading = false;
+        this.resetRecaptcha('login');
         this.status = { type: 'error', message: err?.error?.error || 'No se pudo iniciar sesión.' };
         this.canResendVerification = err?.error?.code === 'EMAIL_NOT_VERIFIED';
       }
@@ -362,16 +414,23 @@ export class AuthPageComponent implements OnInit {
     this.status = null;
     this.devVerifyUrl = '';
     this.devResetUrl = '';
+    this.forgotRecaptchaError = '';
     if (this.forgotForm.invalid) {
       this.forgotForm.markAllAsTouched();
+      return;
+    }
+    const recaptchaToken = this.resolveRecaptchaToken('forgot');
+    if (this.recaptchaEnabled && !recaptchaToken) {
+      this.forgotRecaptchaError = 'Completa la verificación de seguridad.';
       return;
     }
 
     const email = String(this.forgotForm.value.email || '').trim();
     this.loading = true;
-    this.auth.forgotPassword(email).subscribe({
+    this.auth.forgotPassword(email, recaptchaToken).subscribe({
       next: (resp) => {
         this.loading = false;
+        this.resetRecaptcha('forgot');
         this.status = {
           type: 'success',
           message: resp?.message || 'Si existe una cuenta con ese correo, enviaremos un enlace.'
@@ -380,6 +439,7 @@ export class AuthPageComponent implements OnInit {
       },
       error: (err) => {
         this.loading = false;
+        this.resetRecaptcha('forgot');
         this.status = { type: 'error', message: err?.error?.error || 'No se pudo enviar el enlace.' };
       }
     });
@@ -422,6 +482,116 @@ export class AuthPageComponent implements OnInit {
     });
   }
 
+  private loadRecaptchaConfig() {
+    this.auth.getRecaptchaConfig().subscribe({
+      next: (config: RecaptchaConfig) => {
+        this.recaptchaEnabled = Boolean(config?.enabled && config?.siteKey);
+        this.recaptchaSiteKey = String(config?.siteKey || '').trim();
+        this.queueRecaptchaRender();
+      },
+      error: () => {
+        this.recaptchaEnabled = false;
+        this.recaptchaSiteKey = '';
+      }
+    });
+  }
+
+  private queueRecaptchaRender() {
+    if (!this.recaptchaEnabled || !this.recaptchaSiteKey) return;
+    setTimeout(() => {
+      this.ensureRecaptchaScript()
+        .then(() => this.renderActiveRecaptcha())
+        .catch(() => {
+          this.recaptchaEnabled = false;
+          this.recaptchaSiteKey = '';
+        });
+    });
+  }
+
+  private ensureRecaptchaScript() {
+    if (window.grecaptcha) {
+      return Promise.resolve();
+    }
+    if (this.recaptchaScriptPromise) {
+      return this.recaptchaScriptPromise;
+    }
+    this.recaptchaScriptPromise = new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>('script[data-recaptcha-script="true"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('RECAPTCHA_LOAD_FAILED')), { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit';
+      script.async = true;
+      script.defer = true;
+      script.dataset['recaptchaScript'] = 'true';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('RECAPTCHA_LOAD_FAILED'));
+      document.head.appendChild(script);
+    });
+    return this.recaptchaScriptPromise;
+  }
+
+  private renderActiveRecaptcha() {
+    if (!window.grecaptcha || !this.recaptchaSiteKey) return;
+    window.grecaptcha.ready(() => {
+      if (this.mode === 'login' && this.loginRecaptchaWidgetId === null) {
+        const container = document.getElementById('login-recaptcha');
+        if (container) {
+          this.loginRecaptchaWidgetId = window.grecaptcha!.render(container, {
+            sitekey: this.recaptchaSiteKey,
+            callback: (token: string) => {
+              this.loginRecaptchaToken = String(token || '');
+              this.loginRecaptchaError = '';
+            },
+            'expired-callback': () => {
+              this.loginRecaptchaToken = '';
+            }
+          });
+        }
+      }
+      if (this.mode === 'forgot' && this.forgotRecaptchaWidgetId === null) {
+        const container = document.getElementById('forgot-recaptcha');
+        if (container) {
+          this.forgotRecaptchaWidgetId = window.grecaptcha!.render(container, {
+            sitekey: this.recaptchaSiteKey,
+            callback: (token: string) => {
+              this.forgotRecaptchaToken = String(token || '');
+              this.forgotRecaptchaError = '';
+            },
+            'expired-callback': () => {
+              this.forgotRecaptchaToken = '';
+            }
+          });
+        }
+      }
+    });
+  }
+
+  private resolveRecaptchaToken(mode: 'login' | 'forgot') {
+    if (!this.recaptchaEnabled) return 'local-bypass';
+    if (!window.grecaptcha) return '';
+    const widgetId = mode === 'login' ? this.loginRecaptchaWidgetId : this.forgotRecaptchaWidgetId;
+    const widgetToken = widgetId !== null ? window.grecaptcha.getResponse(widgetId) : '';
+    return String(widgetToken || (mode === 'login' ? this.loginRecaptchaToken : this.forgotRecaptchaToken) || '').trim();
+  }
+
+  private resetRecaptcha(mode: 'login' | 'forgot') {
+    if (!window.grecaptcha) return;
+    const widgetId = mode === 'login' ? this.loginRecaptchaWidgetId : this.forgotRecaptchaWidgetId;
+    if (widgetId !== null) {
+      window.grecaptcha.reset(widgetId);
+    }
+    if (mode === 'login') {
+      this.loginRecaptchaToken = '';
+      this.loginRecaptchaError = '';
+    } else {
+      this.forgotRecaptchaToken = '';
+      this.forgotRecaptchaError = '';
+    }
+  }
   private clearVerifyQueryParam() {
     this.router.navigate([], {
       relativeTo: this.route,
@@ -440,3 +610,16 @@ export class AuthPageComponent implements OnInit {
     });
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+

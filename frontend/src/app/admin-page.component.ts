@@ -1,9 +1,11 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { API_BASE } from './api.config';
 import { filterVisibleUnitsInCurrentRuntime, hideDvsoInCurrentRuntime } from './runtime-flags';
+
+const PASSWORD_POLICY_PATTERN = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 type UserRow = {
   id: number;
@@ -37,7 +39,7 @@ type UserRow = {
             <input [(ngModel)]="createForm.email" type="email" placeholder="usuario@correo.com" />
           </label>
           <label>Contraseña
-            <input [(ngModel)]="createForm.password" type="password" placeholder="Mínimo 8 caracteres" />
+            <input [(ngModel)]="createForm.password" type="password" placeholder="Mínimo 8 caracteres, 1 mayúscula, 1 número y 1 carácter especial" />
           </label>
           <label>Rol
             <select [(ngModel)]="createForm.role" (ngModelChange)="onCreateRoleChange()">
@@ -169,7 +171,7 @@ export class AdminPageComponent implements OnInit {
   loading = false;
   error = '';
   message = '';
-  createForm = {
+  createForm: { name: string; email: string; password: string; role: string; unit_access: string[] } = {
     name: '',
     email: '',
     password: '',
@@ -225,6 +227,10 @@ export class AdminPageComponent implements OnInit {
     return Array.from(new Set(normalized));
   }
 
+  private isStrongPassword(password: string) {
+    return PASSWORD_POLICY_PATTERN.test(String(password || ''));
+  }
+
   fetch() {
     this.loading = true;
     this.error = '';
@@ -246,6 +252,10 @@ export class AdminPageComponent implements OnInit {
     this.message = '';
     if (!this.createForm.email || !this.createForm.password || !this.createForm.role) {
       this.error = 'Completa correo, contraseña y rol.';
+      return;
+    }
+    if (!this.isStrongPassword(this.createForm.password)) {
+      this.error = 'La contraseña debe tener al menos 8 caracteres e incluir al menos una letra mayúscula, un número y un carácter especial (por ejemplo: !@#$%).';
       return;
     }
     const isRestricted = this.isUnitRole(this.createForm.role);
@@ -333,3 +343,7 @@ export class AdminPageComponent implements OnInit {
     });
   }
 }
+
+
+
+

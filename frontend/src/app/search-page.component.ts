@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -14,8 +14,8 @@ import { Submission } from './submission.model';
     <section class="search-page">
       <header class="head">
         <div>
-          <h2>Búsqueda de procesos</h2>
-          <p class="muted">Busca procesos por correlativo, nombre, correo, NIT, matrícula o texto relacionado.</p>
+          <h2>BÃºsqueda de procesos</h2>
+          <p class="muted">Busca procesos por correlativo, nombre, correo, NIT, matrÃ­cula o texto relacionado.</p>
         </div>
       </header>
 
@@ -23,7 +23,7 @@ import { Submission } from './submission.model';
         <div class="filters">
           <label>
             Buscar
-            <input [(ngModel)]="query" type="text" placeholder="Ej. FINANCIERO-06-2026, matrícula, correo o nombre" (keyup.enter)="search()">
+            <input [(ngModel)]="query" type="text" placeholder="Ej. FINANCIERO-06-2026, matrÃ­cula, correo o nombre" (keyup.enter)="search()">
           </label>
           <label>
             Unidad
@@ -67,16 +67,16 @@ import { Submission } from './submission.model';
               <div><strong>Estado:</strong> {{ row.process_label || stateLabel(row) }}</div>
               <div><strong>Persona:</strong> {{ row.persona_tipo || 'N/D' }}</div>
               <div><strong>NIT:</strong> {{ row.nit || 'N/D' }}</div>
-              <div><strong>Teléfono:</strong> {{ row.telefono || 'N/D' }}</div>
+              <div><strong>TelÃ©fono:</strong> {{ row.telefono || 'N/D' }}</div>
               <div><strong>Correo:</strong> {{ row.correo || 'N/D' }}</div>
-              <div><strong>Matrícula:</strong> {{ row.matricula_tg || row.matricula_tg_nueva || 'N/D' }}</div>
+              <div><strong>MatrÃ­cula:</strong> {{ row.matricula_tg || row.matricula_tg_nueva || 'N/D' }}</div>
               <div><strong>Analista:</strong> {{ row.assigned_analista_name || row.assigned_analista_email || 'Sin asignar' }}</div>
               <div><strong>Emisor:</strong> {{ row.assigned_emisor_name || row.assigned_emisor_email || 'Sin asignar' }}</div>
               <div><strong>Aprobador:</strong> {{ row.assigned_aprobador_name || row.assigned_aprobador_email || 'Sin asignar' }}</div>
-              <div><strong>Fecha envío a emisor:</strong> {{ row.sent_to_emisor_at ? (row.sent_to_emisor_at | date:'short') : 'N/D' }}</div>
-              <div><strong>Fecha envío a aprobador:</strong> {{ row.sent_to_aprobador_at ? (row.sent_to_aprobador_at | date:'short') : 'N/D' }}</div>
-              <div><strong>Fecha aprobación:</strong> {{ row.approved_at ? (row.approved_at | date:'short') : 'N/D' }}</div>
-              <div><strong>Fecha entrega/finalización:</strong> {{ row.delivered_at ? (row.delivered_at | date:'short') : 'N/D' }}</div>
+              <div><strong>Fecha envÃ­o a emisor:</strong> {{ row.sent_to_emisor_at ? (row.sent_to_emisor_at | date:'short') : 'N/D' }}</div>
+              <div><strong>Fecha envÃ­o a aprobador:</strong> {{ row.sent_to_aprobador_at ? (row.sent_to_aprobador_at | date:'short') : 'N/D' }}</div>
+              <div><strong>Fecha aprobaciÃ³n:</strong> {{ row.approved_at ? (row.approved_at | date:'short') : 'N/D' }}</div>
+              <div><strong>Fecha entrega/finalizaciÃ³n:</strong> {{ row.delivered_at ? (row.delivered_at | date:'short') : 'N/D' }}</div>
             </div>
             <div class="detail-note" *ngIf="row.especificaciones"><strong>Observaciones del formulario:</strong> {{ row.especificaciones }}</div>
           </div>
@@ -290,7 +290,7 @@ export class SearchPageComponent implements OnInit {
       error: (err) => {
         this.results = [];
         this.loading = false;
-        this.error = err?.error?.error || 'No se pudo realizar la búsqueda.';
+        this.error = err?.error?.error || 'No se pudo realizar la bÃºsqueda.';
       }
     });
   }
@@ -326,10 +326,12 @@ export class SearchPageComponent implements OnInit {
     if (row.returned_to_analista_at) return 'Devuelto a analista';
     if (row.delivered_at) return 'Finalizado';
     if (row.approved_at) return 'Aprobado';
-    if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 'En aprobación';
+    if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 'En aprobaciÃ³n';
     if (row.assigned_emisor_id || row.sent_to_emisor_at) return 'En emisor';
     if (row.assigned_analista_id) return 'Asignado';
     if (row.receptor_opened_at) return 'Recibido';
     return 'Enviado';
   }
 }
+
+

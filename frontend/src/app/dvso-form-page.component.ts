@@ -488,7 +488,7 @@ export class DvsoFormPageComponent implements OnInit {
     return this.currentConfig()?.slug === 'dvso-801';
   }
 
-  buildForm(config: DvsoFormConfig) {
+  buildForm(config: DvsoFormConfig, clearStatus = true) {
     const controls: Record<string, unknown[]> = {};
     for (const section of config.sections) {
       for (const field of section.fields) {
@@ -514,7 +514,9 @@ export class DvsoFormPageComponent implements OnInit {
         lugar_fecha_presentacion: this.dvso801PresentationPlace
       }, { emitEvent: false });
     }
-    this.status = null;
+    if (clearStatus) {
+      this.status = null;
+    }
   }
 
   private formatDisplayDate(value: string) {
@@ -565,7 +567,7 @@ export class DvsoFormPageComponent implements OnInit {
             const registro = saved?.registro_codigo ? ` Correlativo: ${saved.registro_codigo}.` : '';
             this.status = { type: 'success', message: `Formulario DVSO enviado correctamente.${registro}` };
             this.form.reset();
-            this.buildForm(config);
+            this.buildForm(config, false);
             this.isSubmitting = false;
           },
           error: (err) => {

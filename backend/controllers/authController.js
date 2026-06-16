@@ -7,6 +7,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 const EMAIL_VERIFY_EXPIRES_MINUTES = 60;
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
 const FULL_NAME_REGEX = /^\p{L}+(?:[-']\p{L}+)?(?:\s+\p{L}+(?:[-']\p{L}+)?){1,}$/u;
+const PASSWORD_POLICY_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PASSWORD_POLICY_MESSAGE = "La contraseña debe tener al menos 8 caracteres e incluir al menos una letra mayúscula, un número y un carácter especial (por ejemplo: !@#$%).";
+const RECAPTCHA_VERIFY_URL = "https://www.google.com/recaptcha/api/siteverify";
 
 function sanitizeText(value, maxLen = 255) {
   if (value === null || value === undefined) return "";
@@ -19,6 +22,10 @@ function normalizeEmail(email = "") {
 
 function isValidFullName(name = "") {
   return FULL_NAME_REGEX.test(sanitizeText(name, 120));
+}
+
+function isStrongPassword(password = "") {
+  return PASSWORD_POLICY_REGEX.test(String(password || ""));
 }
 
 function normalizeUnitAccess(unitAccess) {
@@ -46,6 +53,77 @@ function isDevelopmentVerificationEnabled() {
   return ["1", "true", "yes", "on"].includes(
     String(process.env.ALLOW_DEV_AUTH_LINKS || "").trim().toLowerCase()
   );
+}
+
+function isTruthyEnv(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function getRecaptchaSiteKey() {
+  return String(process.env.RECAPTCHA_SITE_KEY || "").trim();
+}
+
+function getRecaptchaSecretKey() {
+  return String(process.env.RECAPTCHA_SECRET_KEY || "").trim();
+}
+
+function isRecaptchaEnabled() {
+  return Boolean(getRecaptchaSiteKey() && getRecaptchaSecretKey());
+}
+
+function allowLocalRecaptchaBypass() {
+  return isTruthyEnv(process.env.RECAPTCHA_ALLOW_LOCAL_BYPASS);
+}
+
+function getClientIp(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").trim();
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return String(req.ip || req.socket?.remoteAddress || "").trim();
+}
+
+async function verifyRecaptchaToken(token, req) {
+  if (!isRecaptchaEnabled()) {
+    return { ok: true, skipped: true };
+  }
+  const normalizedToken = String(token || "").trim();
+  if (!normalizedToken) {
+    return { ok: false, error: "Completa la verificación de seguridad." };
+  }
+  if (allowLocalRecaptchaBypass() && normalizedToken === "local-bypass") {
+    return { ok: true, bypassed: true };
+  }
+
+  try {
+    const response = await fetch(RECAPTCHA_VERIFY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        secret: getRecaptchaSecretKey(),
+        response: normalizedToken,
+        remoteip: getClientIp(req)
+      })
+    });
+    if (!response.ok) {
+      return { ok: false, error: "No se pudo validar reCAPTCHA." };
+    }
+    const data = await response.json();
+    if (!data?.success) {
+      return { ok: false, error: "La verificación de seguridad no fue válida." };
+    }
+    return { ok: true };
+  } catch (error) {
+    console.error("Error validando reCAPTCHA", error);
+    return { ok: false, error: "No se pudo validar reCAPTCHA." };
+  }
+}
+
+async function enforceRecaptcha(req, res) {
+  const verification = await verifyRecaptchaToken(req.body?.recaptchaToken, req);
+  if (verification.ok) return true;
+  res.status(400).json({ error: verification.error || "Completa la verificación de seguridad." });
+  return false;
 }
 
 function signAuthToken(user) {
@@ -246,8 +324,8 @@ async function register(req, res) {
   if (!EMAIL_REGEX.test(email)) {
     return res.status(400).json({ error: "Correo no válido." });
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
   }
 
   try {
@@ -399,6 +477,9 @@ async function resendVerification(req, res) {
 }
 
 async function forgotPassword(req, res) {
+  if (!(await enforceRecaptcha(req, res))) {
+    return;
+  }
   const email = normalizeEmail(req.body?.email);
   if (!email) {
     return res.status(400).json({ error: "Correo requerido." });
@@ -445,8 +526,8 @@ async function resetPassword(req, res) {
     return res.status(400).json({ error: "Token y contraseña son obligatorios." });
   }
 
-  if (password.length < 8) {
-    return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+  if (!isStrongPassword(password)) {
+    return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
   }
 
   let payload;
@@ -499,6 +580,9 @@ async function resetPassword(req, res) {
 }
 
 async function login(req, res) {
+  if (!(await enforceRecaptcha(req, res))) {
+    return;
+  }
   const email = normalizeEmail(req.body?.email);
   const password = String(req.body?.password || "");
 
@@ -548,11 +632,20 @@ async function login(req, res) {
   }
 }
 
+function getRecaptchaConfig(_req, res) {
+  return res.json({
+    enabled: isRecaptchaEnabled(),
+    siteKey: getRecaptchaSiteKey() || null
+  });
+}
+
 module.exports = {
   register,
   verifyEmail,
   resendVerification,
   forgotPassword,
   resetPassword,
-  login
+  login,
+  getRecaptchaConfig
 };
+

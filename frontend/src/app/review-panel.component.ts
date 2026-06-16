@@ -69,7 +69,7 @@ type TableDocument = {
       </div>
 
       <div class="process-list" *ngIf="filtered().length; else empty">
-        <article class="process-card" *ngFor="let row of filtered()" [class]="statusClass(row)">
+        <article class="process-card" *ngFor="let row of filtered()" [class]="stateClass(row)">
           <div class="process-main">
             <div class="process-title-block">
               <div class="process-title">
@@ -131,7 +131,7 @@ type TableDocument = {
                 <span class="log-time">{{ entry.created_at | date:'short' }}</span>
                 <span class="log-role" *ngIf="entry.actor_role">{{ normalizeDisplayText(entry.actor_role) }}</span>
               </div>
-              <span class="log-event" [class]="logEventClass(entry)">{{ normalizeDisplayText(entry.event_label) }}</span>
+              <span class="log-event" [class]="logEventClass(entry)">{{ displayLogLabel(entry) }}</span>
               <small *ngIf="entry.event_detail">{{ normalizeDisplayText(entry.event_detail) }}</small>
               <small *ngIf="logComment(entry)">Comentario: {{ normalizeDisplayText(logComment(entry)) }}</small>
               <small *ngIf="entry.actor_name || entry.actor_email">Por: {{ actorDisplay(entry) }}</small>
@@ -584,10 +584,30 @@ type TableDocument = {
       background: rgba(255, 255, 255, 0.96);
       box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
     }
-    .process-card.state-assigned { border-left-color: #22c55e; background: #f3fff7; }
-    .process-card.state-pending { border-left-color: #f59e0b; background: #fffdf0; }
+    .process-card.state-assigned,
+    .process-card.state-asignado,
+    .process-card.state-en-aprobacion,
+    .process-card.state-aprobado,
+    .process-card.state-entregado {
+      border-left-color: #22c55e;
+      background: #f3fff7;
+    }
+    .process-card.state-pending,
+    .process-card.state-recepcion {
+      border-left-color: #f59e0b;
+      background: #fffdf0;
+    }
     .process-card.state-unopened,
-    .process-card.state-returned { border-left-color: #ef4444; background: #fff7f7; }
+    .process-card.state-enviado,
+    .process-card.state-returned,
+    .process-card.state-devuelto {
+      border-left-color: #ef4444;
+      background: #fff7f7;
+    }
+    .process-card.state-devuelto-analista {
+      border-left-color: #f97316;
+      background: #fff7ed;
+    }
     .process-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .process-title-block { min-width: 0; }
     .process-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 16px; color: #0f2d47; }
@@ -658,10 +678,13 @@ type TableDocument = {
       select { min-width: 0; width: 100%; }
     }
     .state-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
-    .state-enviado { background: #fee2e2; border-color: #fca5a5; }
-    .state-recepcion { background: #fef9c3; border-color: #fde047; }
-    .state-asignado { background: #dbeafe; border-color: #93c5fd; }
-    .state-en-aprobacion { background: #dbeafe; border-color: #60a5fa; color: #1e3a8a; }
+    .state-enviado,
+    .state-unopened { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+    .state-recepcion,
+    .state-pending { background: #fef9c3; border-color: #fde047; color: #854d0e; }
+    .state-asignado,
+    .state-assigned,
+    .state-en-aprobacion { background: #dcfce7; border-color: #86efac; color: #166534; }
     .state-devuelto { background: #fee2e2; border-color: #f87171; color: #991b1b; }
     .state-devuelto-analista { background: #ffedd5; border-color: #fdba74; color: #9a3412; }
     .state-aprobado { background: #dcfce7; border-color: #86efac; }
@@ -838,6 +861,7 @@ export class ReviewPanelComponent implements OnChanges {
   approvers: Analyst[] = [];
   logs: SubmissionLog[] = [];
   logsLoading = false;
+  private openedStageCache = this.loadOpenedStageCache();
   role = this.auth.currentUser?.role || 'user';
   readonly avsecFinancieroRole = 'avsec_financiero';
   readonly ailaRecepcionRole = 'recepcion_aila';
@@ -1094,6 +1118,97 @@ export class ReviewPanelComponent implements OnChanges {
       ? row.detalle_formulario as Record<string, unknown>
       : {};
     return String(detail['dvso_stage'] || 'recepcion').trim().toLowerCase();
+  }
+
+  private openedStageStorageKey() {
+    return `review-opened-stage-cache:${String(this.currentUserId || 'guest')}:${String(this.role || 'user')}`;
+  }
+
+  private loadOpenedStageCache() {
+    try {
+      const raw = sessionStorage.getItem(this.openedStageStorageKey());
+      const parsed = raw ? JSON.parse(raw) : [];
+      return new Set(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string' && value.length > 0) : []);
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private persistOpenedStageCache() {
+    try {
+      sessionStorage.setItem(this.openedStageStorageKey(), JSON.stringify(Array.from(this.openedStageCache)));
+    } catch {
+      // Ignore storage errors; visual state still works in memory.
+    }
+  }
+
+  currentStageOpenMarkerKey(row: Submission | null | undefined) {
+    if (!row) return '';
+    const role = String(this.role || '').trim().toLowerCase();
+    const markerUser = this.currentUserId ? String(this.currentUserId) : 'self';
+    const rowId = String(row.id || 'base');
+    if (role === 'revisor') return `revisor:${markerUser}:${rowId}`;
+    if (role === this.ailaRecepcionRole) return `aila_recepcion:${markerUser}:${rowId}`;
+    if (role === this.ailaRecepcionAvsecRole) return `aila_recepcion_avsec:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
+    if (role === this.ailaJefaturaAvsecRole) return `aila_jefatura_avsec:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
+    if (role === this.ailaJefaturaAilaRole) return `aila_jefatura_aila:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
+    if (role === this.dvsoRecepcionRole) return `dvso_${this.dvsoStage(row) || 'recepcion'}:${markerUser}:${rowId}`;
+    if (role === this.dvsoAsistenteRole) return `dvso_${this.dvsoStage(row) || 'asistente_revision'}:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
+    if (role === this.dvsoJefaturaRole) return `dvso_${this.dvsoStage(row) || 'jefatura_revision'}:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
+    if (role === this.dvsoInspectorRole) return `dvso_inspector_revision:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
+    if (role === 'analista') return `analista:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
+    if (role === 'emisor') return `emisor:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
+    if (role === 'aprobador') return `aprobador:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
+    return '';
+  }
+
+  hasCurrentRoleOpened(row: Submission | null | undefined) {
+    if (!row) return false;
+    const key = this.currentStageOpenMarkerKey(row);
+    if (key && this.openedStageCache.has(key)) {
+      return true;
+    }
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    const markers = detail['opened_stage_markers'] && typeof detail['opened_stage_markers'] === 'object'
+      ? detail['opened_stage_markers'] as Record<string, unknown>
+      : {};
+    return Boolean(key && markers[key]);
+  }
+
+  private rememberStageOpened(row: Submission | null | undefined) {
+    const key = this.currentStageOpenMarkerKey(row);
+    if (key) {
+      this.openedStageCache.add(key);
+      this.persistOpenedStageCache();
+    }
+  }
+
+  private applyLocalOpenedState(row: Submission, openedAt = new Date().toISOString()) {
+    const markerKey = this.currentStageOpenMarkerKey(row);
+    if (!markerKey) return;
+    this.rememberStageOpened(row);
+    const currentDetail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    const currentMarkers = currentDetail['opened_stage_markers'] && typeof currentDetail['opened_stage_markers'] === 'object'
+      ? currentDetail['opened_stage_markers'] as Record<string, unknown>
+      : {};
+    row.detalle_formulario = {
+      ...currentDetail,
+      opened_stage_markers: {
+        ...currentMarkers,
+        [markerKey]: currentMarkers[markerKey] || openedAt
+      }
+    } as Submission['detalle_formulario'];
+    this.data = this.data.map((item) => item.id === row.id ? { ...item, ...row } : item);
+    if (this.selected?.id === row.id) {
+      this.selected = { ...row };
+    }
+    if (this.edit?.id === row.id) {
+      this.edit = { ...this.edit, detalle_formulario: row.detalle_formulario };
+    }
   }
 
   isAilaGenericFlow(row: Submission | null | undefined) {
@@ -1446,6 +1561,14 @@ export class ReviewPanelComponent implements OnChanges {
     const actorEmail = this.normalizeDisplayText(entry.actor_email);
     if (actorName && actorEmail) return `${actorName} (${actorEmail})`;
     return actorName || actorEmail || 'Sistema';
+  }
+
+  displayLogLabel(entry: SubmissionLog) {
+    const label = this.normalizeDisplayText(entry?.event_label);
+    if (entry?.event_code === 'receptor_abre' || label === 'Receptor abrió el formulario') {
+      return 'Recepción abrió el formulario';
+    }
+    return label;
   }
 
   logComment(entry: SubmissionLog): string | null {
@@ -2197,15 +2320,6 @@ export class ReviewPanelComponent implements OnChanges {
     });
   }
 
-  statusClass(row: Submission) {
-    if (row.returned_at || row.returned_to_analista_at) return 'state-returned';
-    if (row.assigned_aprobador_id || row.sent_to_aprobador_at || row.assigned_emisor_id || row.sent_to_emisor_at || row.assigned_analista_id) {
-      return 'state-assigned';
-    }
-    if (!row.receptor_opened_at) return 'state-unopened';
-    return 'state-pending';
-  }
-
   isInternalRole() {
     return this.role !== 'user';
   }
@@ -2242,6 +2356,9 @@ export class ReviewPanelComponent implements OnChanges {
     if (row.delivered_at) return 'state-entregado';
     if (this.isFinancialPaymentPasswordFlow(row) && (row.has_analyst_pdf || row.analyst_pdf_filename)) return 'state-en-aprobacion';
     if (row.approved_at) return 'state-aprobado';
+    if (this.currentRoleOwnsStage(row)) {
+      return this.hasCurrentRoleOpened(row) ? 'state-recepcion' : 'state-enviado';
+    }
     if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 'state-en-aprobacion';
     if (row.assigned_emisor_id || row.sent_to_emisor_at) return 'state-asignado';
     if (row.assigned_analista_id) return 'state-asignado';
@@ -2249,16 +2366,85 @@ export class ReviewPanelComponent implements OnChanges {
     return 'state-enviado';
   }
 
+  currentRoleOwnsStage(row: Submission | null | undefined) {
+    if (!row) return false;
+    const role = String(this.role || '').trim().toLowerCase();
+    if (role === 'revisor') return !row.assigned_analista_id;
+    if (role === this.ailaRecepcionRole) return this.isAilaGenericFlow(row) && !row.assigned_analista_id;
+    if (role === this.dvsoRecepcionRole) {
+      const stage = this.dvsoStage(row);
+      return this.isDvsoSubmission(row) && (stage === 'recepcion' || stage === 'recepcion_entrega');
+    }
+    if (role === 'analista') return Number(row.assigned_analista_id) === Number(this.currentUserId) && !row.sent_to_emisor_at && !row.sent_to_aprobador_at;
+    if (role === this.ailaRecepcionAvsecRole) {
+      return this.isAilaGenericFlow(row) && Number(row.assigned_analista_id) === Number(this.currentUserId);
+    }
+    if (role === this.dvsoAsistenteRole) {
+      const stage = this.dvsoStage(row);
+      return this.isDvsoSubmission(row) &&
+        Number(row.assigned_analista_id) === Number(this.currentUserId) &&
+        (stage === 'asistente_revision' || stage === 'asistente_sello');
+    }
+    if (role === 'emisor') return Number(row.assigned_emisor_id) === Number(this.currentUserId) && !row.sent_to_aprobador_at;
+    if (role === this.ailaJefaturaAvsecRole) {
+      return this.isAilaGenericFlow(row) && Number(row.assigned_emisor_id) === Number(this.currentUserId);
+    }
+    if (role === this.dvsoJefaturaRole) {
+      const stage = this.dvsoStage(row);
+      return this.isDvsoSubmission(row) &&
+        Number(row.assigned_emisor_id) === Number(this.currentUserId) &&
+        (stage === 'jefatura_revision' || stage === 'jefatura_aprobacion');
+    }
+    if (role === 'aprobador') return Number(row.assigned_aprobador_id) === Number(this.currentUserId);
+    if (role === this.ailaJefaturaAilaRole) return this.isAilaGenericFlow(row) && Number(row.assigned_aprobador_id) === Number(this.currentUserId);
+    if (role === this.dvsoInspectorRole) {
+      return this.isDvsoSubmission(row) &&
+        Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
+        this.dvsoStage(row) === 'inspector_revision';
+    }
+    return false;
+  }
+
   private markAsOpened(row: Submission) {
-    if ((this.role !== 'revisor' && this.role !== this.dvsoRecepcionRole) || !row.id || row.receptor_opened_at) return;
-    this.http.post<{ receptor_opened_at: string }>(`${this.apiBase}/submissions/${row.id}/open`, {}).subscribe({
+    if (!this.currentRoleOwnsStage(row) || !row.id || this.hasCurrentRoleOpened(row)) return;
+    this.applyLocalOpenedState(row);
+    this.http.post<{ receptor_opened_at: string; detalle_formulario?: Record<string, unknown> }>(`${this.apiBase}/submissions/${row.id}/open`, {}).subscribe({
       next: (resp) => {
+        const markerKey = this.currentStageOpenMarkerKey(row);
+        const markerAt = new Date().toISOString();
+        const mergeOpenedDetail = (target: Submission, incoming?: Record<string, unknown>) => {
+          const currentDetail = target.detalle_formulario && typeof target.detalle_formulario === 'object'
+            ? target.detalle_formulario as Record<string, unknown>
+            : {};
+          const nextDetail = incoming && typeof incoming === 'object'
+            ? { ...currentDetail, ...incoming }
+            : { ...currentDetail };
+          const currentMarkers = nextDetail['opened_stage_markers'] && typeof nextDetail['opened_stage_markers'] === 'object'
+            ? nextDetail['opened_stage_markers'] as Record<string, unknown>
+            : {};
+          if (markerKey) {
+            nextDetail['opened_stage_markers'] = {
+              ...currentMarkers,
+              [markerKey]: currentMarkers[markerKey] || markerAt
+            };
+          }
+          target.detalle_formulario = nextDetail as Submission['detalle_formulario'];
+        };
         row.receptor_opened_at = resp.receptor_opened_at;
+        mergeOpenedDetail(row, resp.detalle_formulario);
         if (this.edit?.id === row.id) {
           this.edit.receptor_opened_at = resp.receptor_opened_at;
+          mergeOpenedDetail(this.edit, resp.detalle_formulario);
         }
         if (this.selected?.id === row.id) {
           this.loadLogs(row.id);
+        }
+      },
+      error: () => {
+        const markerKey = this.currentStageOpenMarkerKey(row);
+        if (markerKey) {
+          this.openedStageCache.delete(markerKey);
+          this.persistOpenedStageCache();
         }
       }
     });

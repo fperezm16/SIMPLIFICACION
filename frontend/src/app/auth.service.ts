@@ -24,6 +24,11 @@ export interface PasswordRecoveryResponse {
   dev_reset_url?: string;
 }
 
+export interface RecaptchaConfig {
+  enabled: boolean;
+  siteKey: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
@@ -75,9 +80,13 @@ export class AuthService {
     return this.http.post<RegisterResponse>(`${API_BASE}/auth/register`, payload);
   }
 
-  login(email: string, password: string) {
+  getRecaptchaConfig() {
+    return this.http.get<RecaptchaConfig>(`${API_BASE}/auth/recaptcha-config`);
+  }
+
+  login(email: string, password: string, recaptchaToken: string) {
     return this.http
-      .post<{ token: string; user: AuthUser }>(`${API_BASE}/auth/login`, { email, password })
+      .post<{ token: string; user: AuthUser }>(`${API_BASE}/auth/login`, { email, password, recaptchaToken })
       .pipe(tap(({ token, user }) => this.setSession(token, user)));
   }
 
@@ -99,8 +108,8 @@ export class AuthService {
     );
   }
 
-  forgotPassword(email: string) {
-    return this.http.post<PasswordRecoveryResponse>(`${API_BASE}/auth/forgot-password`, { email });
+  forgotPassword(email: string, recaptchaToken: string) {
+    return this.http.post<PasswordRecoveryResponse>(`${API_BASE}/auth/forgot-password`, { email, recaptchaToken });
   }
 
   resetPassword(token: string, password: string) {

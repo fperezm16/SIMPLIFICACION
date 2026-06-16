@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -872,7 +872,6 @@ export class HomePageComponent implements OnInit, OnDestroy {
     const map = new Map<string, Submission[]>();
     for (const row of rows) {
       const unit = this.inferUnit(row);
-      if (!isUnitVisibleInCurrentRuntime(unit)) continue;
       if (!map.has(unit)) map.set(unit, []);
       map.get(unit)?.push(row);
     }
@@ -997,5 +996,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
     localStorage.setItem(storageKey, JSON.stringify(seen));
   }
 }
+
+
+
 
 

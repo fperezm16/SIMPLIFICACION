@@ -5,12 +5,14 @@ const {
   resendVerification,
   forgotPassword,
   resetPassword,
-  login
+  login,
+  getRecaptchaConfig
 } = require("../controllers/authController");
 
 const router = express.Router();
 
 router.post("/register", register);
+router.get("/recaptcha-config", getRecaptchaConfig);
 router.post("/login", login);
 router.get("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerification);
