@@ -31,7 +31,7 @@ import { hideDvsoInCurrentRuntime } from './runtime-flags';
                     <a routerLink="/ran/formulario-drones" routerLinkActive="active-link">UAV / RPA - Distintivo</a>
                   </div>
                 </div>
-                <div class="units-submenu">
+                <div class="units-submenu" *ngIf="!hideDvsoInCurrentRuntime()">
                   <button type="button" class="submenu-trigger">DVSO</button>
                   <div class="units-submenu-panel">
                     <a routerLink="/dvso/dvso-623" routerLinkActive="active-link">DVSO-623 Ala fija</a>
@@ -199,6 +199,7 @@ import { hideDvsoInCurrentRuntime } from './runtime-flags';
 export class AppComponent {
   auth = inject(AuthService);
   private router = inject(Router);
+  protected hideDvsoInCurrentRuntime = hideDvsoInCurrentRuntime;
 
   get showUnitsMenu() {
     return this.router.url !== '/auth';

@@ -1,8 +1,11 @@
+const FORCE_HIDE_DVSO = true;
+
 const DVSO_HIDDEN_HOSTS = new Set([
   '172.18.10.23'
 ]);
 
 export function hideDvsoInCurrentRuntime() {
+  if (FORCE_HIDE_DVSO) return true;
   if (typeof window === 'undefined') return false;
   const host = String(window.location.hostname || '').trim().toLowerCase();
   return DVSO_HIDDEN_HOSTS.has(host);
