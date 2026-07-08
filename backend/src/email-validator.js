@@ -9,7 +9,7 @@ function normalizeEmail(email = "") {
 }
 
 function isMxValidationEnabled() {
-  const raw = String(process.env.EMAIL_VALIDATE_MX || "true").trim().toLowerCase();
+  const raw = String(process.env.EMAIL_VALIDATE_MX || "false").trim().toLowerCase();
   return !(raw === "0" || raw === "false" || raw === "off" || raw === "no");
 }
 

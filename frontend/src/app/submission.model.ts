@@ -41,6 +41,9 @@ export type Submission = {
   dpi_filename?: string | null;
   dpi_mime?: string | null;
   has_dpi?: boolean | null;
+  original_form_filename?: string | null;
+  original_form_mime?: string | null;
+  has_original_form?: boolean | null;
   financial_declaraguate_2_filename?: string | null;
   financial_declaraguate_2_mime?: string | null;
   has_financial_declaraguate_2?: boolean | null;

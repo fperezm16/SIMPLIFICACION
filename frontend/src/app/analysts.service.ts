@@ -6,6 +6,7 @@ export interface Analyst {
   id: number;
   email: string;
   name?: string | null;
+  role?: string | null;
   unit_access?: string[];
 }
 

@@ -161,12 +161,12 @@ export class AdminPageComponent implements OnInit {
   readonly apiBase = API_BASE;
   readonly roles = hideDvsoInCurrentRuntime()
     ? ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'admin', 'supervisor']
-    : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'avsec_financiero', 'admin', 'supervisor'];
+    : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero', 'admin', 'supervisor'];
   readonly unitOptions: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
   private readonly unitRoles = new Set(
     hideDvsoInCurrentRuntime()
       ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero']
-      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'avsec_financiero']
+      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero']
   );
 
   users: UserRow[] = [];

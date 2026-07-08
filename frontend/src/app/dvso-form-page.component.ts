@@ -1,10 +1,10 @@
 ﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
+import { Submission } from './submission.model';
 
 type DvsoFieldType = 'text' | 'email' | 'tel' | 'textarea' | 'date' | 'number' | 'select';
 
@@ -45,6 +45,8 @@ type DvsoFormConfig = {
   title: string;
   subtitle: string;
   pdfAsset: string;
+  downloadLabel?: string;
+  additionalPdfAssets?: Array<{ label: string; asset: string; filename: string }>;
   sections: DvsoSection[];
   payloadMap: DvsoPayloadMap;
 };
@@ -54,7 +56,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     slug: 'dvso-623',
     code: 'DVSO-623',
     shortLabel: 'Certificado exportación ala fija',
-    title: 'FORMA DGAC DVSO-623 CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACI?N ALA FIJA',
+    title: 'FORMA DGAC DVSO-623 CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACIÓN ALA FIJA',
     subtitle: 'Certificado de aeronavegabilidad para exportación de aeronaves de ala fija.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-623-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION-ALA-FIJA.pdf',
     payloadMap: {
@@ -178,10 +180,18 @@ const DVSO_FORMS: DvsoFormConfig[] = [
   {
     slug: 'dvso-639',
     code: 'DVSO-639',
-    shortLabel: 'Solicitud certificado exportación',
-    title: 'FORMA DGAC DVSO-639 SOLICITUD PARA CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACI?N',
-    subtitle: 'Solicitud del certificado de aeronavegabilidad para exportación.',
+    shortLabel: 'Solicitud y anexo de exportación',
+    title: 'DVSO-639 SOLICITUD Y DVSO-639A ANEXO PARA CERTIFICADO DE EXPORTACIÓN',
+    subtitle: 'Solicitud y anexo para tramitar el certificado de aeronavegabilidad para exportación.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-639-SOLICITUD-PARA-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION.pdf',
+    downloadLabel: 'Descargar DVSO-639 Solicitud para Certificado de Aeronavegabilidad para Exportación',
+    additionalPdfAssets: [
+      {
+        label: 'Descargar DVSO-639A Anexo a Solicitud para Certificado de Exportación',
+        asset: 'assets/dvso/FORMA-DGAC-DVSO-639A-ANEXO-A-SOLICITUD-PARA-CERTIFICADO-DE-EXPORTACION.pdf',
+        filename: 'DVSO-639A.pdf'
+      }
+    ],
     payloadMap: {
       nameField: 'propietario_nombre_direccion',
       addressField: 'propietario_nombre_direccion',
@@ -444,290 +454,163 @@ const DVSO_FORMS: DvsoFormConfig[] = [
 
 @Component({
   selector: 'app-dvso-form-page',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule],
   templateUrl: './dvso-form-page.component.html',
   styleUrls: ['./dvso-form-page.component.css']
 })
 export class DvsoFormPageComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  private readonly fb = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
 
   readonly apiBase = API_BASE;
-  readonly forms = DVSO_FORMS;
+  readonly forms = DVSO_FORMS.filter((form) => !['dvso-623', 'dvso-623a', 'dvso-639a'].includes(form.slug));
   readonly currentConfig = signal<DvsoFormConfig | null>(null);
-  readonly todayDate = new Date().toISOString().slice(0, 10);
-  readonly todayDisplayDate = this.formatDisplayDate(this.todayDate);
-  readonly dvso801PresentationPlace = `Guatemala, ${this.formatDisplayDate(this.todayDate)}`;
   readonly pageTitle = computed(() => this.currentConfig()?.title || 'Formulario DVSO');
+  readonly maxFileSize = 10 * 1024 * 1024;
 
   status: { type: 'success' | 'error'; message: string } | null = null;
   isSubmitting = false;
-
-  form = this.fb.group({});
+  selectedFile: File | null = null;
+  editingReturnedId: number | null = null;
+  returnedReason = '';
+  loadingReturnedEdit = false;
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
       const slug = String(params.get('slug') || '').trim().toLowerCase();
       const config = this.forms.find((entry) => entry.slug === slug) || this.forms[0];
       this.currentConfig.set(config);
-      this.buildForm(config);
+      this.selectedFile = null;
+      this.status = null;
+    });
+    this.route.queryParamMap.subscribe((params) => {
+      const returnedId = Number(params.get('editReturned'));
+      if (Number.isInteger(returnedId) && returnedId > 0) {
+        this.startReturnedEdit(returnedId);
+      }
     });
   }
 
-  isDvso623() {
-    return this.currentConfig()?.slug === 'dvso-623';
-  }
-
-  isDvso639() {
-    return this.currentConfig()?.slug === 'dvso-639';
-  }
-
-  isDvso801() {
-    return this.currentConfig()?.slug === 'dvso-801';
-  }
-
-  buildForm(config: DvsoFormConfig, clearStatus = true) {
-    const controls: Record<string, unknown[]> = {};
-    for (const section of config.sections) {
-      for (const field of section.fields) {
-        const validators = [];
-        if (field.required) validators.push(Validators.required);
-        if (field.type === 'email') validators.push(Validators.email);
-        controls[field.key] = ['', validators];
-      }
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    this.status = null;
+    this.selectedFile = null;
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      this.status = { type: 'error', message: 'El formulario debe cargarse en formato PDF.' };
+      input.value = '';
+      return;
     }
-    this.form = this.fb.group(controls);
-    if (config.slug === 'dvso-623') {
-      this.form.patchValue({
-        fecha_emision: this.todayDate
-      }, { emitEvent: false });
+    if (file.size > this.maxFileSize) {
+      this.status = { type: 'error', message: 'El archivo supera el tamaño máximo de 10 MB.' };
+      input.value = '';
+      return;
     }
-    if (config.slug === 'dvso-639') {
-      this.form.patchValue({
-        firma_fecha: this.todayDate
-      }, { emitEvent: false });
-    }
-    if (config.slug === 'dvso-801') {
-      this.form.patchValue({
-        lugar_fecha_presentacion: this.dvso801PresentationPlace
-      }, { emitEvent: false });
-    }
-    if (clearStatus) {
-      this.status = null;
-    }
+    this.selectedFile = file;
   }
 
-  private formatDisplayDate(value: string) {
-    const [year, month, day] = String(value || '').split('-');
-    if (!year || !month || !day) return value;
-    return `${day}/${month}/${year}`;
-  }
-
-  fieldType(field: DvsoField) {
-    return field.type || 'text';
-  }
-
-  fieldRows(field: DvsoField) {
-    return field.rows || 3;
-  }
-
-  isReadonlyField(field: DvsoField) {
-    const slug = this.currentConfig()?.slug;
-    if (!slug) return false;
-    if (slug === 'dvso-623') return field.key === 'fecha_emision';
-    if (slug === 'dvso-639') return field.key === 'firma_fecha';
-    return false;
-  }
-
-  getFieldError(field: DvsoField): string | null {
-    const control = this.form.get(field.key);
-    if (!control || !control.touched || !control.invalid) return null;
-    if (control.errors?.['required']) return 'Campo obligatorio';
-    if (control.errors?.['email']) return 'Correo no válido';
-    return 'Valor no válido';
-  }
-
-  onSubmit() {
+  async onSubmit() {
     const config = this.currentConfig();
     if (!config) return;
     this.status = null;
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+    if (!this.selectedFile) {
+      this.status = { type: 'error', message: 'Debes seleccionar el formulario completado en PDF.' };
       return;
     }
 
-    const values = this.form.getRawValue() as Record<string, string>;
     this.isSubmitting = true;
-    this.buildPayload(config, values)
-      .then((payload) => {
-        this.http.post(`${this.apiBase}/submissions`, payload).subscribe({
-          next: (saved: any) => {
-            const registro = saved?.registro_codigo ? ` Correlativo: ${saved.registro_codigo}.` : '';
-            this.status = { type: 'success', message: `Formulario DVSO enviado correctamente.${registro}` };
-            this.form.reset();
-            this.buildForm(config, false);
-            this.isSubmitting = false;
-          },
-          error: (err) => {
-            this.status = { type: 'error', message: err?.error?.error || 'No se pudo enviar el formulario DVSO.' };
-            this.isSubmitting = false;
-          }
-        });
-      })
-      .catch(() => {
-        this.status = { type: 'error', message: 'No se pudo preparar el PDF original del formulario 801.' };
-        this.isSubmitting = false;
-      });
-  }
-
-  private async buildPayload(config: DvsoFormConfig, values: Record<string, string>) {
-    if (config.slug === 'dvso-639') {
-      return this.buildDvso639Payload(config, values);
-    }
-    const payload = this.buildBasePayload(config, values);
-    if (config.slug === 'dvso-801') {
-      const originalForm = await this.buildDvso801OriginalPdf(values);
-      return {
-        ...payload,
-        original_form_pdf_base64: originalForm.base64,
-        original_form_filename: originalForm.filename,
+    try {
+      const base64 = await this.readFileAsBase64(this.selectedFile);
+      const currentUser = this.auth.currentUser;
+      const payload = {
+        unidad_clave: 'DVSO',
+        gestion_nombre: config.title,
+        nombre_propietario: String(currentUser?.name || currentUser?.email || 'Usuario DVSO').trim(),
+        correo: String(currentUser?.email || '').trim(),
+        telefono: null,
+        direccion: 'N/D',
+        uso: config.code,
+        detalle_formulario: {
+          tipo: 'dvso',
+          codigo: config.code,
+          slug: config.slug,
+          titulo: config.title,
+          formularios_incluidos: config.additionalPdfAssets?.length ? [config.code, 'DVSO-639A'] : [config.code],
+          modalidad: 'formulario_pdf_cargado'
+        },
+        original_form_pdf_base64: base64,
+        original_form_filename: this.selectedFile.name,
         original_form_mime: 'application/pdf'
       };
-    }
-    return payload;
-  }
-
-  private buildBasePayload(config: DvsoFormConfig, values: Record<string, string>) {
-    const map = config.payloadMap;
-    const detail = {
-      tipo: 'dvso',
-      codigo: config.code,
-      slug: config.slug,
-      titulo: config.title,
-      ...values
-    };
-    return {
-      unidad_clave: 'DVSO',
-      gestion_nombre: config.title,
-      nombre_propietario: String(values[map.nameField] || '').trim(),
-      representante_legal: map.secondaryNameField ? String(values[map.secondaryNameField] || '').trim() : null,
-      documento_propietario: map.documentField ? String(values[map.documentField] || '').trim() : null,
-      direccion: map.addressField ? String(values[map.addressField] || '').trim() : 'N/D',
-      telefono: String(values[map.phoneField] || '').trim(),
-      correo: String(values[map.emailField] || this.auth.currentUser?.email || '').trim(),
-      uso: config.code,
-      matricula_tg: map.registrationField ? String(values[map.registrationField] || '').trim() : null,
-      numero_serie: map.serialField ? String(values[map.serialField] || '').trim() : null,
-      especificaciones: map.notesField ? String(values[map.notesField] || '').trim() : null,
-      detalle_formulario: detail
-    };
-  }
-
-  private async buildDvso801OriginalPdf(values: Record<string, string>) {
-    const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-    const bytes = await fetch('assets/dvso/FORMA-DGAC-DVSO-801-SOLICITUD-DICTAMEN-TECNICO-AERONAVE-PILOTADAS-A-DISTANCIA-RPA.pdf')
-      .then((response) => response.arrayBuffer());
-    const pdfDoc = await PDFDocument.load(bytes);
-    const page = pdfDoc.getPage(0);
-    const { width, height } = page.getSize();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const ink = rgb(0.1, 0.17, 0.28);
-
-    const writeField = (
-      value: string,
-      left: number,
-      top: number,
-      fieldWidth: number,
-      opts: { size?: number; align?: 'left' | 'center' } = {}
-    ) => {
-      const text = String(value || '').trim();
-      if (!text) return;
-      const size = opts.size || 10;
-      const y = height - (top * height) - size;
-      const x = left * width;
-      const maxWidth = fieldWidth * width;
-      const activeFont = opts.align === 'center' ? boldFont : font;
-      const textWidth = activeFont.widthOfTextAtSize(text, size);
-      const drawX = opts.align === 'center'
-        ? x + Math.max(0, (maxWidth - textWidth) / 2)
-        : x + 2;
-      page.drawText(text, {
-        x: drawX,
-        y,
-        size,
-        font: activeFont,
-        color: ink,
-        maxWidth
+      const request = this.editingReturnedId
+        ? this.http.put(`${this.apiBase}/my-submissions/${this.editingReturnedId}/resubmit`, payload)
+        : this.http.post(`${this.apiBase}/submissions`, payload);
+      request.subscribe({
+        next: (saved: any) => {
+          const registro = saved?.registro_codigo ? ` Correlativo: ${saved.registro_codigo}.` : '';
+          const message = this.editingReturnedId
+            ? 'El nuevo formulario DVSO fue enviado nuevamente para revisión.'
+            : `Solicitud DVSO enviada correctamente.${registro}`;
+          this.status = { type: 'success', message };
+          this.selectedFile = null;
+          this.editingReturnedId = null;
+          this.returnedReason = '';
+          this.isSubmitting = false;
+        },
+        error: (err) => {
+          this.status = { type: 'error', message: err?.error?.error || 'No se pudo enviar la solicitud DVSO.' };
+          this.isSubmitting = false;
+        }
       });
-    };
-
-    writeField(values['lugar_fecha_presentacion'], 0.37, 0.228, 0.395);
-    writeField(values['entidad_nombre'], 0.196, 0.358, 0.607);
-    writeField(values['correo_contacto'], 0.338, 0.407, 0.437);
-    writeField(values['telefono_contacto'], 0.338, 0.454, 0.448);
-    writeField(values['marca_rpa'], 0.252, 0.541, 0.54);
-    writeField(values['modelo_rpa'], 0.259, 0.577, 0.532);
-    writeField(values['serie_rpa'], 0.411, 0.613, 0.428);
-    writeField(values['peso_rpa'], 0.566, 0.65, 0.227);
-    writeField(values['cantidad_rpa'], 0.272, 0.686, 0.519);
-    writeField(values['firma_solicitante'], 0.244, 0.839, 0.468, { size: 11, align: 'center' });
-
-    return {
-      base64: this.bytesToBase64(await pdfDoc.save()),
-      filename: `dvso-801-${this.todayDate}.pdf`
-    };
-  }
-
-  private bytesToBase64(bytes: Uint8Array) {
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let index = 0; index < bytes.length; index += chunkSize) {
-      const chunk = bytes.subarray(index, index + chunkSize);
-      binary += String.fromCharCode(...chunk);
+    } catch {
+      this.status = { type: 'error', message: 'No se pudo leer el archivo PDF seleccionado.' };
+      this.isSubmitting = false;
     }
-    return btoa(binary);
   }
 
-  private buildDvso639Payload(config: DvsoFormConfig, values: Record<string, string>) {
-    const ownerLine = String(values['propietario_nombre_direccion'] || '').trim();
-    const ownerContactLine = String(values['propietario_contacto'] || '').trim();
-    const emailMatch = ownerContactLine.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-    const phoneMatch = ownerContactLine.match(/[\d+\-()\s]{8,}/);
-    const importerLine = String(values['importador_nombre_direccion'] || '').trim();
-
-    const detail = {
-      tipo: 'dvso',
-      codigo: config.code,
-      slug: config.slug,
-      titulo: config.title,
-      ...values
-    };
-
-    return {
-      unidad_clave: 'DVSO',
-      gestion_nombre: config.title,
-      nombre_propietario: ownerLine,
-      representante_legal: String(values['solicitante_nombre'] || '').trim() || null,
-      documento_propietario: null,
-      direccion: ownerLine || 'N/D',
-      telefono: phoneMatch ? phoneMatch[0].trim() : 'N/D',
-      correo: emailMatch ? emailMatch[0].trim() : String(this.auth.currentUser?.email || '').trim(),
-      uso: config.code,
-      matricula_tg: String(values['matricula_aeronave'] || '').trim() || null,
-      numero_serie: String(values['serie_aeronave'] || '').trim() || null,
-      especificaciones: [
-        values['informacion_adicional'],
-        importerLine ? `Importador: ${importerLine}` : '',
-        values['ubicacion_inspeccion'] ? `Ubicación inspección: ${values['ubicacion_inspeccion']}` : '',
-        values['firma_fecha'] ? `Firma y fecha: ${values['firma_fecha']}` : ''
-      ].filter(Boolean).join('\n'),
-      detalle_formulario: detail
-    };
+  fileSizeLabel(file: File) {
+    return `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
   }
 
+  private startReturnedEdit(returnedId: number) {
+    this.loadingReturnedEdit = true;
+    this.status = null;
+    this.selectedFile = null;
+    this.http.get<Submission>(`${this.apiBase}/my-submissions/${returnedId}`).subscribe({
+      next: (submission) => {
+        if (String(submission.unidad_clave || '').toUpperCase() !== 'DVSO' || !submission.returned_at) {
+          this.status = { type: 'error', message: 'La solicitud indicada no está disponible para corrección.' };
+          this.loadingReturnedEdit = false;
+          return;
+        }
+        const detail = submission.detalle_formulario && typeof submission.detalle_formulario === 'object'
+          ? submission.detalle_formulario as Record<string, unknown>
+          : {};
+        const rawSlug = String(detail['slug'] || '').trim().toLowerCase();
+        const slug = rawSlug === 'dvso-639a' || !rawSlug ? 'dvso-639' : rawSlug;
+        const config = this.forms.find((entry) => entry.slug === slug);
+        if (config) this.currentConfig.set(config);
+        this.editingReturnedId = submission.id;
+        this.returnedReason = String(submission.returned_reason || submission.comentarios_revision || '').trim();
+        this.loadingReturnedEdit = false;
+      },
+      error: () => {
+        this.loadingReturnedEdit = false;
+        this.status = { type: 'error', message: 'No se pudo abrir la solicitud DVSO devuelta.' };
+      }
+    });
+  }
+
+  private readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
 }
 
 

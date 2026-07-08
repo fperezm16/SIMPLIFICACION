@@ -1,4 +1,4 @@
-const FORCE_HIDE_DVSO = true;
+const FORCE_HIDE_DVSO = false;
 
 const DVSO_HIDDEN_HOSTS = new Set([
   '172.18.10.23'

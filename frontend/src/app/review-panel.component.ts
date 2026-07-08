@@ -394,6 +394,13 @@ type TableDocument = {
         <section class="attachments-zone">
           <h5>Documentos del proceso</h5>
           <div class="attachments-list">
+            <div class="dpi-box" *ngIf="selected.has_original_form || selected.original_form_filename">
+              <div class="dpi-head">
+                <span>Formulario DVSO completado:</span>
+                <strong>{{ selected.original_form_filename || 'formulario-dvso.pdf' }}</strong>
+              </div>
+              <button class="link" type="button" (click)="viewOriginalForm(selected)">Ver PDF</button>
+            </div>
             <ng-container *ngIf="isFinancialSubmission(selected); else defaultDpiAttachment">
               <div class="dpi-box" *ngFor="let doc of financialDeclaraguateDocuments(selected)" [hidden]="!doc.has">
                 <div class="dpi-head">
@@ -872,6 +879,7 @@ export class ReviewPanelComponent implements OnChanges {
   readonly dvsoAsistenteRole = 'asistente_dvso';
   readonly dvsoJefaturaRole = 'jefatura_dvso';
   readonly dvsoInspectorRole = 'inspector_dvso';
+  readonly dvsoJefaturaOpsRole = 'jefatura_ops';
   currentUserId = this.auth.currentUser?.id || null;
   canEdit = false;
   canApprove = this.role === 'aprobador' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
@@ -879,8 +887,8 @@ export class ReviewPanelComponent implements OnChanges {
   canSendToApprover = this.role === 'emisor' || this.role === this.ailaJefaturaAvsecRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
   canDeliverRole = this.role === 'revisor' || this.role === this.dvsoRecepcionRole;
   canAssign = this.role === 'revisor' || this.role === this.ailaRecepcionRole || this.role === this.dvsoRecepcionRole || this.role === 'admin' || this.role === 'supervisor';
-  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
-  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
+  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
+  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
   canReturnToAnalyst = this.role === 'aprobador';
 
   financialProcessFieldLabel() {
@@ -1015,6 +1023,15 @@ export class ReviewPanelComponent implements OnChanges {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) =>
         this.isDvsoSubmission(d) &&
+        !this.isDvsoOps805Submission(d) &&
+        Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
+        this.dvsoStage(d) === 'inspector_revision'
+      );
+    }
+    if (this.role === this.dvsoJefaturaOpsRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) =>
+        this.isDvsoOps805Submission(d) &&
         Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
         this.dvsoStage(d) === 'inspector_revision'
       );
@@ -1112,6 +1129,21 @@ export class ReviewPanelComponent implements OnChanges {
     return String(row?.unidad_clave || '').toUpperCase() === 'DVSO';
   }
 
+  isDvsoOps805Submission(row: Submission | null | undefined) {
+    if (!this.isDvsoSubmission(row)) return false;
+    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    const values = [
+      detail['slug'],
+      detail['codigo'],
+      detail['code'],
+      row?.uso,
+      row?.gestion_nombre
+    ].map((value) => String(value || '').trim().toLowerCase());
+    return values.some((value) => value === 'dvso-ops-805' || value.includes('dvso-ops-805'));
+  }
+
   dvsoStage(row: Submission | null | undefined) {
     if (!this.isDvsoSubmission(row)) return '';
     const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
@@ -1156,6 +1188,7 @@ export class ReviewPanelComponent implements OnChanges {
     if (role === this.dvsoAsistenteRole) return `dvso_${this.dvsoStage(row) || 'asistente_revision'}:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
     if (role === this.dvsoJefaturaRole) return `dvso_${this.dvsoStage(row) || 'jefatura_revision'}:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
     if (role === this.dvsoInspectorRole) return `dvso_inspector_revision:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
+    if (role === this.dvsoJefaturaOpsRole) return `dvso_ops_805:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
     if (role === 'analista') return `analista:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
     if (role === 'emisor') return `emisor:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
     if (role === 'aprobador') return `aprobador:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
@@ -1441,6 +1474,7 @@ export class ReviewPanelComponent implements OnChanges {
     if (this.isDvsoSubmission(row)) {
       if (stage === 'analista') return 'Asistente DVSO';
       if (stage === 'emisor') return 'Jefatura DVSO';
+      if (this.isDvsoOps805Submission(row)) return 'Jefatura OPS';
       return 'Inspector DVSO';
     }
     if (stage === 'analista') return 'Analista';
@@ -1464,6 +1498,7 @@ export class ReviewPanelComponent implements OnChanges {
 
   sendToApproverLabel(row: Submission | null | undefined) {
     if (this.isAilaGenericFlow(row)) return 'Enviar a Jefatura AILA';
+    if (this.isDvsoOps805Submission(row)) return 'Enviar a Jefatura OPS';
     if (this.isDvsoSubmission(row)) return 'Enviar a Inspector DVSO';
     return 'Enviar a aprobador';
   }
@@ -1820,6 +1855,14 @@ export class ReviewPanelComponent implements OnChanges {
     this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/dpi`, 'No se pudo abrir el DPI (revisa permisos o sesión).');
   }
 
+  viewOriginalForm(row: Submission) {
+    if (!row.id) return;
+    this.openSubmissionPdf(
+      `${this.apiBase}/submissions/${row.id}/original-form`,
+      'No se pudo abrir el formulario DVSO (revisa permisos o sesión).'
+    );
+  }
+
   viewFinancialDeclaraguate(row: Submission, number: number) {
     if (!row.id) return;
     this.openSubmissionPdf(
@@ -1925,6 +1968,9 @@ export class ReviewPanelComponent implements OnChanges {
     if (!this.canReturn) return false;
     if (this.role === 'emisor' && this.isFinancialSubmission(this.selected)) return false;
     if (this.isDvsoSubmission(this.selected)) {
+      if (this.isDvsoOps805Submission(this.selected)) {
+        return this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
+      }
       return this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
     }
     return true;
@@ -1934,7 +1980,8 @@ export class ReviewPanelComponent implements OnChanges {
     if (!this.selected?.id || !this.isDvsoSubmission(this.selected)) return false;
     if (this.dvsoStage(this.selected) !== 'inspector_revision') return false;
     if (this.role === 'admin' || this.role === 'supervisor') return true;
-    return this.role === this.dvsoInspectorRole &&
+    const expectedRole = this.isDvsoOps805Submission(this.selected) ? this.dvsoJefaturaOpsRole : this.dvsoInspectorRole;
+    return this.role === expectedRole &&
       Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
   }
 
@@ -1970,6 +2017,9 @@ export class ReviewPanelComponent implements OnChanges {
     const unit = String(this.selected?.unidad_clave || 'GENERAL').toUpperCase();
     return this.approvers.filter((approver) => {
       const units = (approver.unit_access || []).map((item) => String(item || '').toUpperCase());
+      const role = String(approver.role || '').trim().toLowerCase();
+      if (this.isDvsoOps805Submission(this.selected) && role !== this.dvsoJefaturaOpsRole) return false;
+      if (this.isDvsoSubmission(this.selected) && !this.isDvsoOps805Submission(this.selected) && role === this.dvsoJefaturaOpsRole) return false;
       return units.includes(unit);
     });
   }
@@ -2399,6 +2449,12 @@ export class ReviewPanelComponent implements OnChanges {
     if (role === this.ailaJefaturaAilaRole) return this.isAilaGenericFlow(row) && Number(row.assigned_aprobador_id) === Number(this.currentUserId);
     if (role === this.dvsoInspectorRole) {
       return this.isDvsoSubmission(row) &&
+        !this.isDvsoOps805Submission(row) &&
+        Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
+        this.dvsoStage(row) === 'inspector_revision';
+    }
+    if (role === this.dvsoJefaturaOpsRole) {
+      return this.isDvsoOps805Submission(row) &&
         Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
         this.dvsoStage(row) === 'inspector_revision';
     }
@@ -2504,7 +2560,11 @@ export class ReviewPanelComponent implements OnChanges {
   sendToApprover() {
     if (!this.selected || !this.selected.id || !this.canSendSelectedToApprover()) return;
     this.sendingToApprover = true;
-    this.status = this.isDvsoSubmission(this.selected) ? 'Enviando a inspector DVSO...' : 'Enviando a aprobador...';
+    this.status = this.isDvsoOps805Submission(this.selected)
+      ? 'Enviando a Jefatura OPS...'
+      : this.isDvsoSubmission(this.selected)
+        ? 'Enviando a inspector DVSO...'
+        : 'Enviando a aprobador...';
     this.http.post<{ assigned_aprobador_id: number; sent_to_aprobador_at: string; assigned_aprobador_name?: string | null; assigned_aprobador_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-approver`,
       {
@@ -2536,7 +2596,11 @@ export class ReviewPanelComponent implements OnChanges {
           }
         }
         this.sendingToApprover = false;
-        this.status = this.isDvsoSubmission(this.selected) ? 'Formulario enviado al inspector DVSO.' : 'Formulario enviado al aprobador.';
+        this.status = this.isDvsoOps805Submission(this.selected)
+          ? 'Formulario enviado a Jefatura OPS.'
+          : this.isDvsoSubmission(this.selected)
+            ? 'Formulario enviado al inspector DVSO.'
+            : 'Formulario enviado al aprobador.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }

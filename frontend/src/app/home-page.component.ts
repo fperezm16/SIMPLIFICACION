@@ -856,6 +856,14 @@ export class HomePageComponent implements OnInit, OnDestroy {
     const unit = this.inferUnit(row);
     if (unit === 'FINANCIERO') return '/financiero/solvencia-pago';
     if (unit === 'AILA') return '/aila/permiso-trabajo';
+    if (unit === 'DVSO') {
+      const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+        ? row.detalle_formulario as Record<string, unknown>
+        : {};
+      const rawSlug = String(detail['slug'] || '').trim().toLowerCase();
+      const slug = rawSlug === 'dvso-639a' || !rawSlug ? 'dvso-639' : rawSlug;
+      return `/dvso/${slug}`;
+    }
     if (unit !== 'RAN') return '/formulario';
     const gestion = String(row.gestion_nombre || '').toLowerCase();
     if (!gestion && (row.tipo_inscripcion || row.tipo_reposicion || row.tipo_cambio_prop)) {

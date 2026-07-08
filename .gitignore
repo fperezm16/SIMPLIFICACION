@@ -34,3 +34,5 @@ entrega/*.zip
 entrega/ver_front_nube/
 backups/*.backup
 backups/*.sql
+manuales/chrome_qa_profile/
+manuales/~$*.docx

@@ -29,11 +29,13 @@ const DVSO_ROLE_RECEPCION = "recepcion_dvso";
 const DVSO_ROLE_ASISTENTE = "asistente_dvso";
 const DVSO_ROLE_JEFATURA = "jefatura_dvso";
 const DVSO_ROLE_INSPECTOR = "inspector_dvso";
+const DVSO_ROLE_JEFATURA_OPS = "jefatura_ops";
 const DVSO_WORKFLOW_ROLES = [
   DVSO_ROLE_RECEPCION,
   DVSO_ROLE_ASISTENTE,
   DVSO_ROLE_JEFATURA,
-  DVSO_ROLE_INSPECTOR
+  DVSO_ROLE_INSPECTOR,
+  DVSO_ROLE_JEFATURA_OPS
 ];
 const AILA_WORKFLOW_ROLES = [
   AILA_ROLE_RECEPCION,
@@ -54,7 +56,7 @@ const REVIEW_ROLES = [
   ...DVSO_WORKFLOW_ROLES,
   FINANCIAL_ROLE_AVSEC
 ];
-const ALLOWED_ROLES = ["user", ...REVIEW_ROLES];
+const ALLOWED_ROLES = Array.from(new Set(["user", ...REVIEW_ROLES, DVSO_ROLE_JEFATURA_OPS]));
 const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO"];
 const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, ...DVSO_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC];
 
@@ -117,6 +119,27 @@ function isDvsoWorkflow(row = {}) {
   return String(row?.unidad_clave || "").trim().toUpperCase() === "DVSO";
 }
 
+function isDvsoOps805Workflow(row = {}) {
+  if (!isDvsoWorkflow(row)) return false;
+  const detail = normalizeSubmissionDetail(row?.detalle_formulario);
+  const values = [
+    detail.slug,
+    detail.codigo,
+    detail.code,
+    row?.uso,
+    row?.gestion_nombre
+  ].map((value) => String(value || "").trim().toLowerCase());
+  return values.some((value) => value === "dvso-ops-805" || value.includes("dvso-ops-805"));
+}
+
+function dvsoOps805SqlExpression(alias = "s") {
+  const prefix = alias ? `${alias}.` : "";
+  return `(
+    LOWER(COALESCE(${prefix}detalle_formulario->>'slug', '')) = 'dvso-ops-805'
+    OR LOWER(COALESCE(${prefix}detalle_formulario->>'codigo', ${prefix}detalle_formulario->>'code', ${prefix}uso, ${prefix}gestion_nombre, '')) LIKE '%dvso-ops-805%'
+  )`;
+}
+
 function getDvsoStage(row = {}) {
   if (!isDvsoWorkflow(row)) return "";
   const detail = normalizeSubmissionDetail(row?.detalle_formulario);
@@ -145,6 +168,10 @@ function isDvsoJefaturaRole(role = "") {
 
 function isDvsoInspectorRole(role = "") {
   return String(role || "").trim().toLowerCase() === DVSO_ROLE_INSPECTOR;
+}
+
+function isDvsoJefaturaOpsRole(role = "") {
+  return String(role || "").trim().toLowerCase() === DVSO_ROLE_JEFATURA_OPS;
 }
 
 function currentStageOpenMarkerKey(row = {}, role = "", userId = null) {
@@ -177,6 +204,9 @@ function currentStageOpenMarkerKey(row = {}, role = "", userId = null) {
   }
   if (normalizedRole === DVSO_ROLE_INSPECTOR) {
     return `dvso_inspector_revision:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
+  }
+  if (normalizedRole === DVSO_ROLE_JEFATURA_OPS) {
+    return `dvso_ops_805:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
   }
   if (normalizedRole === "analista") {
     return `analista:${markerUser}:${rowId}:${row.assigned_analista_id || "na"}`;
@@ -1649,11 +1679,10 @@ function resolveBrowserExecutablePath() {
 }
 
 async function buildSubmissionPdfBuffer(submission) {
-  const isDvso801Original =
+  const isDvsoOriginal =
     String(submission?.unidad_clave || "").toUpperCase() === "DVSO" &&
-    String(submission?.detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801" &&
     submission?.original_form_pdf;
-  if (isDvso801Original) {
+  if (isDvsoOriginal) {
     return submission.original_form_pdf;
   }
   const executablePath = resolveBrowserExecutablePath();
@@ -2181,9 +2210,6 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     Boolean(tipo_certificacion)
   );
   const isDvsoRequest = unidadClave === "DVSO";
-  const isDvso801Request =
-    isDvsoRequest &&
-    String(normalizedDetail?.slug || "").trim().toLowerCase() === "dvso-801";
   const isFinancialRequest = unidadClave === "FINANCIERO";
   const isAilaRequest = unidadClave === "AILA";
   const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
@@ -2199,8 +2225,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     : isDvsoRequest
       ? [
         ["nombre_propietario", nombre_propietario],
-        ["correo", correo],
-        ["telefono", telefono]
+        ["correo", correo]
       ]
     : isAilaRequest
       ? [
@@ -2279,6 +2304,9 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     originalFormPdfBuffer = decodePdfBase64(original_form_pdf_base64, "El PDF original del formulario");
   } catch (err) {
     return res.status(400).json({ error: err.message || "Uno de los PDFs no es valido." });
+  }
+  if (isDvsoRequest && !originalFormPdfBuffer) {
+    return res.status(400).json({ error: "Debes cargar el formulario DVSO completado en PDF." });
   }
   if (isRanDroneRequest && !origenCompra) {
     return res.status(400).json({ error: "Para RPA debes indicar si fue comprado en Guatemala o en el extranjero." });
@@ -2377,7 +2405,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   }
   const numericValidationError = validateNumericSubmissionFields(
     { documento_propietario, telefono, autorizado_documento, autorizado_telefono },
-    { requireMainPhone: true, requireOwnerDocument: requireOwnerDocument || isFinancialRequest, flexibleMainPhone: isAilaRequest || isDvsoRequest, flexibleOwnerDocument: unidadClave === "RAN" }
+    { requireMainPhone: !isDvsoRequest, requireOwnerDocument: requireOwnerDocument || isFinancialRequest, flexibleMainPhone: isAilaRequest, flexibleOwnerDocument: unidadClave === "RAN" }
   );
   if (numericValidationError) {
     return res.status(400).json({ error: numericValidationError });
@@ -2732,6 +2760,7 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     const isDvsoAssistant = isDvsoAssistantRole(role);
     const isDvsoJefatura = isDvsoJefaturaRole(role);
     const isDvsoInspector = isDvsoInspectorRole(role);
+    const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
@@ -2740,6 +2769,10 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     if (isUnitRestricted) {
       params.push(unitAccess);
       where.push(`s.unidad_clave = ANY($${params.length})`);
+    }
+    if (isDvsoJefaturaOpsRole(role)) {
+      where.push(`s.unidad_clave = 'DVSO'`);
+      where.push(dvsoOps805SqlExpression("s"));
     }
     if (isAnalyst) {
       params.push(req.user?.sub);
@@ -2809,6 +2842,15 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
       where.push(`s.assigned_aprobador_id = $${params.length}`);
       where.push(`s.unidad_clave = 'DVSO'`);
       where.push(`COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') = 'inspector_revision'`);
+      where.push(`NOT ${dvsoOps805SqlExpression("s")}`);
+      where.push(`s.delivered_at IS NULL`);
+    }
+    if (isDvsoJefaturaOps) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_aprobador_id = $${params.length}`);
+      where.push(`s.unidad_clave = 'DVSO'`);
+      where.push(dvsoOps805SqlExpression("s"));
+      where.push(`COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') = 'inspector_revision'`);
       where.push(`s.delivered_at IS NULL`);
     }
     if (isFinancialAvsec) {
@@ -2826,6 +2868,7 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
         s.tipo_internacion, s.tipo_reservacion, s.tipo_inscripcion, s.tipo_certificado_prov, s.tipo_reposicion,
         s.tipo_cambio_prop, s.tipo_cambio_datos, s.tipo_certificacion, s.especificaciones, s.detalle_formulario, s.comentarios_revision,
         s.dpi_filename, s.dpi_mime, (s.dpi_pdf IS NOT NULL) AS has_dpi,
+        s.original_form_filename, s.original_form_mime, (s.original_form_pdf IS NOT NULL) AS has_original_form,
         s.financial_declaraguate_2_filename, s.financial_declaraguate_2_mime, (s.financial_declaraguate_2_pdf IS NOT NULL) AS has_financial_declaraguate_2,
         s.financial_declaraguate_3_filename, s.financial_declaraguate_3_mime, (s.financial_declaraguate_3_pdf IS NOT NULL) AS has_financial_declaraguate_3,
         s.financial_declaraguate_4_filename, s.financial_declaraguate_4_mime, (s.financial_declaraguate_4_pdf IS NOT NULL) AS has_financial_declaraguate_4,
@@ -2973,6 +3016,7 @@ app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), a
     const isDvsoAssistant = isDvsoAssistantRole(role);
     const isDvsoJefatura = isDvsoJefaturaRole(role);
     const isDvsoInspector = isDvsoInspectorRole(role);
+    const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
@@ -3005,6 +3049,10 @@ app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), a
       where.push(`COALESCE(sub.detalle_formulario->>'proceso_codigo', '') = 'gestion_tia'`);
       where.push(`sub.approved_at IS NOT NULL`);
       where.push(`sub.signed_pdf IS NOT NULL`);
+    }
+    if (isDvsoJefaturaOps) {
+      where.push(`sub.unidad_clave = 'DVSO'`);
+      where.push(dvsoOps805SqlExpression("sub"));
     }
 
     const result = await pool.query(
@@ -3085,6 +3133,7 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
     const isAilaUetia = isAilaStage3Role(role);
     const isAilaJefatura = isAilaStage4Role(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
+    const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
 
@@ -3134,6 +3183,12 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
       accessWhere.push(`COALESCE(detalle_formulario->>'proceso_codigo', '') = 'gestion_tia'`);
       accessWhere.push(`approved_at IS NOT NULL`);
       accessWhere.push(`signed_pdf IS NOT NULL`);
+    }
+    if (isDvsoJefaturaOps) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`assigned_aprobador_id = $${accessParams.length}`);
+      accessWhere.push(`unidad_clave = 'DVSO'`);
+      accessWhere.push(dvsoOps805SqlExpression(""));
     }
     const accessResult = await pool.query(
       `SELECT id FROM submissions WHERE ${accessWhere.join(" AND ")}`,
@@ -3865,15 +3920,15 @@ app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin")
       return res.status(400).json({ error: "El formulario aÃºn no estÃ¡ aprobado." });
     }
 
-    const isDvso801Original =
+    const isDvsoOriginal =
       String(submission.unidad_clave || "").toUpperCase() === "DVSO" &&
-      String(submission.detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801" &&
       submission.original_form_pdf;
-    if (isDvso801Original) {
+    if (isDvsoOriginal) {
       const fallbackCode = String(submission.registro_codigo || `REG-${id}`).replace(/[^A-Za-z0-9-_]+/g, "-");
+      const formSlug = String(submission.detalle_formulario?.slug || "formulario-dvso").replace(/[^A-Za-z0-9-_]+/g, "-");
       const filename = sanitizeHeaderFilename(
-        submission.original_form_filename || `dvso-801-${fallbackCode}.pdf`,
-        `dvso-801-${fallbackCode}.pdf`
+        submission.original_form_filename || `${formSlug}-${fallbackCode}.pdf`,
+        `${formSlug}-${fallbackCode}.pdf`
       );
       res.setHeader("Content-Type", submission.original_form_mime || "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
@@ -4089,16 +4144,6 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       return res.status(400).json({ error: "origen_compra debe ser guatemala o extranjero." });
     }
   }
-  const isAilaResubmit = String(req.body?.detalle_formulario?.tipo || '').trim().toLowerCase() === 'aila_permiso_trabajo';
-  const isRanResubmit = String((req.body?.unidad_clave || existing.rows[0]?.unidad_clave || '')).trim().toUpperCase() === 'RAN';
-  const isDvsoResubmit = String((req.body?.unidad_clave || existing.rows[0]?.unidad_clave || '')).trim().toUpperCase() === 'DVSO';
-  const numericValidationError = validateNumericSubmissionFields(
-    { ...(req.body || {}), unidad_clave: req.body?.unidad_clave || existing.rows[0]?.unidad_clave || '' },
-    { onlyProvided: true, flexibleMainPhone: isAilaResubmit || isDvsoResubmit, flexibleOwnerDocument: isRanResubmit }
-  );
-  if (numericValidationError) {
-    return res.status(400).json({ error: numericValidationError });
-  }
   const updatesCorreo = Object.prototype.hasOwnProperty.call(req.body || {}, "correo");
   let correoNormalizado = null;
   let dpiPdfBuffer;
@@ -4184,6 +4229,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
          (aila_escort_pwd_1_pdf IS NOT NULL) AS has_aila_escort_pwd_1,
          (aila_escort_pwd_2_pdf IS NOT NULL) AS has_aila_escort_pwd_2,
          (aila_escort_pwd_3_pdf IS NOT NULL) AS has_aila_escort_pwd_3
+         , original_form_pdf
        FROM submissions
        WHERE id = $1
          AND returned_at IS NOT NULL
@@ -4228,11 +4274,15 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       Boolean(req.body?.tipo_certificacion)
     );
     const isDvsoRequest = currentUnidad === "DVSO";
-    const isDvso801Resubmit =
-      isDvsoRequest &&
-      String(req.body?.detalle_formulario?.slug || current.detalle_formulario?.slug || "").trim().toLowerCase() === "dvso-801";
     const isFinancialRequest = currentUnidad === "FINANCIERO";
     const isAilaRequest = currentUnidad === "AILA";
+    const numericValidationError = validateNumericSubmissionFields(
+      { ...(req.body || {}), unidad_clave: currentUnidad },
+      { onlyProvided: true, flexibleMainPhone: isAilaRequest || isDvsoRequest, flexibleOwnerDocument: currentUnidad === "RAN" }
+    );
+    if (numericValidationError) {
+      return res.status(400).json({ error: numericValidationError });
+    }
     const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
     const requireExtraDocs = !isFinancialRequest && (finalTipo === "juridica" || isRanDroneRequest);
     const useSingleActaAsRegistroMercantil =
@@ -4384,8 +4434,16 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     if (isAilaRequest && ailaFilledEscortIndexes.includes(3) && !hasAilaEscortPwd3After) {
       return res.status(400).json({ error: ailaExpiredEscortIndexes.includes(3) ? "Debes adjuntar el PDF de la contraseña del escolta 3." : "Debes adjuntar el PDF de la T.I.A. del escolta 3." });
     }
-    if (isDvso801Resubmit && !hasOriginalFormAfter) {
-      return res.status(400).json({ error: "El formulario 801 debe reenviarse usando el PDF original completado." });
+    if (isDvsoRequest && !hasOriginalFormAfter) {
+      return res.status(400).json({ error: "Debes descargar, llenar y cargar un formulario DVSO nuevo para reenviar la solicitud." });
+    }
+    if (
+      isDvsoRequest &&
+      originalFormPdfBuffer &&
+      current.original_form_pdf &&
+      Buffer.compare(originalFormPdfBuffer, current.original_form_pdf) === 0
+    ) {
+      return res.status(400).json({ error: "El PDF es igual al enviado anteriormente. Debes cargar un formulario nuevo con las correcciones solicitadas." });
     }
     if (isAilaRequest && ailaHasVehicles && !hasRpaRegistroRepresentanteAfter) {
       return res.status(400).json({ error: "Debes adjuntar la tarjeta de circulaciÃ³n de cada vehÃ­culo." });
@@ -4743,6 +4801,58 @@ app.get("/api/submissions/:id/dpi", requireAuth, requireRole(...REVIEW_ROLES), a
   } catch (err) {
     console.error("Error fetching dpi", err);
     return res.status(500).json({ error: "No se pudo obtener el DPI" });
+  }
+});
+
+app.get("/api/submissions/:id/original-form", requireAuth, requireRole(...REVIEW_ROLES), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isEmitter = role === "emisor";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["id = $1", "unidad_clave = 'DVSO'"];
+    const params = [id];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`assigned_analista_id = $${params.length}`);
+    }
+    if (isEmitter) {
+      params.push(req.user?.sub);
+      where.push(`assigned_emisor_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`unidad_clave = ANY($${params.length})`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`assigned_aprobador_id = $${params.length}`);
+    }
+    if (isDvsoJefaturaOpsRole(role)) {
+      params.push(req.user?.sub);
+      where.push(`assigned_aprobador_id = $${params.length}`);
+      where.push(dvsoOps805SqlExpression(""));
+    }
+    const result = await pool.query(
+      `SELECT original_form_pdf, original_form_filename, original_form_mime
+       FROM submissions
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!result.rowCount || !result.rows[0].original_form_pdf) {
+      return res.status(404).json({ error: "Formulario DVSO no encontrado" });
+    }
+    const row = result.rows[0];
+    const filename = sanitizeHeaderFilename(row.original_form_filename || "formulario-dvso.pdf", "formulario-dvso.pdf");
+    res.setHeader("Content-Type", row.original_form_mime || "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    return res.send(row.original_form_pdf);
+  } catch (err) {
+    console.error("Error fetching DVSO original form", err);
+    return res.status(500).json({ error: "No se pudo obtener el formulario DVSO" });
   }
 });
 
@@ -5481,7 +5591,7 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
 });
 
 // Analista/emisor/admin/supervisor devuelven formulario al usuario para correcciÃ³n
-app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA_AILA, DVSO_ROLE_INSPECTOR, "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA_AILA, DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const reason = String(req.body?.reason || "").trim();
   if (!reason) {
@@ -5492,6 +5602,7 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
   const isEmitter = role === "emisor";
   const isAilaFinal = isAilaStage4Role(role);
   const isDvsoInspector = isDvsoInspectorRole(role);
+  const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
   const isUnitRestricted = isUnitRestrictedRole(role);
   const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
   try {
@@ -5514,6 +5625,12 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
     }
     if (isDvsoInspector) {
       where.push("assigned_aprobador_id = $2");
+      where.push(`NOT ${dvsoOps805SqlExpression("")}`);
+    }
+    if (isDvsoJefaturaOps) {
+      where.push("assigned_aprobador_id = $2");
+      where.push("unidad_clave = 'DVSO'");
+      where.push(dvsoOps805SqlExpression(""));
     }
     if (isUnitRestricted) {
       params.push(unitAccess);
@@ -5817,6 +5934,9 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     if (isDvsoSubmission && getDvsoStage(submission) !== "jefatura_revision") {
       return res.status(400).json({ error: "El proceso DVSO no se encuentra en la etapa de jefatura." });
     }
+    const isDvsoOps805 = isDvsoOps805Workflow(submission);
+    const dvsoNextRole = isDvsoOps805 ? DVSO_ROLE_JEFATURA_OPS : DVSO_ROLE_INSPECTOR;
+    const dvsoNextRoleLabel = isDvsoOps805 ? "jefatura OPS" : "inspector DVSO";
     if (submissionUnit === "FINANCIERO" && isAnalyst) {
       return res.status(400).json({ error: "En financiero el analista debe enviar el proceso al emisor antes del aprobador." });
     }
@@ -5834,24 +5954,24 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     let approverResult;
     if (requestedAprobadorId) {
       approverResult = await pool.query(
-        `SELECT id, name, email, unit_access FROM users WHERE id = $1 AND ${isAilaGeneric ? `role = '${AILA_ROLE_JEFATURA_AILA}'` : isDvsoSubmission ? `role = '${DVSO_ROLE_INSPECTOR}'` : `role = 'aprobador'`}`,
+        `SELECT id, name, email, unit_access FROM users WHERE id = $1 AND ${isAilaGeneric ? `role = '${AILA_ROLE_JEFATURA_AILA}'` : isDvsoSubmission ? `role = '${dvsoNextRole}'` : `role = 'aprobador'`}`,
         [requestedAprobadorId]
       );
       if (!approverResult.rowCount) {
-        return res.status(400).json({ error: isAilaGeneric ? "El usuario seleccionado no es Jefatura AILA." : isDvsoSubmission ? "El usuario seleccionado no es inspector DVSO." : "El usuario seleccionado no es aprobador." });
+        return res.status(400).json({ error: isAilaGeneric ? "El usuario seleccionado no es Jefatura AILA." : isDvsoSubmission ? `El usuario seleccionado no es ${dvsoNextRoleLabel}.` : "El usuario seleccionado no es aprobador." });
       }
     } else {
       approverResult = await pool.query(
         `SELECT id, name, email, unit_access
          FROM users
-         WHERE ${isAilaGeneric ? `role = '${AILA_ROLE_JEFATURA_AILA}'` : isDvsoSubmission ? `role = '${DVSO_ROLE_INSPECTOR}'` : `role = 'aprobador'`}
+         WHERE ${isAilaGeneric ? `role = '${AILA_ROLE_JEFATURA_AILA}'` : isDvsoSubmission ? `role = '${dvsoNextRole}'` : `role = 'aprobador'`}
            AND unit_access @> ARRAY[$1]::TEXT[]
          ORDER BY created_at ASC, id ASC
          LIMIT 1`,
         [submissionUnit]
       );
       if (!approverResult.rowCount) {
-        return res.status(400).json({ error: isAilaGeneric ? "No existe una Jefatura AILA configurada para esta unidad." : isDvsoSubmission ? "No existe un inspector DVSO configurado para esta unidad." : "No existe un aprobador configurado para esta unidad." });
+        return res.status(400).json({ error: isAilaGeneric ? "No existe una Jefatura AILA configurada para esta unidad." : isDvsoSubmission ? `No existe ${dvsoNextRoleLabel} configurada para esta unidad.` : "No existe un aprobador configurado para esta unidad." });
       }
     }
 
@@ -5889,7 +6009,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "enviado_aprobador",
-      eventLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : isDvsoSubmission ? "Formulario enviado a inspector DVSO" : "Formulario enviado a aprobador",
+      eventLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : isDvsoSubmission ? `Formulario enviado a ${dvsoNextRoleLabel}` : "Formulario enviado a aprobador",
       eventDetail: comentariosRevision || approver.name || approver.email || `ID ${approver.id}`,
       actorUserId: req.user?.sub || null,
       actorRole: role,
@@ -5905,8 +6025,8 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
         await notifyAssignee({
           to: context.approver_email,
           recipientName: context.approver_name,
-          roleLabel: isAilaGeneric ? "Jefatura AILA" : isDvsoSubmission ? "inspector DVSO" : "aprobador",
-          actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : isDvsoSubmission ? "Formulario enviado a inspector DVSO" : "Formulario enviado a aprobador",
+          roleLabel: isAilaGeneric ? "Jefatura AILA" : isDvsoSubmission ? dvsoNextRoleLabel : "aprobador",
+          actionLabel: isAilaGeneric ? "Formulario enviado a Jefatura AILA" : isDvsoSubmission ? `Formulario enviado a ${dvsoNextRoleLabel}` : "Formulario enviado a aprobador",
           context,
           comments: comentariosRevision
         });
@@ -5917,7 +6037,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
         message: isAilaGeneric
           ? "Tu solicitud fue enviada a Jefatura AILA para revision final."
           : isDvsoSubmission
-            ? "Tu solicitud fue enviada al inspector DVSO para revisión técnica."
+            ? `Tu solicitud fue enviada a ${dvsoNextRoleLabel} para revisión técnica.`
             : "Tu solicitud fue enviada al aprobador para continuar la gestion.",
         reason: comentariosRevision || ""
       });
@@ -6016,7 +6136,7 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
   }
 });
 
-app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRole(DVSO_ROLE_INSPECTOR, "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRole(DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const reason = String(req.body?.reason || "").trim();
   if (!reason) {
@@ -6031,6 +6151,11 @@ app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRol
     const params = [reason, req.user?.sub, id];
     if (isDvsoInspectorRole(role)) {
       where.push("assigned_aprobador_id = $2");
+      where.push(`NOT ${dvsoOps805SqlExpression("")}`);
+    }
+    if (isDvsoJefaturaOpsRole(role)) {
+      where.push("assigned_aprobador_id = $2");
+      where.push(dvsoOps805SqlExpression(""));
     }
     if (isUnitRestricted) {
       params.push(unitAccess);
@@ -6063,7 +6188,7 @@ app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRol
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "dvso_retorno_jefatura",
-      eventLabel: "Inspector devolvió el proceso a jefatura DVSO",
+      eventLabel: isDvsoJefaturaOpsRole(role) ? "Jefatura OPS devolvió el proceso a jefatura DVSO" : "Inspector devolvió el proceso a jefatura DVSO",
       eventDetail: reason,
       actorUserId: req.user?.sub || null,
       actorRole: role
@@ -6442,6 +6567,14 @@ app.post("/api/submissions/:id/open", requireAuth, requireRole(...REVIEW_ROLES),
       return res.status(404).json({ error: "Registro no encontrado" });
     }
     const row = current.rows[0];
+    if (isDvsoJefaturaOpsRole(role)) {
+      if (!isDvsoOps805Workflow(row) || Number(row.assigned_aprobador_id) !== Number(req.user?.sub)) {
+        return res.status(403).json({ error: "Jefatura OPS solo puede abrir procesos DVSO-OPS-805 asignados." });
+      }
+    }
+    if (isDvsoInspectorRole(role) && isDvsoOps805Workflow(row)) {
+      return res.status(403).json({ error: "El proceso DVSO-OPS-805 corresponde a jefatura OPS." });
+    }
     const detail = normalizeSubmissionDetail(row.detalle_formulario);
     const openMarkers = detail.opened_stage_markers && typeof detail.opened_stage_markers === "object"
       ? { ...detail.opened_stage_markers }
@@ -6647,14 +6780,14 @@ app.get("/api/aprobadores", requireAuth, requireRole("analista", "emisor", AILA_
     let where = isAilaStage3Role(role)
       ? `(role = '${AILA_ROLE_JEFATURA_AILA}')`
       : isDvsoJefaturaRole(role)
-        ? `(role = '${DVSO_ROLE_INSPECTOR}')`
+        ? `(role = '${DVSO_ROLE_INSPECTOR}' OR role = '${DVSO_ROLE_JEFATURA_OPS}')`
         : "role = 'aprobador'";
     if (isUnitRestricted) {
       params.push(unitAccess);
       where += ` AND unit_access && $1::TEXT[]`;
     }
     const result = await pool.query(
-      `SELECT id, email, name, unit_access FROM users WHERE ${where} ORDER BY email`,
+      `SELECT id, email, name, role, unit_access FROM users WHERE ${where} ORDER BY email`,
       params
     );
     res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));
@@ -6681,7 +6814,7 @@ app.get("/api/emisores", requireAuth, requireRole("analista", AILA_ROLE_RECEPCIO
       where += ` AND unit_access && $1::TEXT[]`;
     }
     const result = await pool.query(
-      `SELECT id, email, name, unit_access FROM users WHERE ${where} ORDER BY email`,
+      `SELECT id, email, name, role, unit_access FROM users WHERE ${where} ORDER BY email`,
       params
     );
     res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));

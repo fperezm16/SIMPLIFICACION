@@ -1,205 +1,66 @@
-﻿<div class="page">
-  <div class="document" *ngIf="currentConfig() as config">
-    <form class="form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
-      <ng-container *ngIf="isDvso801(); else standardDvsoForms">
-        <section class="section dvso-623-actions">
-          <a class="reference-download" [href]="config.pdfAsset" [download]="config.code + '.pdf'">
-            Descargar formato original
+<main class="dvso-page" *ngIf="currentConfig() as config">
+  <section class="dvso-card">
+    <header class="dvso-header">
+      <span class="unit-badge">DVSO</span>
+      <p class="form-code">{{ config.code }}</p>
+      <h1>{{ config.title }}</h1>
+      <p class="subtitle">{{ config.subtitle }}</p>
+    </header>
+
+    <section class="correction-notice" *ngIf="editingReturnedId">
+      <strong>Solicitud devuelta para corrección</strong>
+      <p *ngIf="returnedReason"><b>Correcciones solicitadas:</b> {{ returnedReason }}</p>
+      <p>Debes descargar el formulario oficial otra vez, llenar un formulario nuevo y cargar el nuevo PDF. No se acepta reutilizar el archivo enviado anteriormente.</p>
+    </section>
+
+    <div class="instructions">
+      <h2>{{ editingReturnedId ? 'Corrección del formulario' : 'Presentación del formulario' }}</h2>
+      <p>{{ editingReturnedId ? 'Descarga y completa un formulario nuevo antes de reenviar la solicitud.' : 'Descarga el formulario oficial, complétalo y luego cárgalo en formato PDF para enviar tu solicitud.' }}</p>
+    </div>
+
+    <div class="steps">
+      <article class="step-card">
+        <span class="step-number">1</span>
+        <div class="step-content">
+          <h3>Descargar {{ config.additionalPdfAssets?.length ? 'formularios originales' : 'formulario original' }}</h3>
+          <p>Guarda {{ config.additionalPdfAssets?.length ? 'los documentos oficiales' : 'el documento oficial' }} correspondiente a este trámite y completa la información solicitada.</p>
+          <a class="primary-action download" [href]="config.pdfAsset" [download]="config.code + '.pdf'">
+            {{ config.downloadLabel || ('Descargar ' + config.code) }}
           </a>
-        </section>
-
-        <section class="section dvso801-document">
-          <header class="dvso801-masthead">
-            <div class="dvso801-logo-panel">
-              <img class="dgac-official-logo" src="assets/dgac-oficial.png" alt="Dirección General de Aeronáutica Civil">
-            </div>
-            <div class="dvso801-title-panel">
-              <span class="dvso801-code">{{ config.code }}</span>
-              <h2>Departamento de Vigilancia de la Seguridad Operacional</h2>
-              <p>Solicitud de Dictamen Técnico Aeronave Pilotadas a Distancia (RPA)</p>
-            </div>
-          </header>
-
-          <div class="dvso801-heading">
-            <h3>SOLICITUD DE DICTAMEN TÉCNICO PARA AERONAVES PILOTADAS A DISTANCIA (RPA)</h3>
-          </div>
-
-          <div class="dvso801-line-row dvso801-first-row">
-            <span class="dvso801-inline-label">Lugar y Fecha de Presentación:</span>
-            <input class="dvso801-line-input" type="text" formControlName="lugar_fecha_presentacion" readonly>
-          </div>
-
-          <div class="dvso801-block">
-            <div class="section-title">
-              <span>A. DATOS DE IDENTIFICACIÓN INDIVIDUAL O JURÍDICA</span>
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">1.</span>
-              <span class="dvso801-inline-label">Nombre de entidad, empresa o nombre propio:</span>
-              <input class="dvso801-line-input" type="text" formControlName="entidad_nombre">
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">2.</span>
-              <span class="dvso801-inline-label">Correo electrónico:</span>
-              <input class="dvso801-line-input" type="email" formControlName="correo_contacto">
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">3.</span>
-              <span class="dvso801-inline-label">Número telefónico:</span>
-              <input class="dvso801-line-input" type="text" formControlName="telefono_contacto">
-            </div>
-          </div>
-
-          <div class="dvso801-block">
-            <div class="section-title">
-              <span>B. DATOS DE LA AERONAVE PILOTADA A DISTANICA (RPA)</span>
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">1.</span>
-              <span class="dvso801-inline-label">Marca:</span>
-              <input class="dvso801-line-input" type="text" formControlName="marca_rpa">
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">2.</span>
-              <span class="dvso801-inline-label">Modelo:</span>
-              <input class="dvso801-line-input" type="text" formControlName="modelo_rpa">
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">3.</span>
-              <span class="dvso801-inline-label">Número de serie (si corresponde):</span>
-              <input class="dvso801-line-input" type="text" formControlName="serie_rpa">
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">4.</span>
-              <span class="dvso801-inline-label">Peso de la aeronave pilotada a distancia (RPA):</span>
-              <input class="dvso801-line-input" type="number" formControlName="peso_rpa">
-            </div>
-
-            <div class="dvso801-item-row">
-              <span class="dvso801-item-number">5.</span>
-              <span class="dvso801-inline-label">Cantidad:</span>
-              <input class="dvso801-line-input" type="number" formControlName="cantidad_rpa">
-            </div>
-          </div>
-
-          <div class="dvso801-comments">
-            <label class="dvso801-comments-label">Uso previsto / comentarios</label>
-            <textarea class="dvso801-comments-input" rows="4" formControlName="uso_previsto"></textarea>
-          </div>
-
-          <div class="dvso801-signature-block">
-            <input class="dvso801-signature-line" type="text" formControlName="firma_solicitante">
-            <span class="dvso801-signature-caption">6. Firma</span>
-          </div>
-
-          <footer class="dvso801-footer">
-            <div>
-              <strong>Revisión:</strong> 01
-              <span class="dvso801-footer-separator"></span>
-              <strong>Fecha:</strong> 15/10/25
-            </div>
-            <div class="dvso801-footer-right">
-              <strong>FORMA DVSO-OPS-801</strong>
-              <span>Página 1 de 3</span>
-            </div>
-          </footer>
-        </section>
-      </ng-container>
-
-      <ng-template #standardDvsoForms>
-        <section class="section dvso-623-actions">
-          <a class="reference-download" [href]="config.pdfAsset" [download]="config.code + '.pdf'">
-            Descargar formato original
+          <a
+            class="primary-action download secondary-download"
+            *ngFor="let document of config.additionalPdfAssets"
+            [href]="document.asset"
+            [download]="document.filename">
+            {{ document.label }}
           </a>
-        </section>
+        </div>
+      </article>
 
-        <section class="section dvso-generic-document">
-          <header class="dvso801-masthead">
-            <div class="dvso801-logo-panel">
-              <img class="dgac-official-logo" src="assets/dgac-oficial.png" alt="Dirección General de Aeronáutica Civil">
-            </div>
-            <div class="dvso801-title-panel">
-              <span class="dvso801-code">{{ config.code }}</span>
-              <h2>Departamento de Vigilancia de la Seguridad Operacional</h2>
-              <p>{{ config.shortLabel }}</p>
-            </div>
-          </header>
+      <article class="step-card">
+        <span class="step-number">2</span>
+        <div class="step-content">
+          <h3>Cargar formulario completado</h3>
+          <p *ngIf="!config.additionalPdfAssets?.length">Adjunta el formulario ya lleno. Solo se permiten archivos PDF de hasta 10 MB.</p>
+          <p *ngIf="config.additionalPdfAssets?.length">Completa ambos formularios, únelos en un solo PDF y adjunta ese archivo. El tamaño máximo es de 10 MB.</p>
+          <label class="upload-box" [class.has-file]="selectedFile">
+            <input type="file" accept="application/pdf,.pdf" (change)="onFileSelected($event)">
+            <span class="upload-title">{{ selectedFile ? 'Formulario seleccionado' : 'Seleccionar archivo PDF' }}</span>
+            <span class="upload-detail" *ngIf="selectedFile as file">{{ file.name }} · {{ fileSizeLabel(file) }}</span>
+            <span class="upload-detail" *ngIf="!selectedFile">Haz clic para buscar el archivo en tu computadora</span>
+          </label>
+        </div>
+      </article>
+    </div>
 
-          <div class="dvso801-heading dvso-generic-heading">
-            <h3>{{ config.title }}</h3>
-            <p>{{ config.subtitle }}</p>
-          </div>
+    <div class="status" *ngIf="status" [class.success]="status.type === 'success'" [class.error]="status.type === 'error'">
+      {{ status.message }}
+    </div>
 
-          <div class="dvso-generic-meta">
-            <div class="dvso801-line-row">
-              <span class="dvso801-inline-label">Fecha de presentación:</span>
-              <span class="dvso-generic-fixed">{{ todayDisplayDate }}</span>
-            </div>
-          </div>
-
-          <section class="dvso-generic-block" *ngFor="let section of config.sections">
-            <div class="section-title">
-              <span>{{ section.title }}</span>
-            </div>
-            <p class="section-hint" *ngIf="section.description">{{ section.description }}</p>
-
-            <div class="dvso-generic-grid">
-              <ng-container *ngFor="let field of section.fields">
-                <label class="dvso-generic-field" [class.full-row]="field.full">
-                  <span class="dvso-generic-label">
-                    {{ field.label }} <span class="required-reference" *ngIf="field.required">*</span>
-                  </span>
-
-                  <ng-container [ngSwitch]="fieldType(field)">
-                    <textarea
-                      *ngSwitchCase="'textarea'"
-                      class="dvso-generic-input dvso-generic-textarea"
-                      [rows]="fieldRows(field)"
-                      [formControlName]="field.key"
-                      [placeholder]="field.placeholder || ''"></textarea>
-
-                    <select
-                      *ngSwitchCase="'select'"
-                      class="dvso-generic-input"
-                      [formControlName]="field.key">
-                      <option value="">Selecciona una opción</option>
-                      <option *ngFor="let option of field.options || []" [value]="option.value">{{ option.label }}</option>
-                    </select>
-
-                    <input
-                      *ngSwitchDefault
-                      class="dvso-generic-input"
-                      [type]="fieldType(field)"
-                      [formControlName]="field.key"
-                      [placeholder]="field.placeholder || ''"
-                      [readOnly]="isReadonlyField(field)">
-                  </ng-container>
-
-                  <small class="field-hint" *ngIf="field.hint">{{ field.hint }}</small>
-                  <small class="error" *ngIf="getFieldError(field)">{{ getFieldError(field) }}</small>
-                </label>
-              </ng-container>
-            </div>
-          </section>
-        </section>
-      </ng-template>
-
-      <div class="status" *ngIf="status" [class.ok]="status.type === 'success'" [class.error-box]="status.type === 'error'">
-        {{ status.message }}
-      </div>
-
-      <div class="actions">
-        <button type="submit" [disabled]="isSubmitting">
-          {{ isSubmitting ? 'Enviando...' : 'Guardar formulario DVSO' }}
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
+    <footer class="submit-area">
+      <button class="submit-button" type="button" [disabled]="isSubmitting || !selectedFile" (click)="onSubmit()">
+        {{ isSubmitting ? 'Enviando solicitud...' : (editingReturnedId ? 'Reenviar nuevo formulario DVSO' : 'Enviar solicitud DVSO') }}
+      </button>
+    </footer>
+  </section>
+</main>

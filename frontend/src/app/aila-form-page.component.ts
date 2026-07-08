@@ -171,12 +171,12 @@ export class AilaFormPageComponent implements OnInit {
     const control = this.form.get(field);
     if (!control || !control.touched || !control.invalid) return null;
     if (control.errors?.['required']) return 'Campo obligatorio';
-    if (control.errors?.['email']) return 'Correo no vÃ¡lido';
-    if (control.errors?.['digitsOnly']) return 'Solo se permiten dÃ­gitos';
-    if (control.errors?.['digitsLength']) return `Debe tener ${control.errors['digitsLength'].requiredLength} dÃ­gitos`;
-    if (control.errors?.['minlength']) return `MÃ­nimo ${control.errors['minlength'].requiredLength} caracteres`;
+    if (control.errors?.['email']) return 'Correo no válido';
+    if (control.errors?.['digitsOnly']) return 'Solo se permiten dígitos';
+    if (control.errors?.['digitsLength']) return `Debe tener ${control.errors['digitsLength'].requiredLength} dígitos`;
+    if (control.errors?.['minlength']) return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
     if (control.errors?.['genericPermit72Hours']) return 'Para permiso genérico debes solicitar el ingreso con al menos 72 horas de anticipación';
-    return 'Valor no vÃ¡lido';
+    return 'Valor no válido';
   }
 
   onDigitsInput(event: Event, field: string, maxLength: number) {
@@ -700,14 +700,14 @@ export class AilaFormPageComponent implements OnInit {
   private buildSummary(detail: AilaDetail) {
     return [
       `Permiso: ${detail.tipo_permiso}`,
-      `Ãrea destino: ${detail.area_destino}`,
+      `Área destino: ${detail.area_destino}`,
       `Motivo: ${detail.motivo_visita}`,
       `Ingreso: ${detail.fecha_ingreso}`,
-      `DÃ­as: ${detail.dias_solicitados}`,
+      `Días: ${detail.dias_solicitados}`,
       `Personas: ${detail.personas?.length || 0}`,
       `Escoltas: ${detail.escoltas?.length || 0}`,
-      detail.herramientas?.length ? `Herramientas/mercaderÃ­a/mobiliario: ${detail.herramientas.length}` : '',
-      detail.vehiculos?.length ? `VehÃ­culos: ${detail.vehiculos.length}` : ''
+      detail.herramientas?.length ? `Herramientas/mercadería/mobiliario: ${detail.herramientas.length}` : '',
+      detail.vehiculos?.length ? `Vehículos: ${detail.vehiculos.length}` : ''
     ].filter(Boolean).join(' | ');
   }
 

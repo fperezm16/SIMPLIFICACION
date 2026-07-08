@@ -1,0 +1,26 @@
+{
+  "name": "formulario",
+  "version": "1.0.0",
+  "description": "Aplicacion para capturar formularios con Angular (frontend) y API Node/Express + PostgreSQL.",
+  "main": "index.js",
+  "dependencies": {
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^5.4.296"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fperezm16/SIMPLIFICACION.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/fperezm16/SIMPLIFICACION/issues"
+  },
+  "homepage": "https://github.com/fperezm16/SIMPLIFICACION#readme"
+}

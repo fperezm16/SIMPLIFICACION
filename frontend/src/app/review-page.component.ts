@@ -285,16 +285,16 @@ type ApproverDashboardPayload = {
               <div><span>Correo:</span> {{ row.correo || 'Sin correo' }}</div>
             </div>
             <div class="detail-grid archive-detail">
-              <div><span>Fecha de envÃ­o:</span> {{ row.created_at | date:'short' }}</div>
-              <div><span>Fecha de aprobaciÃ³n:</span> {{ row.approved_at ? (row.approved_at | date:'short') : 'No aplica' }}</div>
+              <div><span>Fecha de envío:</span> {{ row.created_at | date:'short' }}</div>
+              <div><span>Fecha de aprobación:</span> {{ row.approved_at ? (row.approved_at | date:'short') : 'No aplica' }}</div>
               <div><span>Fecha de entrega:</span> {{ row.delivered_at ? (row.delivered_at | date:'short') : 'No aplica' }}</div>
-              <div><span>Tipo de persona:</span> {{ row.persona_tipo === 'juridica' ? 'JurÃ­dica' : 'Individual' }}</div>
+              <div><span>Tipo de persona:</span> {{ row.persona_tipo === 'juridica' ? 'Jurídica' : 'Individual' }}</div>
               <div><span>Analista:</span> {{ row.assigned_analista_name || 'No aplica' }}</div>
               <div><span>Emisor:</span> {{ row.assigned_emisor_name || 'No aplica' }}</div>
               <div><span>Aprobador asignado:</span> {{ row.assigned_aprobador_name || 'No aplica' }}</div>
               <div><span>Aprobado por:</span> {{ row.approved_by_name || row.approved_by_email || 'No aplica' }}</div>
               <div><span>Entregado por:</span> {{ row.delivered_by_name || row.delivered_by_email || 'No aplica' }}</div>
-              <div><span>TelÃ©fono:</span> {{ row.telefono || 'N/D' }}</div>
+              <div><span>Teléfono:</span> {{ row.telefono || 'N/D' }}</div>
             </div>
             <div class="archive-documents" *ngIf="archiveDocuments(row).length">
               <span class="archive-documents-label">Documentos</span>
@@ -350,7 +350,7 @@ type ApproverDashboardPayload = {
                     <span>{{ log.created_at | date:'short' }}</span>
                   </div>
                   <div class="detail-log-meta">
-                    {{ normalizeDisplayText(log.actor_name || log.actor_email || 'Sistema') }}<span *ngIf="log.actor_role"> Â· {{ normalizeDisplayText(log.actor_role) }}</span>
+                    {{ normalizeDisplayText(log.actor_name || log.actor_email || 'Sistema') }}<span *ngIf="log.actor_role"> · {{ normalizeDisplayText(log.actor_role) }}</span>
                   </div>
                   <div class="detail-log-detail" *ngIf="log.event_detail">{{ normalizeDisplayText(log.event_detail) }}</div>
                 </div>
@@ -1029,7 +1029,7 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
   archiveDocuments(row: ArchiveItem) {
     const docs: Array<{ key: 'dpi' | 'carta' | 'boleta' | 'signed'; label: string }> = [];
     if (row.dpi_filename) docs.push({ key: 'dpi', label: 'DPI adjunto' });
-    if (row.carta_representacion_filename) docs.push({ key: 'carta', label: 'Carta de representaciÃ³n' });
+    if (row.carta_representacion_filename) docs.push({ key: 'carta', label: 'Carta de representación' });
     if (row.analyst_pdf_filename) docs.push({ key: 'boleta', label: 'Boleta / documento del proceso' });
     if (row.signed_pdf_filename) docs.push({ key: 'signed', label: 'Documento firmado' });
     return docs;

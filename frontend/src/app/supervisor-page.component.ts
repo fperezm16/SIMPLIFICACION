@@ -172,7 +172,7 @@ type StatusLegendItem = {
         <div class="stats-grid">
           <div class="card">
             <h4>Distribuci&oacute;n de estados</h4>
-            <div class="stack-track" [attr.aria-label]="'DistribuciÃ³n de estados ' + unitLabel(unitStat.unit)">
+            <div class="stack-track" [attr.aria-label]="'Distribución de estados ' + unitLabel(unitStat.unit)">
               <span
                 *ngFor="let item of statusLegend(unitStat)"
                 [class]="item.css"
@@ -654,7 +654,7 @@ export class SupervisorPageComponent implements OnInit {
     const normalized = String(unit || 'GENERAL').toUpperCase();
     if (normalized === 'RAN') return 'Unidad RAN';
     if (normalized === 'DVSO') return 'Unidad DVSO';
-    if (normalized === 'AILA') return 'AdministraciÃ³n AILA';
+    if (normalized === 'AILA') return 'Administración AILA';
     if (normalized === 'FINANCIERO') return 'Unidad FINANCIERO';
     return 'Unidad GENERAL';
   }
