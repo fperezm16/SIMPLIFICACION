@@ -1,6 +1,7 @@
 ﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
@@ -47,8 +48,18 @@ type DvsoFormConfig = {
   pdfAsset: string;
   downloadLabel?: string;
   additionalPdfAssets?: Array<{ label: string; asset: string; filename: string }>;
+  footerNote?: string;
+  footerReference?: string;
+  revision?: string;
+  revisionDate?: string;
+  footerCode?: string;
+  pageLabel?: string;
   sections: DvsoSection[];
   payloadMap: DvsoPayloadMap;
+};
+
+type DvsoDigitalPage = DvsoFormConfig & {
+  fieldPrefix?: string;
 };
 
 const DVSO_FORMS: DvsoFormConfig[] = [
@@ -59,6 +70,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     title: 'FORMA DGAC DVSO-623 CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACIÓN ALA FIJA',
     subtitle: 'Certificado de aeronavegabilidad para exportación de aeronaves de ala fija.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-623-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION-ALA-FIJA.pdf',
+    footerCode: 'FORMA DGAC DVSO-623',
     payloadMap: {
       nameField: 'producto_tipo',
       secondaryNameField: 'pais_destino',
@@ -116,6 +128,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     title: 'FORMA DGAC DVSO-623A CERTIFICADO DE AERONAVEGABILIDAD PARA EXPORTACIÓN (HELICÓPTERO)',
     subtitle: 'Digitalización del certificado de aeronavegabilidad para exportación de helicópteros.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-623A-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION-HELICOPTERO.pdf',
+    footerCode: 'FORMA DGAC DVSO-623A',
     payloadMap: {
       nameField: 'exportador_nombre',
       secondaryNameField: 'comprador_nombre',
@@ -185,6 +198,12 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     subtitle: 'Solicitud y anexo para tramitar el certificado de aeronavegabilidad para exportación.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-639-SOLICITUD-PARA-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION.pdf',
     downloadLabel: 'Descargar DVSO-639 Solicitud para Certificado de Aeronavegabilidad para Exportación',
+    footerNote: 'Esta solicitud debe ir acompañada de todos los documentos justificantes necesarios.',
+    footerReference: 'Ref. RAC 21 Sub parte L. Doc. 9760 Adjunto B del Capítulo 6.',
+    revision: '01',
+    revisionDate: '15/03/2024',
+    footerCode: 'FORMA DGAC DVSO-639',
+    pageLabel: 'Página 1 de 1',
     additionalPdfAssets: [
       {
         label: 'Descargar DVSO-639A Anexo a Solicitud para Certificado de Exportación',
@@ -218,8 +237,8 @@ const DVSO_FORMS: DvsoFormConfig[] = [
           { key: 'helices_serie', label: 'Número de serie(s)', full: true },
           { key: 'rotor_principal', label: 'Rotor principal (si aplica)', full: true },
           { key: 'rotor_cola', label: 'Rotor de cola (si aplica)', full: true },
-          { key: 'peso_maximo_rodaje', label: 'Peso m?ximo de rodaje (kg)', type: 'text' },
-          { key: 'peso_maximo_despegue', label: 'Peso m?ximo de despegue (kg)', type: 'text' },
+          { key: 'peso_maximo_rodaje', label: 'Peso máximo de rodaje (kg)', type: 'text' },
+          { key: 'peso_maximo_despegue', label: 'Peso máximo de despegue (kg)', type: 'text' },
           { key: 'pais_importacion', label: 'País de importación', required: true },
           { key: 'importador_nombre_direccion', label: 'Nombre y dirección del importador', required: true, full: true },
           { key: 'informacion_adicional', label: 'Información adicional o requisitos especiales del Estado importador', type: 'textarea', rows: 4, full: true },
@@ -238,6 +257,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     title: 'FORMA DGAC DVSO-639A ANEXO A SOLICITUD PARA CERTIFICADO DE EXPORTACIÓN',
     subtitle: 'Anexo para productos de clase I, II o III del certificado de exportación.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-639A-ANEXO-A-SOLICITUD-PARA-CERTIFICADO-DE-EXPORTACION.pdf',
+    footerCode: 'FORMA DGAC DVSO-639A',
     payloadMap: {
       nameField: 'exportador_nombre',
       secondaryNameField: 'comprador_nombre',
@@ -311,6 +331,12 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     title: 'FORMA DGAC DVSO-800 SOLICITUD DE APROBACIÓN, AUTORIZACIÓN, PERMISO DE VUELO ESPECIAL',
     subtitle: 'Solicitud de aprobación, autorización o permiso de vuelo especial.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-800-SOLICITUD-DE-APROBACION-AUTORIZACION-PERMISO-DE-VUELO-ESPECIAL.pdf',
+    footerNote: 'Esta solicitud debe ir acompañada de todos los documentos justificantes necesarios.',
+    footerReference: 'Ref. RAC 21 Sub parte H. Doc. 9760 Adjunto A del Capítulo 5.',
+    revision: '03',
+    revisionDate: '15/03/2024',
+    footerCode: 'FORMA DGAC DVSO-800',
+    pageLabel: 'Página 1 de 1',
     payloadMap: {
       nameField: 'propietario_nombre',
       secondaryNameField: 'solicitante_nombre',
@@ -367,6 +393,10 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     title: 'FORMA DGAC DVSO-801 SOLICITUD DE DICTAMEN TÉCNICO AERONAVE PILOTADA A DISTANCIA (RPA)',
     subtitle: 'Solicitud de dictamen técnico para aeronaves pilotadas a distancia.',
     pdfAsset: 'assets/dvso/FORMA-DGAC-DVSO-801-SOLICITUD-DICTAMEN-TECNICO-AERONAVE-PILOTADAS-A-DISTANCIA-RPA.pdf',
+    revision: '01',
+    revisionDate: '15/10/25',
+    footerCode: 'FORMA DVSO-OPS-801',
+    pageLabel: 'Página 1 de 3',
     payloadMap: {
       nameField: 'entidad_nombre',
       phoneField: 'telefono_contacto',
@@ -406,6 +436,10 @@ const DVSO_FORMS: DvsoFormConfig[] = [
     title: 'FORMA DVSO-OPS-805 AUTORIZACIÓN DE VUELO AERONAVES PILOTADAS A DISTANCIA (RPA/DRON) PARA TURISTAS',
     subtitle: 'Autorización de vuelo RPAS para turistas.',
     pdfAsset: 'assets/dvso/FORMA-DVSO-OPS-805.pdf',
+    revision: '02',
+    revisionDate: '05/03/2026',
+    footerCode: 'FORMA DVSO-OPS-805',
+    pageLabel: 'Página No.1',
     payloadMap: {
       nameField: 'propietario_nombre',
       documentField: 'pasaporte_numero',
@@ -454,7 +488,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
 
 @Component({
   selector: 'app-dvso-form-page',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './dvso-form-page.component.html',
   styleUrls: ['./dvso-form-page.component.css']
 })
@@ -464,7 +498,7 @@ export class DvsoFormPageComponent implements OnInit {
   private readonly auth = inject(AuthService);
 
   readonly apiBase = API_BASE;
-  readonly forms = DVSO_FORMS.filter((form) => !['dvso-623', 'dvso-623a', 'dvso-639a'].includes(form.slug));
+  readonly forms = DVSO_FORMS.filter((form) => !['dvso-623', 'dvso-623a'].includes(form.slug));
   readonly currentConfig = signal<DvsoFormConfig | null>(null);
   readonly pageTitle = computed(() => this.currentConfig()?.title || 'Formulario DVSO');
   readonly maxFileSize = 10 * 1024 * 1024;
@@ -475,13 +509,17 @@ export class DvsoFormPageComponent implements OnInit {
   editingReturnedId: number | null = null;
   returnedReason = '';
   loadingReturnedEdit = false;
+  formValues: Record<string, string> = {};
+  currentDigitalPages: DvsoDigitalPage[] = [];
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
       const slug = String(params.get('slug') || '').trim().toLowerCase();
       const config = this.forms.find((entry) => entry.slug === slug) || this.forms[0];
       this.currentConfig.set(config);
+      this.currentDigitalPages = this.buildDigitalPages(config);
       this.selectedFile = null;
+      this.resetDigitalForm(config);
       this.status = null;
     });
     this.route.queryParamMap.subscribe((params) => {
@@ -515,34 +553,42 @@ export class DvsoFormPageComponent implements OnInit {
     const config = this.currentConfig();
     if (!config) return;
     this.status = null;
-    if (!this.selectedFile) {
-      this.status = { type: 'error', message: 'Debes seleccionar el formulario completado en PDF.' };
+    const missing = this.missingRequiredFields(config);
+    if (missing.length) {
+      this.status = { type: 'error', message: `Faltan campos obligatorios: ${missing.join(', ')}.` };
       return;
     }
 
     this.isSubmitting = true;
     try {
-      const base64 = await this.readFileAsBase64(this.selectedFile);
+      const base64 = this.selectedFile ? await this.readFileAsBase64(this.selectedFile) : '';
       const currentUser = this.auth.currentUser;
+      const mapped = this.payloadValues(config);
+      const digitalFields = this.digitalFieldPayload(config);
       const payload = {
         unidad_clave: 'DVSO',
         gestion_nombre: config.title,
-        nombre_propietario: String(currentUser?.name || currentUser?.email || 'Usuario DVSO').trim(),
-        correo: String(currentUser?.email || '').trim(),
-        telefono: null,
-        direccion: 'N/D',
+        nombre_propietario: mapped.nombre_propietario || String(currentUser?.name || currentUser?.email || 'Usuario DVSO').trim(),
+        correo: mapped.correo || String(currentUser?.email || '').trim(),
+        telefono: mapped.telefono || null,
+        direccion: mapped.direccion || 'N/D',
+        documento_propietario: mapped.documento_propietario || null,
+        matricula_tg: mapped.matricula_tg || null,
+        numero_serie: mapped.numero_serie || null,
+        especificaciones: mapped.especificaciones || null,
         uso: config.code,
         detalle_formulario: {
           tipo: 'dvso',
           codigo: config.code,
           slug: config.slug,
           titulo: config.title,
-          formularios_incluidos: config.additionalPdfAssets?.length ? [config.code, 'DVSO-639A'] : [config.code],
-          modalidad: 'formulario_pdf_cargado'
+          formularios_incluidos: [config.code],
+          modalidad: 'formulario_digital',
+          campos_digitales: digitalFields
         },
-        original_form_pdf_base64: base64,
-        original_form_filename: this.selectedFile.name,
-        original_form_mime: 'application/pdf'
+        original_form_pdf_base64: base64 || undefined,
+        original_form_filename: this.selectedFile?.name || undefined,
+        original_form_mime: this.selectedFile ? 'application/pdf' : undefined
       };
       const request = this.editingReturnedId
         ? this.http.put(`${this.apiBase}/my-submissions/${this.editingReturnedId}/resubmit`, payload)
@@ -555,6 +601,7 @@ export class DvsoFormPageComponent implements OnInit {
             : `Solicitud DVSO enviada correctamente.${registro}`;
           this.status = { type: 'success', message };
           this.selectedFile = null;
+          this.resetDigitalForm(config);
           this.editingReturnedId = null;
           this.returnedReason = '';
           this.isSubmitting = false;
@@ -574,6 +621,34 @@ export class DvsoFormPageComponent implements OnInit {
     return `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
   }
 
+  private buildDigitalPages(config: DvsoFormConfig | null): DvsoDigitalPage[] {
+    if (!config) return [];
+    return [config];
+  }
+
+  trackPage(_index: number, page: DvsoDigitalPage) {
+    return page.fieldPrefix || page.slug;
+  }
+
+  trackSection(index: number, section: DvsoSection) {
+    return `${index}-${section.title}`;
+  }
+
+  trackField(_index: number, field: DvsoField) {
+    return field.key;
+  }
+
+  digitalFieldKey(page: DvsoDigitalPage, field: DvsoField) {
+    return page.fieldPrefix ? `${page.fieldPrefix}_${field.key}` : field.key;
+  }
+
+  pageDepartment(page: DvsoDigitalPage) {
+    if (page.slug === 'dvso-801' || page.slug === 'dvso-ops-805') {
+      return 'DEPARTAMENTO DE VIGILANCIA DE LA SEGURIDAD OPERACIONAL';
+    }
+    return 'FORMAS DVSO';
+  }
+
   private startReturnedEdit(returnedId: number) {
     this.loadingReturnedEdit = true;
     this.status = null;
@@ -589,9 +664,18 @@ export class DvsoFormPageComponent implements OnInit {
           ? submission.detalle_formulario as Record<string, unknown>
           : {};
         const rawSlug = String(detail['slug'] || '').trim().toLowerCase();
-        const slug = rawSlug === 'dvso-639a' || !rawSlug ? 'dvso-639' : rawSlug;
+        const slug = rawSlug || 'dvso-639';
         const config = this.forms.find((entry) => entry.slug === slug);
-        if (config) this.currentConfig.set(config);
+        if (config) {
+          this.currentConfig.set(config);
+          this.currentDigitalPages = this.buildDigitalPages(config);
+        }
+        if (config) {
+          const digitalFields = detail['campos_digitales'] && typeof detail['campos_digitales'] === 'object'
+            ? detail['campos_digitales'] as Record<string, unknown>
+            : {};
+          this.resetDigitalForm(config, digitalFields);
+        }
         this.editingReturnedId = submission.id;
         this.returnedReason = String(submission.returned_reason || submission.comentarios_revision || '').trim();
         this.loadingReturnedEdit = false;
@@ -610,6 +694,61 @@ export class DvsoFormPageComponent implements OnInit {
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
+  }
+
+  private resetDigitalForm(config: DvsoFormConfig, values: Record<string, unknown> = {}) {
+    const next: Record<string, string> = {};
+    for (const page of this.buildDigitalPages(config)) {
+      for (const section of page.sections) {
+        for (const field of section.fields) {
+          const key = this.digitalFieldKey(page, field);
+          next[key] = String(values[key] ?? '');
+        }
+      }
+    }
+    this.formValues = next;
+  }
+
+  private missingRequiredFields(config: DvsoFormConfig) {
+    const missing: string[] = [];
+    for (const page of this.buildDigitalPages(config)) {
+      for (const section of page.sections) {
+        for (const field of section.fields) {
+          if (field.required && !String(this.formValues[this.digitalFieldKey(page, field)] || '').trim()) {
+            missing.push(`${page.code} - ${field.label}`);
+          }
+        }
+      }
+    }
+    return missing;
+  }
+
+  private digitalFieldPayload(config: DvsoFormConfig) {
+    const payload: Record<string, string> = {};
+    for (const page of this.buildDigitalPages(config)) {
+      for (const section of page.sections) {
+        for (const field of section.fields) {
+          payload[this.digitalFieldKey(page, field)] = String(this.formValues[this.digitalFieldKey(page, field)] || '').trim();
+        }
+      }
+    }
+    return payload;
+  }
+
+  private payloadValues(config: DvsoFormConfig) {
+    const value = (key?: string) => key ? String(this.formValues[key] || '').trim() : '';
+    const contactText = value(config.payloadMap.emailField);
+    const emailMatch = contactText.match(/[^\s@]+@[^\s@]+\.[^\s@]+/);
+    return {
+      nombre_propietario: value(config.payloadMap.nameField),
+      documento_propietario: value(config.payloadMap.documentField),
+      direccion: value(config.payloadMap.addressField),
+      telefono: value(config.payloadMap.phoneField),
+      correo: emailMatch?.[0] || contactText,
+      matricula_tg: value(config.payloadMap.registrationField),
+      numero_serie: value(config.payloadMap.serialField),
+      especificaciones: value(config.payloadMap.notesField)
+    };
   }
 }
 

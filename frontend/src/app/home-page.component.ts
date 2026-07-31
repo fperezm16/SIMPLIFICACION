@@ -62,6 +62,13 @@ type UnitGroup = { unit: string; rows: Submission[] };
           <button
             type="button"
             class="download-btn signed-btn"
+            *ngIf="canDownloadDeliveryPackage(row)"
+            (click)="downloadDeliveryPackage(row)">
+            Descargar expediente entregable
+          </button>
+          <button
+            type="button"
+            class="download-btn signed-btn"
             *ngIf="canDownloadSignedDocument(row)"
             (click)="downloadSignedDocument(row)">
             {{ isAilaGenericFlow(row) ? 'Descargar permiso' : 'Descargar documento firmado' }}
@@ -599,6 +606,45 @@ export class HomePageComponent implements OnInit, OnDestroy {
     });
   }
 
+  downloadDeliveryPackage(row: Submission) {
+    if (!row.id || !this.canDownloadDeliveryPackage(row)) return;
+    this.downloadError = '';
+    this.http.get(`${this.apiBase}/my-submissions/${row.id}/expediente-entregable`, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        if (!blob || blob.size === 0) {
+          this.downloadError = 'No se pudo descargar el expediente entregable.';
+          return;
+        }
+        if (blob.type && !blob.type.toLowerCase().includes('pdf')) {
+          this.readBlobText(blob).then((text) => {
+            this.downloadError = this.extractBackendError(text) || 'No se pudo descargar el expediente entregable.';
+          });
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const fallback = row.id ? `REG-${row.id}` : 'REG-SIN-CODIGO';
+        const safeCode = String(row.registro_codigo || fallback).replace(/[^A-Za-z0-9-_]+/g, '-');
+        link.download = `expediente-entregable-${safeCode}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      },
+      error: (err) => {
+        const source = err?.error;
+        if (source instanceof Blob) {
+          this.readBlobText(source).then((text) => {
+            this.downloadError = this.extractBackendError(text) || 'No se pudo descargar el expediente entregable.';
+          });
+          return;
+        }
+        this.downloadError = err?.error?.error || 'No se pudo descargar el expediente entregable.';
+      }
+    });
+  }
+
   downloadSignedDocument(row: Submission) {
     if (!row.id || !row.approved_at) return;
     this.downloadError = '';
@@ -729,7 +775,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
   approvedNoticeMessage(row: Submission) {
     if (this.isPaymentBoletaNotice(row)) {
       if (this.isFinancialPaymentPasswordFlow(row)) {
-        return 'Su contraseña de pago ha sido generada y enviada. Puede realizar el pago en cualquiera de las cinco sedes autorizadas de CHN: Mundo Maya, Caja Administrativa, Aurora, Vuelos Privados o Puerto Barrios, utilizando cheque de caja, cheque propio o efectivo.';
+        return 'Su contraseña de pago ha sido generada y enviada. Puede realizar el pago en cualquiera de las cinco sedes autorizadas de CHN: Mundo Maya, Caja Administrativa, Aurora, Vuelos Privados o Puerto Barrios, utilizando cheque de caja, cheque propio del banco, efectivo o POS presencial.';
       }
       return 'Ya puedes descargar la boleta de pago, acercarte a las instalaciones de la DGAC a realizar el pago correspondiente y pasar a recoger el documento solicitado.';
     }
@@ -761,7 +807,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
     return this.isPaymentBoletaNotice(row) ? 'Boleta de pago disponible' : 'Proceso finalizado';
   }
 
-  private isRanSubmission(row: Submission) {
+  private isRanSubmission(row: Submission | null | undefined) {
+    if (!row) return false;
     return String(row.unidad_clave || this.inferUnit(row)).toUpperCase() === 'RAN';
   }
 
@@ -784,9 +831,15 @@ export class HomePageComponent implements OnInit, OnDestroy {
   }
 
   canDownloadBoleta(row: Submission) {
-    if (!row?.id || !(row.has_analyst_pdf || row.analyst_pdf_filename)) return false;
+    const hasBoleta = Boolean(row?.has_analyst_pdf || row?.analyst_pdf_filename || row?.has_delivery_payment_receipt || row?.delivery_payment_receipt_filename);
+    if (!row?.id || !hasBoleta) return false;
     if (this.isFinancialSolvenciaFlow(row)) return false;
     return Boolean(row.approved_at || this.isFinancialPaymentPasswordFlow(row));
+  }
+
+  canDownloadDeliveryPackage(row: Submission | null | undefined) {
+    if (!row?.id || !this.isRanSubmission(row) || !row.delivered_at) return false;
+    return Boolean(row.has_delivery_package || row.delivery_package_filename);
   }
 
   private isPaymentBoletaNotice(row: Submission | null | undefined) {
@@ -861,7 +914,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
         ? row.detalle_formulario as Record<string, unknown>
         : {};
       const rawSlug = String(detail['slug'] || '').trim().toLowerCase();
-      const slug = rawSlug === 'dvso-639a' || !rawSlug ? 'dvso-639' : rawSlug;
+      const slug = rawSlug || 'dvso-639';
       return `/dvso/${slug}`;
     }
     if (unit !== 'RAN') return '/formulario';

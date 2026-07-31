@@ -1,66 +1,120 @@
 <main class="dvso-page" *ngIf="currentConfig() as config">
-  <section class="dvso-card">
-    <header class="dvso-header">
+  <section class="toolbar-card">
+    <div>
       <span class="unit-badge">DVSO</span>
-      <p class="form-code">{{ config.code }}</p>
-      <h1>{{ config.title }}</h1>
-      <p class="subtitle">{{ config.subtitle }}</p>
-    </header>
-
-    <section class="correction-notice" *ngIf="editingReturnedId">
-      <strong>Solicitud devuelta para corrección</strong>
-      <p *ngIf="returnedReason"><b>Correcciones solicitadas:</b> {{ returnedReason }}</p>
-      <p>Debes descargar el formulario oficial otra vez, llenar un formulario nuevo y cargar el nuevo PDF. No se acepta reutilizar el archivo enviado anteriormente.</p>
-    </section>
-
-    <div class="instructions">
-      <h2>{{ editingReturnedId ? 'Corrección del formulario' : 'Presentación del formulario' }}</h2>
-      <p>{{ editingReturnedId ? 'Descarga y completa un formulario nuevo antes de reenviar la solicitud.' : 'Descarga el formulario oficial, complétalo y luego cárgalo en formato PDF para enviar tu solicitud.' }}</p>
+      <h1>{{ config.code }}</h1>
+      <p>{{ config.subtitle }}</p>
     </div>
+  </section>
 
-    <div class="steps">
-      <article class="step-card">
-        <span class="step-number">1</span>
-        <div class="step-content">
-          <h3>Descargar {{ config.additionalPdfAssets?.length ? 'formularios originales' : 'formulario original' }}</h3>
-          <p>Guarda {{ config.additionalPdfAssets?.length ? 'los documentos oficiales' : 'el documento oficial' }} correspondiente a este trámite y completa la información solicitada.</p>
-          <a class="primary-action download" [href]="config.pdfAsset" [download]="config.code + '.pdf'">
-            {{ config.downloadLabel || ('Descargar ' + config.code) }}
-          </a>
-          <a
-            class="primary-action download secondary-download"
-            *ngFor="let document of config.additionalPdfAssets"
-            [href]="document.asset"
-            [download]="document.filename">
-            {{ document.label }}
-          </a>
+  <section class="correction-notice" *ngIf="editingReturnedId">
+    <strong>Solicitud devuelta para corrección</strong>
+    <p *ngIf="returnedReason"><b>Correcciones solicitadas:</b> {{ returnedReason }}</p>
+    <p>Corrige los campos solicitados y vuelve a enviar el formulario digital.</p>
+  </section>
+
+  <form (ngSubmit)="onSubmit()">
+    <article class="official-sheet" *ngFor="let page of currentDigitalPages; let pageIndex = index; trackBy: trackPage">
+      <div class="page-separator" *ngIf="pageIndex > 0">
+        Anexo del trámite - {{ page.code }}
+      </div>
+
+      <header class="official-header">
+        <div class="logo-cell">
+          <img src="assets/dgac-oficial.png" alt="DGAC">
         </div>
-      </article>
+        <div class="title-cell">
+          <p class="department">{{ pageDepartment(page) }}</p>
+          <h2>{{ page.title }}</h2>
+        </div>
+      </header>
 
-      <article class="step-card">
-        <span class="step-number">2</span>
-        <div class="step-content">
-          <h3>Cargar formulario completado</h3>
-          <p *ngIf="!config.additionalPdfAssets?.length">Adjunta el formulario ya lleno. Solo se permiten archivos PDF de hasta 10 MB.</p>
-          <p *ngIf="config.additionalPdfAssets?.length">Completa ambos formularios, únelos en un solo PDF y adjunta ese archivo. El tamaño máximo es de 10 MB.</p>
-          <label class="upload-box" [class.has-file]="selectedFile">
-            <input type="file" accept="application/pdf,.pdf" (change)="onFileSelected($event)">
-            <span class="upload-title">{{ selectedFile ? 'Formulario seleccionado' : 'Seleccionar archivo PDF' }}</span>
-            <span class="upload-detail" *ngIf="selectedFile as file">{{ file.name }} · {{ fileSizeLabel(file) }}</span>
-            <span class="upload-detail" *ngIf="!selectedFile">Haz clic para buscar el archivo en tu computadora</span>
+      <p class="note" *ngIf="page.slug === 'dvso-639'">
+        NOTA: FORMARÁ PARTE DEL HISTORIAL DE LA AERONAVE
+      </p>
+
+      <ng-container *ngFor="let section of page.sections; let sectionIndex = index; trackBy: trackSection">
+        <h3 class="section-title" *ngIf="page.sections.length > 1">
+          {{ section.title }}
+        </h3>
+        <p class="section-description" *ngIf="section.description">{{ section.description }}</p>
+
+        <div class="official-fields" [class.table-style]="page.slug === 'dvso-ops-805'">
+          <label
+            class="official-field"
+            *ngFor="let field of section.fields; let fieldIndex = index; trackBy: trackField"
+            [class.full]="field.full || field.type === 'textarea'">
+            <span class="field-label">
+              <b>{{ fieldIndex + 1 }}.</b>
+              {{ field.label }}
+              <em *ngIf="field.required">*</em>
+            </span>
+
+            <select
+              *ngIf="field.type === 'select'; else textField"
+              [(ngModel)]="formValues[digitalFieldKey(page, field)]"
+              [name]="page.slug + '-' + digitalFieldKey(page, field)">
+              <option value="">Seleccione</option>
+              <option *ngFor="let option of field.options" [value]="option.value">{{ option.label }}</option>
+            </select>
+
+            <ng-template #textField>
+              <textarea
+                *ngIf="field.type === 'textarea'; else inputField"
+                [(ngModel)]="formValues[digitalFieldKey(page, field)]"
+                [name]="page.slug + '-' + digitalFieldKey(page, field)"
+                [rows]="field.rows || 3"
+                [placeholder]="field.placeholder || ''"></textarea>
+              <ng-template #inputField>
+                <input
+                  [type]="field.type || 'text'"
+                  [(ngModel)]="formValues[digitalFieldKey(page, field)]"
+                  [name]="page.slug + '-' + digitalFieldKey(page, field)"
+                  [placeholder]="field.placeholder || ''">
+              </ng-template>
+            </ng-template>
+
+            <small *ngIf="field.hint">{{ field.hint }}</small>
           </label>
         </div>
-      </article>
-    </div>
+      </ng-container>
+
+      <section class="footer-reference" *ngIf="page.footerNote || page.footerReference">
+        <p *ngIf="page.footerNote">{{ page.footerNote }}</p>
+        <p *ngIf="page.footerReference">{{ page.footerReference }}</p>
+      </section>
+
+      <footer class="official-footer">
+        <div class="footer-left">
+          <span>Revisión:{{ page.revision || '' }}</span>
+          <span>Fecha: {{ page.revisionDate || '' }}</span>
+        </div>
+        <div class="footer-right">
+          <strong>{{ page.footerCode || page.code }}</strong>
+          <span>{{ page.pageLabel || 'Página 1 de 1' }}</span>
+        </div>
+      </footer>
+    </article>
+
+    <section class="optional-upload">
+      <h3>Adjunto opcional</h3>
+      <p>Puedes adjuntar el formulario original lleno en PDF como respaldo. El formulario digital es el que se enviará al proceso.</p>
+      <label class="upload-box" [class.has-file]="selectedFile">
+        <input type="file" accept="application/pdf,.pdf" (change)="onFileSelected($event)">
+        <span class="upload-title">{{ selectedFile ? 'PDF de respaldo seleccionado' : 'Seleccionar PDF de respaldo' }}</span>
+        <span class="upload-detail" *ngIf="selectedFile as file">{{ file.name }} · {{ fileSizeLabel(file) }}</span>
+        <span class="upload-detail" *ngIf="!selectedFile">Opcional, máximo 10 MB</span>
+      </label>
+    </section>
 
     <div class="status" *ngIf="status" [class.success]="status.type === 'success'" [class.error]="status.type === 'error'">
       {{ status.message }}
     </div>
 
-    <footer class="submit-area">
-      <button class="submit-button" type="button" [disabled]="isSubmitting || !selectedFile" (click)="onSubmit()">
-        {{ isSubmitting ? 'Enviando solicitud...' : (editingReturnedId ? 'Reenviar nuevo formulario DVSO' : 'Enviar solicitud DVSO') }}
+    <div class="submit-area">
+      <button class="submit-button" type="submit" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Enviando solicitud...' : (editingReturnedId ? 'Reenviar formulario digital DVSO' : 'Enviar formulario digital DVSO') }}
       </button>
-    </footer>
-  </section>
+    </div>
+  </form>
 </main>

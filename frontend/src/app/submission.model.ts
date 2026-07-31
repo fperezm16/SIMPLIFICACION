@@ -91,6 +91,14 @@ export type Submission = {
   analyst_pdf_uploaded_at?: string | null;
   analyst_pdf_uploaded_by_user_id?: number | null;
   has_analyst_pdf?: boolean | null;
+  delivery_payment_receipt_filename?: string | null;
+  delivery_payment_receipt_mime?: string | null;
+  delivery_documents_uploaded_at?: string | null;
+  delivery_documents_uploaded_by_user_id?: number | null;
+  has_delivery_payment_receipt?: boolean | null;
+  delivery_package_filename?: string | null;
+  delivery_package_mime?: string | null;
+  has_delivery_package?: boolean | null;
   signed_pdf_filename?: string | null;
   signed_pdf_mime?: string | null;
   signed_pdf_uploaded_at?: string | null;

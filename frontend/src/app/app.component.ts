@@ -16,8 +16,8 @@ import { hideDvsoInCurrentRuntime } from './runtime-flags';
         <div class="header__right">
           <nav class="nav" *ngIf="auth.user$ | async as user; else guestNav">
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
-            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
-            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
+            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
+            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">
@@ -34,7 +34,8 @@ import { hideDvsoInCurrentRuntime } from './runtime-flags';
                 <div class="units-submenu" *ngIf="!hideDvsoInCurrentRuntime()">
                   <button type="button" class="submenu-trigger">DVSO</button>
                   <div class="units-submenu-panel">
-                    <a routerLink="/dvso/dvso-639" routerLinkActive="active-link">DVSO-639 / 639A Exportación</a>
+                    <a routerLink="/dvso/dvso-639" routerLinkActive="active-link">DVSO-639 Solicitud exportación</a>
+                    <a routerLink="/dvso/dvso-639a" routerLinkActive="active-link">DVSO-639A Anexo exportación</a>
                     <a routerLink="/dvso/dvso-800" routerLinkActive="active-link">DVSO-800 Permiso de vuelo especial</a>
                     <a routerLink="/dvso/dvso-801" routerLinkActive="active-link">DVSO-801 Dictamen técnico RPA</a>
                     <a routerLink="/dvso/dvso-ops-805" routerLinkActive="active-link">DVSO-OPS-805 RPA turistas</a>
@@ -209,6 +210,7 @@ export class AppComponent {
   displayRole(role: string | null | undefined) {
     if (role === 'revisor') return 'Recepción';
     if (role === 'jefatura_ops') return 'Jefatura OPS';
+    if (role === 'jefe_aeronavegabilidad') return 'Jefe de Sección de Aeronavegabilidad';
     return role || 'user';
   }
 
