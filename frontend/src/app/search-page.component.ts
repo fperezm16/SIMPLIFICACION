@@ -29,7 +29,7 @@ import { Submission } from './submission.model';
             Unidad
             <select [(ngModel)]="selectedUnit" [disabled]="availableUnits().length <= 1">
               <option *ngIf="availableUnits().length > 1" value="">Todas</option>
-              <option *ngFor="let unit of availableUnits()" [value]="unit">{{ unit }}</option>
+              <option *ngFor="let unit of availableUnits()" [value]="unit">{{ unitLabel(unit) }}</option>
             </select>
           </label>
           <div class="actions">
@@ -51,7 +51,7 @@ import { Submission } from './submission.model';
               <p>{{ row.gestion_nombre || 'Proceso sin nombre' }}</p>
             </div>
             <div class="meta">
-              <span class="chip">{{ row.unidad_clave || 'GENERAL' }}</span>
+              <span class="chip">{{ unitLabel(row.unidad_clave || 'GENERAL') }}</span>
               <span class="state">{{ row.process_label || stateLabel(row) }}</span>
             </div>
           </button>
@@ -235,7 +235,7 @@ export class SearchPageComponent implements OnInit {
   private http = inject(HttpClient);
   private auth = inject(AuthService);
   readonly apiBase = API_BASE;
-  readonly units: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
+  readonly units: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO', 'TRANSPORTE_AEREO', 'INFRAESTRUCTURA']);
   readonly userUnits = signal<string[]>([]);
   readonly availableUnits = computed(() => {
     const source = this.userUnits().length
@@ -302,6 +302,17 @@ export class SearchPageComponent implements OnInit {
     this.error = '';
     this.searched = false;
     this.expandedId = null;
+  }
+
+  unitLabel(unit: string | null | undefined) {
+    const normalized = String(unit || 'GENERAL').trim().toUpperCase();
+    if (normalized === 'TRANSPORTE_AEREO') return 'Transporte Aéreo';
+    if (normalized === 'INFRAESTRUCTURA') return 'Infraestructura';
+    if (normalized === 'FINANCIERO') return 'Financiero';
+    if (normalized === 'AILA') return 'AILA';
+    if (normalized === 'DVSO') return 'DVSO';
+    if (normalized === 'RAN') return 'RAN';
+    return 'General';
   }
 
   private syncSelectedUnit() {

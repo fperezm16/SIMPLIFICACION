@@ -1,0 +1,19 @@
+﻿Fuente: AGENDA .pdf, DGAC, Guatemala, 15 de julio de 2026.
+Temas extraídos visualmente:
+1. Estado actual de la página web institucional.
+- Migración de información a nueva página web concluida, en cumplimiento de requerimientos GAE.
+- Pendiente reordenamiento, actualización y validación de información publicada con unidades/departamentos.
+2. Trámites administrativos DGAC: 17 trámites priorizados.
+3. Avances del desarrollo de plataforma digital de trámites:
+- Trámites 1-5: 83% acumulado.
+- Trámites 6-9: 29% acumulado.
+- Trámite 10: 14% acumulado.
+- Trámites 11-13: 8% acumulado.
+- Trámites 14-17: 0% acumulado.
+4. Pago electrónico Neonet: Estado actual No iniciado.
+5. Firma Electrónica Avanzada: Estado actual No iniciado.
+Diseño solicitado: similar a imagen de referencia enviada por el usuario, estilo ejecutivo DGAC con azul institucional, tarjetas, indicadores circulares, lista por avance y hoja de ruta.
+Actualización:
+- Se capturó la web pública institucional https://www.dgac.gob.gt/ el 15 de julio de 2026.
+- Se reemplazó la imagen de la diapositiva 3 por captura real de la web institucional.
+- Se mantuvo el contenido de agenda: migración concluida y pendiente de validación/reordenamiento por unidades responsables.

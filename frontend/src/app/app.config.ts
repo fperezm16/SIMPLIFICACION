@@ -17,6 +17,8 @@ import { supervisorGuard } from './supervisor.guard';
 import { FinancialFormPageComponent } from './financial-form-page.component';
 import { AilaFormPageComponent } from './aila-form-page.component';
 import { DvsoFormPageComponent } from './dvso-form-page.component';
+import { TransporteAereoFormPageComponent } from './transporte-aereo-form-page.component';
+import { InfraestructuraFormPageComponent } from './infraestructura-form-page.component';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -32,6 +34,10 @@ export const appConfig: ApplicationConfig = {
       { path: 'ran/formulario-drones', component: FormPageComponent, canActivate: [formGuard], data: { formMode: 'ranUav' } },
       { path: 'dvso', redirectTo: 'dvso/dvso-639', pathMatch: 'full' },
       { path: 'dvso/:slug', component: DvsoFormPageComponent, canActivate: [formGuard] },
+      { path: 'transporte-aereo', redirectTo: 'transporte-aereo/trabajos-aereos-servicios-auxiliares', pathMatch: 'full' },
+      { path: 'transporte-aereo/:slug', component: TransporteAereoFormPageComponent, canActivate: [formGuard] },
+      { path: 'infraestructura', redirectTo: 'infraestructura/helipuertos', pathMatch: 'full' },
+      { path: 'infraestructura/:slug', component: InfraestructuraFormPageComponent, canActivate: [formGuard] },
       { path: 'aila/permiso-trabajo', component: AilaFormPageComponent, canActivate: [formGuard] },
       { path: 'financiero/solvencia-pago', component: FinancialFormPageComponent, canActivate: [formGuard] },
       { path: 'revision', component: ReviewPageComponent, canActivate: [revisorGuard] },

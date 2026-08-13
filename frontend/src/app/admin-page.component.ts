@@ -55,7 +55,7 @@ type UserRow = {
               [checked]="hasUnit(createForm.unit_access, unit)"
               (change)="toggleCreateUnit(unit, $any($event.target).checked)"
             />
-            {{ unit }}
+            {{ unitLabel(unit) }}
           </label>
         </div>
         <button (click)="createUser()" [disabled]="loading">Crear usuario</button>
@@ -93,7 +93,7 @@ type UserRow = {
                       [checked]="hasUnit(u.unit_access, unit)"
                       (change)="toggleUserUnit(u, unit, $any($event.target).checked)"
                     />
-                    {{ unit }}
+                    {{ unitLabel(unit) }}
                   </label>
                 </div>
                 <ng-template #allUnits>
@@ -162,7 +162,7 @@ export class AdminPageComponent implements OnInit {
   readonly roles = hideDvsoInCurrentRuntime()
     ? ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'admin', 'supervisor']
     : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero', 'admin', 'supervisor'];
-  readonly unitOptions: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
+  readonly unitOptions: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO', 'TRANSPORTE_AEREO', 'INFRAESTRUCTURA']);
   private readonly unitRoles = new Set(
     hideDvsoInCurrentRuntime()
       ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero']
@@ -191,6 +191,13 @@ export class AdminPageComponent implements OnInit {
 
   hasUnit(unitAccess: string[] | null | undefined, unit: string) {
     return this.normalizeUnits(unitAccess).includes(unit);
+  }
+
+  unitLabel(unit: string) {
+    const normalized = String(unit || '').trim().toUpperCase();
+    if (normalized === 'TRANSPORTE_AEREO') return 'TRANSPORTE AÉREO';
+    if (normalized === 'INFRAESTRUCTURA') return 'INFRAESTRUCTURA';
+    return normalized;
   }
 
   toggleCreateUnit(unit: string, checked: boolean) {

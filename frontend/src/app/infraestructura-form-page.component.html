@@ -1,0 +1,154 @@
+<main class="infra-page" *ngIf="currentConfig() as config">
+  <form (ngSubmit)="onSubmit()">
+    <article class="official-sheet">
+      <header class="letterhead">
+        <img class="mciv-logo" src="assets/mciv-oficial.png" alt="Ministerio de Comunicaciones, Infraestructura y Vivienda">
+        <img class="dgac-logo-official" src="assets/dgac-oficial.png" alt="Dirección General de Aeronáutica Civil">
+      </header>
+
+      <section class="official-title">
+        <h2>{{ config.title }}</h2>
+        <p>{{ config.subtitle }}</p>
+        <span class="process-pill">{{ config.menuLabel }}</span>
+      </section>
+
+      <p class="note">
+        <strong>NOTA:</strong> Este formulario debe ser llenado de forma digital, con la fecha en la que se presenta la documentación.
+      </p>
+
+      <section class="letter-intro">
+        <p><strong>P.A.</strong></p>
+        <p>
+          <strong>Inosente Tomas Aldecoa Casasola</strong><br>
+          <strong>Director General</strong><br>
+          Dirección General de Aeronáutica Civil -DGAC-<br>
+          Presente
+        </p>
+        <p>{{ config.intro || 'Estimado Sr. Director: por este medio se presenta la solicitud correspondiente.' }}</p>
+      </section>
+
+      <section class="choice-section" *ngIf="config.options?.length">
+        <h3>{{ config.optionsTitle || 'Solicitud de' }}</h3>
+        <div class="choice-grid">
+          <label *ngFor="let option of config.options || []; trackBy: trackOption">
+            <input type="checkbox" [(ngModel)]="optionValues[option.key]" [name]="config.slug + '-opcion-' + option.key">
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="choice-section" *ngIf="config.authorizationOptions?.length">
+        <h3>Autorización de</h3>
+        <div class="choice-grid">
+          <label *ngFor="let option of config.authorizationOptions || []; trackBy: trackOption">
+            <input type="checkbox" [(ngModel)]="authorizationValues[option.key]" [name]="config.slug + '-autorizacion-' + option.key">
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="choice-section" *ngIf="config.helipadTypeOptions?.length">
+        <h3>Tipo de helipuerto</h3>
+        <div class="choice-grid two">
+          <label *ngFor="let option of config.helipadTypeOptions || []; trackBy: trackOption">
+            <input type="checkbox" [(ngModel)]="helipadTypeValues[option.key]" [name]="config.slug + '-tipo-' + option.key">
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="form-section" *ngFor="let section of config.sections; trackBy: trackSection">
+        <h3>{{ section.title }}</h3>
+        <p class="declaration-copy" *ngIf="section.title === 'Declaración'">
+          {{ config.declarationText || 'Yo, el abajo firmante, declaro que la información proporcionada en este formulario es fiel y veraz; que no existe impedimento legal o judicial para la construcción u operación solicitada; y que me comprometo a cumplir con las inspecciones y observaciones que sean requeridas por la Dirección General de Aeronáutica Civil.' }}
+        </p>
+        <div class="field-grid">
+          <label
+            class="field"
+            *ngFor="let field of section.fields; trackBy: trackField"
+            [class.full]="field.full || field.type === 'textarea'">
+            <span>
+              {{ field.label }}<em *ngIf="field.required">*</em>
+            </span>
+
+            <textarea
+              *ngIf="field.type === 'textarea'; else inputField"
+              [(ngModel)]="formValues[field.key]"
+              [name]="config.slug + '-' + field.key"
+              [rows]="field.rows || 2"></textarea>
+
+            <ng-template #inputField>
+              <input
+                [type]="field.type || 'text'"
+                [(ngModel)]="formValues[field.key]"
+                [name]="config.slug + '-' + field.key"
+                [readonly]="field.key === 'fecha_solicitud'">
+            </ng-template>
+
+            <small *ngIf="field.hint">{{ field.hint }}</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="choice-section operational" *ngIf="config.operationOptions?.length">
+        <h3>Condición operacional</h3>
+        <div class="choice-grid">
+          <label *ngFor="let option of config.operationOptions || []; trackBy: trackOption">
+            <input type="checkbox" [(ngModel)]="operationValues[option.key]" [name]="config.slug + '-operacion-' + option.key">
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </section>
+
+      <section class="attachments" *ngIf="config.supportAsset">
+        <h3>Documentos de soporte</h3>
+        <p class="support-copy">
+          Consulta estos documentos para conocer los oficios, cartas, actas o requisitos que acompañan el trámite.
+        </p>
+        <a
+          *ngIf="config.supportAsset"
+          class="support-view-button"
+          [href]="config.supportAsset"
+          target="_blank"
+          rel="noopener">
+          {{ config.supportAssetLabel || 'Ver documento de soporte' }}
+        </a>
+      </section>
+
+      <section class="signature-section">
+        <div class="signature-heading">
+          <div>
+            <h3>Firma del solicitante <em>*</em></h3>
+            <p>Firme dentro del recuadro usando el dedo, mouse o pad de la computadora.</p>
+          </div>
+          <button type="button" class="clear-signature-button" (click)="clearSignature()">Limpiar firma</button>
+        </div>
+        <canvas
+          #signatureCanvas
+          class="signature-canvas"
+          aria-label="Campo para firma digital del solicitante"
+          (pointerdown)="startSignature($event)"
+          (pointermove)="moveSignature($event)"
+          (pointerup)="endSignature($event)"
+          (pointercancel)="endSignature($event)"
+          (pointerleave)="endSignature($event)">
+        </canvas>
+        <small>La firma se guardará junto con la solicitud enviada.</small>
+      </section>
+
+      <p class="structural-note" *ngIf="config.structuralNote">
+        {{ config.structuralNote }}
+      </p>
+    </article>
+
+    <div class="status" *ngIf="status" [class.success]="status.type === 'success'" [class.error]="status.type === 'error'">
+      {{ status.message }}
+    </div>
+
+    <div class="submit-area">
+      <button class="submit-button" type="submit" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud de Infraestructura' }}
+      </button>
+    </div>
+  </form>
+</main>

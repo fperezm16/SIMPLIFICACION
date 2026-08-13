@@ -2,7 +2,7 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
-import { hideDvsoInCurrentRuntime } from './runtime-flags';
+import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTransporteAereoInCurrentRuntime } from './runtime-flags';
 
 @Component({
     selector: 'app-root',
@@ -39,6 +39,22 @@ import { hideDvsoInCurrentRuntime } from './runtime-flags';
                     <a routerLink="/dvso/dvso-800" routerLinkActive="active-link">DVSO-800 Permiso de vuelo especial</a>
                     <a routerLink="/dvso/dvso-801" routerLinkActive="active-link">DVSO-801 Dictamen técnico RPA</a>
                     <a routerLink="/dvso/dvso-ops-805" routerLinkActive="active-link">DVSO-OPS-805 RPA turistas</a>
+                  </div>
+                </div>
+                <div class="units-submenu" *ngIf="!hideTransporteAereoInCurrentRuntime()">
+                  <button type="button" class="submenu-trigger">TRANSPORTE AÉREO</button>
+                  <div class="units-submenu-panel">
+                    <a routerLink="/transporte-aereo/trabajos-aereos-servicios-auxiliares" routerLinkActive="active-link">Certificado de explotación a trabajos aéreos/servicios auxiliares</a>
+                    <a routerLink="/transporte-aereo/linea-aerea" routerLinkActive="active-link">Certificado de explotación de una línea aérea</a>
+                    <a routerLink="/transporte-aereo/permiso-temporal-no-regular" routerLinkActive="active-link">Permiso temporal de explotación comercial no regular</a>
+                  </div>
+                </div>
+                <div class="units-submenu" *ngIf="!hideInfraestructuraInCurrentRuntime()">
+                  <button type="button" class="submenu-trigger">INFRAESTRUCTURA</button>
+                  <div class="units-submenu-panel">
+                    <a routerLink="/infraestructura/helipuertos" routerLinkActive="active-link">Formulario de helipuertos</a>
+                    <a routerLink="/infraestructura/altura-maxima-permisible" routerLinkActive="active-link">Análisis de altura máxima permisible</a>
+                    <a routerLink="/infraestructura/pistas" routerLinkActive="active-link">Construcción, operación, actualización y/o modificación de pista</a>
                   </div>
                 </div>
                 <div class="units-submenu">
@@ -198,6 +214,8 @@ export class AppComponent {
   auth = inject(AuthService);
   private router = inject(Router);
   protected hideDvsoInCurrentRuntime = hideDvsoInCurrentRuntime;
+  protected hideTransporteAereoInCurrentRuntime = hideTransporteAereoInCurrentRuntime;
+  protected hideInfraestructuraInCurrentRuntime = hideInfraestructuraInCurrentRuntime;
 
   get showUnitsMenu() {
     return this.router.url !== '/auth';

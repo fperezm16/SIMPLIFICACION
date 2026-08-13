@@ -1,0 +1,519 @@
+:host {
+  display: block;
+  min-height: 100%;
+  background: #eaf4fb;
+  color: #111;
+}
+
+.infra-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 18px 56px;
+}
+
+.submit-button {
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #0b6fa8;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.official-sheet {
+  margin-bottom: 22px;
+  padding: 24px 38px 32px;
+  border: 1px solid #cfe2f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 50, 78, 0.13);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.letterhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  min-height: 96px;
+  padding: 0 4px 14px;
+}
+
+.mciv-logo,
+.dgac-logo-official {
+  display: block;
+  width: min(330px, 45%);
+  max-height: 92px;
+  object-fit: contain;
+}
+
+.mciv-logo {
+  object-position: left center;
+}
+
+.dgac-logo-official {
+  object-position: right center;
+}
+
+.official-title {
+  margin: 4px auto 22px;
+  text-align: center;
+}
+
+.official-title h2 {
+  max-width: 880px;
+  margin: 0 auto;
+  color: #052a4f;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.official-title p {
+  margin: 9px 0 12px;
+  color: #405d7a;
+  font-size: 14px;
+}
+
+.process-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(100%, 640px);
+  padding: 6px 14px;
+  border: 1px solid #9fd0ef;
+  border-radius: 999px;
+  color: #005f99;
+  background: #eef9ff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.note {
+  margin: 0 0 18px;
+  padding: 8px 12px;
+  border: 1px solid #111;
+  color: #111;
+  text-align: center;
+  font-size: 13px;
+}
+
+.letter-intro {
+  margin: 0 0 18px;
+  color: #111;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.letter-intro p {
+  margin: 0 0 10px;
+}
+
+.choice-section,
+.form-section {
+  margin-top: 12px;
+  border: 1px solid #111;
+  background: #fff;
+}
+
+.choice-section h3,
+.form-section h3 {
+  margin: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid #111;
+  background: #f7fbff;
+  color: #052a4f;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.choice-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.choice-grid label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-right: 1px solid #111;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.choice-grid label:last-child {
+  border-right: 0;
+}
+
+.choice-grid input {
+  width: 18px;
+  height: 18px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-right: 1px solid #111;
+  border-bottom: 1px solid #111;
+}
+
+.field:nth-child(2n),
+.field.full {
+  border-right: 0;
+}
+
+.field.full {
+  grid-column: 1 / -1;
+}
+
+.field span {
+  color: #111;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.field em {
+  color: #b42318;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  min-height: 28px;
+  border: 0;
+  border-bottom: 1.4px solid #111;
+  outline: 0;
+  background: transparent;
+  color: #111;
+  font: inherit;
+  font-size: 14px;
+}
+
+.field textarea {
+  resize: vertical;
+  border: 1px solid #c4ccd4;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.field input[readonly] {
+  color: #405d7a;
+  background: #f8fbfd;
+}
+
+.field small {
+  color: #5f6f80;
+  font-size: 11px;
+}
+
+.declaration-copy {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid #111;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.45;
+  text-align: justify;
+}
+
+.operational {
+  margin-top: 12px;
+}
+
+.signature-section {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #111;
+  background: #fff;
+}
+
+.signature-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.signature-heading h3 {
+  margin: 0;
+  color: #052a4f;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.signature-heading h3 em {
+  color: #b42318;
+  font-style: normal;
+}
+
+.signature-heading p {
+  margin: 4px 0 0;
+  color: #405d7a;
+  font-size: 12px;
+}
+
+.clear-signature-button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #9fd0ef;
+  border-radius: 999px;
+  color: #005f99;
+  background: #eef9ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.signature-canvas {
+  display: block;
+  max-width: 100%;
+  border: 1px dashed #9fb9cc;
+  border-radius: 12px;
+  background: #fff;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.signature-section small {
+  display: block;
+  margin-top: 7px;
+  color: #5f6f80;
+  font-size: 11px;
+}
+
+.attachments {
+  margin-top: 14px;
+}
+
+.attachments h3 {
+  margin: 0 0 12px;
+  color: #052a4f;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.support-copy {
+  margin: 0 0 12px;
+  color: #405d7a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.support-view-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  margin: 0 0 14px;
+  padding: 0 16px;
+  border: 1px solid #8fc7ec;
+  border-radius: 999px;
+  background: #eef9ff;
+  color: #005f99;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.support-view-button:hover {
+  background: #dff3ff;
+}
+
+.required-documents {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.document-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 82px;
+  padding: 14px;
+  border: 1px solid #cfe2f0;
+  border-radius: 14px;
+  background: #fdfefe;
+  box-shadow: 0 10px 24px rgba(15, 50, 78, 0.06);
+}
+
+.upload-title {
+  color: #005f99;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.28;
+}
+
+.upload-title em {
+  color: #b42318;
+  font-style: normal;
+}
+
+.document-card p {
+  margin: 0;
+  color: #405d7a;
+  font-size: 12px;
+}
+
+.upload-inline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px dashed #9fd0ef;
+  border-radius: 12px;
+  color: #052a4f;
+  background: #f8fcff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.upload-inline.has-file {
+  border-color: #62bd7d;
+  background: #f3fbf6;
+}
+
+.upload-inline input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-name {
+  display: block;
+  max-width: 310px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-card small {
+  color: #5f6f80;
+  font-size: 11px;
+}
+
+.required-hint {
+  font-weight: 800;
+}
+
+.structural-note {
+  margin: 14px 0 0;
+  color: #111;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.status {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.status.success {
+  border: 1px solid #96d4b1;
+  color: #0d6b3f;
+  background: #f0fbf4;
+}
+
+.status.error {
+  border: 1px solid #f2a7a7;
+  color: #9b1c1c;
+  background: #fff1f1;
+}
+
+.submit-area {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.submit-button {
+  min-height: 48px;
+  padding: 0 28px;
+}
+
+.submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 760px) {
+  .official-sheet {
+    padding: 22px 16px;
+  }
+
+  .letterhead {
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 18px;
+  }
+
+  .mciv-logo,
+  .dgac-logo-official {
+    width: min(100%, 360px);
+    max-height: 95px;
+    object-position: center;
+  }
+
+  .official-title h2 {
+    font-size: 20px;
+    letter-spacing: 0.03em;
+  }
+
+  .choice-grid,
+  .choice-grid.two,
+  .field-grid,
+  .required-documents {
+    grid-template-columns: 1fr;
+  }
+
+  .choice-grid label,
+  .field,
+  .field:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .signature-heading {
+    flex-direction: column;
+  }
+
+  .clear-signature-button {
+    width: 100%;
+  }
+
+  .submit-button {
+    width: 100%;
+  }
+}

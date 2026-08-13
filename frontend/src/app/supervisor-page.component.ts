@@ -502,7 +502,7 @@ type StatusLegendItem = {
 export class SupervisorPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
-  readonly units = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO']);
+  readonly units = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO', 'TRANSPORTE_AEREO', 'INFRAESTRUCTURA']);
   readonly statusView = [
     { key: 'enviado', label: 'Enviado', css: 's-enviado' },
     { key: 'en_recepcion', label: 'Receptor', css: 's-en_recepcion' },
@@ -656,6 +656,8 @@ export class SupervisorPageComponent implements OnInit {
     if (normalized === 'DVSO') return 'Unidad DVSO';
     if (normalized === 'AILA') return 'Administración AILA';
     if (normalized === 'FINANCIERO') return 'Unidad FINANCIERO';
+    if (normalized === 'TRANSPORTE_AEREO') return 'Unidad Transporte Aéreo';
+    if (normalized === 'INFRAESTRUCTURA') return 'Unidad Infraestructura';
     return 'Unidad GENERAL';
   }
 

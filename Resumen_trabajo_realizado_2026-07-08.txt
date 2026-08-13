@@ -1,0 +1,260 @@
+RESUMEN DEL TRABAJO REALIZADO EN EL PROYECTO FORMULARIO
+Fecha: 2026-07-08
+Proyecto: C:\Users\Fernando\Desktop\PROYECTOS\FORMULARIO
+
+1. Retomar conversación y sincronización
+
+- Se explicó que, aunque se use la misma cuenta, los chats anteriores pueden no cargar automáticamente en una computadora nueva.
+- Se indicó que para retomar el trabajo se necesitaba el proyecto local, archivos relevantes, base de datos/restauración y cualquier resumen previo.
+- Se usó el archivo "Resumen completo.txt" como referencia para entender lo trabajado anteriormente.
+
+2. Restauración de base de datos PostgreSQL
+
+- Se revisaron errores de restauración en pgAdmin/PostgreSQL.
+- Se identificaron errores como:
+  - Restricciones/foreign keys ya existentes.
+  - Parámetro "transaction_timeout" no reconocido.
+  - Restauración parcial con warnings.
+- Se explicó que esos errores podían venir de restaurar sobre una base con objetos existentes o de diferencias entre versiones de PostgreSQL.
+- Se comentó que para restaurar limpio convenía usar base vacía o eliminar objetos antes de restaurar.
+
+3. Instalación y preparación del proyecto
+
+- Se revisó el proyecto local.
+- Se instalaron dependencias necesarias para continuar trabajando.
+- Se validó el frontend con `npm run build`.
+- Se revisó el backend con `node --check backend/src/index.js`.
+
+4. Manuales del sistema
+
+- Se crearon manuales de uso del sistema en formato Word.
+- Se trabajaron manuales para:
+  - Usuario externo.
+  - Usuarios internos RAN y Financiero.
+  - Administrador del sistema.
+- Se ajustó el manual para que mostrara únicamente procesos RAN y Financiero cuando fue solicitado.
+- Se agregaron vistas de usuario:
+  - Vista cuando el usuario ya creó un proceso.
+  - Vista donde se muestra el proceso/trámite.
+- Se generaron archivos y recursos dentro de la carpeta `manuales/`.
+- Se corrigieron versiones del manual de usuario externo según revisiones con texto rojo y comentarios.
+
+5. Ocultar y volver a mostrar DVSO
+
+- Se ocultó el apartado DVSO para poder subir cambios al servidor.
+- Luego se volvió a habilitar DVSO localmente.
+- Se usaron banderas/runtime flags para controlar visibilidad en local/despliegue.
+
+6. Limpieza de datos de prueba
+
+- Se explicó cómo limpiar procesos de prueba en base de datos.
+- Se preparó un script:
+  - `backend/scripts/clean-test-data.js`
+- El script elimina datos de procesos/pruebas conservando usuarios y configuración.
+- Se explicó que debía ejecutarse desde la ruta correcta del backend, no desde `/home/testdev` si ahí no existe `package.json`.
+- Se aclaró la diferencia entre conectarse al backend y conectarse directamente a la base de datos.
+
+7. Validación de correos
+
+- Se omitió la validación estricta por correo/dominio que mostraba:
+  - "Correo no válido. El dominio no recibe correos."
+- Se ajustó el validador de correo para permitir continuar con pruebas/usuarios.
+
+8. Cambios principales en DVSO
+
+8.1. Eliminación del formulario digital interno
+
+- Se quitó el formulario digital interno para los trámites DVSO.
+- DVSO ahora funciona con:
+  1. Descargar formulario oficial.
+  2. Llenarlo fuera del sistema.
+  3. Cargar el formulario completado en PDF.
+  4. Enviar solicitud.
+- El backend guarda:
+  - `original_form_pdf_base64`
+  - `original_form_filename`
+  - `original_form_mime`
+- El backend exige PDF para solicitudes DVSO.
+- Se agregó acceso para ver el formulario DVSO cargado desde revisión interna.
+
+8.2. Procesos DVSO removidos o unificados
+
+- Se quitaron del menú activo:
+  - `DVSO-623 Ala fija`
+  - `DVSO-623A Helicóptero`
+- Se unificaron:
+  - `DVSO-639 Solicitud exportación`
+  - `DVSO-639A Anexo exportación`
+- Ahora aparecen como un solo trámite:
+  - `DVSO-639 / 639A Exportación`
+- El usuario descarga ambos documentos y debe subir un solo PDF unido.
+
+8.3. Botones de descarga
+
+- Se dejaron nombres completos en botones:
+  - `Descargar DVSO-639 Solicitud para Certificado de Aeronavegabilidad para Exportación`
+  - `Descargar DVSO-639A Anexo a Solicitud para Certificado de Exportación`
+
+8.4. Correcciones en DVSO
+
+- Cuando una solicitud DVSO es devuelta, el usuario debe:
+  - Descargar nuevamente el formulario.
+  - Llenar un formulario nuevo.
+  - Cargar un PDF nuevo.
+- El backend rechaza el reenvío si el PDF cargado es idéntico al anterior.
+- El frontend muestra un aviso de corrección y las observaciones solicitadas.
+
+9. Actualización de documentos DVSO
+
+- Se reemplazaron los documentos oficiales DVSO con los archivos proporcionados.
+- Archivos actualizados:
+  - `DVSO-639.pdf`
+  - `DVSO-639A.pdf`
+  - `DVSO-800.pdf`
+  - `DVSO-801.pdf`
+  - `DVSO-OPS-805.pdf`
+- Se validó que los archivos copiados al proyecto coincidieran exactamente con los enviados mediante hash.
+- Los documentos están en:
+  - `frontend/src/assets/dvso/`
+- Se confirmó que varios de esos PDF son rellenables/editables.
+
+10. Corrección de caracteres especiales
+
+- Se corrigieron problemas de texto tipo mojibake:
+  - `BÃºsqueda`
+  - `matrÃ­cula`
+  - `CorrecciÃ³n`
+  - `trÃ¡mite`
+- Se revisaron y corrigieron textos visibles en componentes del frontend.
+- Se dejó cuidado con cadenas que reparan textos antiguos para no romper normalizaciones.
+
+11. Nuevo rol DVSO: jefatura_ops
+
+- Se creó un rol nuevo:
+  - `jefatura_ops`
+- Este rol es únicamente para DVSO.
+- Además, solo interviene en el proceso:
+  - `DVSO-OPS-805`
+
+Funcionamiento del rol:
+
+- Puede entrar a Revisión.
+- Puede entrar a Búsqueda.
+- Solo ve procesos DVSO-OPS-805 asignados.
+- Cuando Jefatura DVSO envía un DVSO-OPS-805 a la siguiente etapa, se envía a `jefatura_ops`.
+- Para los demás procesos DVSO, se sigue enviando a `inspector_dvso`.
+- `jefatura_ops` puede:
+  - Revisar el proceso 805 asignado.
+  - Devolverlo a Jefatura DVSO.
+  - Devolverlo al usuario para corrección.
+- El backend bloquea que `jefatura_ops` intervenga en otros trámites DVSO.
+- Se agregó al administrador para poder crear usuarios con ese rol.
+- Se corrigió el problema de "Rol no válido" agregando explícitamente `jefatura_ops` en roles permitidos.
+- Se aclaró que después de este cambio se debe reiniciar el backend para que tome el rol nuevo.
+
+12. Validaciones realizadas
+
+- Se ejecutó:
+  - `node --check backend/src/index.js`
+  - `npm run build` en frontend
+- Ambas validaciones pasaron correctamente.
+- Los warnings del frontend son conocidos:
+  - Tamaño de bundle excede budget.
+  - Dependencias CommonJS como `canvg`, `html2canvas`, `core-js`, etc.
+- Esos warnings no bloquean la compilación.
+
+13. Git personal
+
+- Se revisaron remotos:
+  - `origin` -> repositorio personal `fperezm16/SIMPLIFICACION.git`
+  - `simplificacion-completo` -> repositorio personal alterno
+  - `tramites` -> repositorio institucional
+- Se preparó un commit con los cambios:
+  - `Actualizar flujo DVSO, documentos y manuales`
+- Hash del commit local:
+  - `1f15d24`
+- Se intentó hacer push a `origin/main`.
+- El push tardó demasiado y se cortó por timeout.
+- Quedó pendiente confirmar/subir completamente a GitHub.
+- Se excluyó del commit el perfil temporal de Chrome:
+  - `manuales/chrome_qa_profile/`
+- Se agregó al `.gitignore`:
+  - `manuales/chrome_qa_profile/`
+  - `manuales/~$*.docx`
+
+14. Respaldo en disco duro externo
+
+- Se conectó un disco duro externo:
+  - Unidad `D:`
+  - Etiqueta `Elements`
+- Se copió el proyecto a:
+  - `D:\FORMULARIO_BACKUP_2026-07-08`
+- Se excluyeron carpetas pesadas/recreables:
+  - `node_modules`
+  - `dist`
+  - `.angular`
+  - `.git`
+- Se eliminó del respaldo el perfil temporal de Chrome por seguridad.
+- Resultado del respaldo:
+  - Aproximadamente 21,085 archivos.
+  - Aproximadamente 499 MB.
+
+15. Archivos importantes modificados
+
+Backend:
+
+- `backend/src/index.js`
+- `backend/src/email-validator.js`
+- `backend/scripts/clean-test-data.js`
+- `backend/package.json`
+- `backend/.env.example`
+
+Frontend:
+
+- `frontend/src/app/dvso-form-page.component.ts`
+- `frontend/src/app/dvso-form-page.component.html`
+- `frontend/src/app/dvso-form-page.component.css`
+- `frontend/src/app/review-panel.component.ts`
+- `frontend/src/app/admin-page.component.ts`
+- `frontend/src/app/app.component.ts`
+- `frontend/src/app/revisor.guard.ts`
+- `frontend/src/app/analysts.service.ts`
+- `frontend/src/app/home-page.component.ts`
+- `frontend/src/app/search-page.component.ts`
+- `frontend/src/app/review-page.component.ts`
+- `frontend/src/app/supervisor-page.component.ts`
+- `frontend/src/app/submission.model.ts`
+- `frontend/src/app/runtime-flags.ts`
+- `frontend/src/app/aila-form-page.component.ts`
+
+Assets DVSO:
+
+- `frontend/src/assets/dvso/FORMA-DGAC-DVSO-639-SOLICITUD-PARA-CERTIFICADO-DE-AERONAVEGABILIDAD-PARA-EXPORTACION.pdf`
+- `frontend/src/assets/dvso/FORMA-DGAC-DVSO-639A-ANEXO-A-SOLICITUD-PARA-CERTIFICADO-DE-EXPORTACION.pdf`
+- `frontend/src/assets/dvso/FORMA-DGAC-DVSO-800-SOLICITUD-DE-APROBACION-AUTORIZACION-PERMISO-DE-VUELO-ESPECIAL.pdf`
+- `frontend/src/assets/dvso/FORMA-DGAC-DVSO-801-SOLICITUD-DICTAMEN-TECNICO-AERONAVE-PILOTADAS-A-DISTANCIA-RPA.pdf`
+- `frontend/src/assets/dvso/FORMA-DVSO-OPS-805.pdf`
+
+Manuales:
+
+- Carpeta `manuales/`
+- Incluye documentos Word, Markdown, capturas, scripts de generación y PDFs de QA.
+
+16. Pendientes recomendados
+
+- Reiniciar backend después de cambios de roles.
+- Confirmar si se debe subir nuevamente el commit al Git personal con más tiempo o desde una red más estable.
+- Si se sube a producción, aplicar:
+  - Código actualizado.
+  - Assets DVSO actualizados.
+  - Reinicio del backend.
+  - Build del frontend.
+- Crear usuario con rol `jefatura_ops` y unidad DVSO.
+- Probar flujo:
+  1. Usuario crea DVSO-OPS-805.
+  2. Recepción DVSO asigna a asistente.
+  3. Asistente envía a Jefatura DVSO.
+  4. Jefatura DVSO envía a Jefatura OPS.
+  5. Jefatura OPS revisa y devuelve o continúa según corresponda.
+
+FIN DEL RESUMEN

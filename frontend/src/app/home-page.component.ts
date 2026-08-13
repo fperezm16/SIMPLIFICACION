@@ -457,6 +457,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
     if (key === 'DVSO') return 'Unidad DVSO';
     if (key === 'AILA') return 'Administración AILA';
     if (key === 'FINANCIERO') return 'Unidad FINANCIERO';
+    if (key === 'TRANSPORTE_AEREO') return 'Unidad Transporte Aéreo';
+    if (key === 'INFRAESTRUCTURA') return 'Unidad Infraestructura';
     return 'Unidad General';
   }
 
@@ -909,6 +911,20 @@ export class HomePageComponent implements OnInit, OnDestroy {
     const unit = this.inferUnit(row);
     if (unit === 'FINANCIERO') return '/financiero/solvencia-pago';
     if (unit === 'AILA') return '/aila/permiso-trabajo';
+    if (unit === 'TRANSPORTE_AEREO') {
+      const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+        ? row.detalle_formulario as Record<string, unknown>
+        : {};
+      const slug = String(detail['slug'] || 'trabajos-aereos-servicios-auxiliares').trim().toLowerCase();
+      return `/transporte-aereo/${slug}`;
+    }
+    if (unit === 'INFRAESTRUCTURA') {
+      const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+        ? row.detalle_formulario as Record<string, unknown>
+        : {};
+      const slug = String(detail['slug'] || 'helipuertos').trim().toLowerCase();
+      return `/infraestructura/${slug}`;
+    }
     if (unit === 'DVSO') {
       const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
         ? row.detalle_formulario as Record<string, unknown>
@@ -937,7 +953,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
       map.get(unit)?.push(row);
     }
 
-    const order = ['RAN', 'DVSO', 'AILA', 'FINANCIERO', 'GENERAL'];
+    const order = ['RAN', 'DVSO', 'TRANSPORTE_AEREO', 'INFRAESTRUCTURA', 'AILA', 'FINANCIERO', 'GENERAL'];
     const groups = Array.from(map.entries()).map(([unit, unitRows]) => ({
       unit,
       rows: unitRows

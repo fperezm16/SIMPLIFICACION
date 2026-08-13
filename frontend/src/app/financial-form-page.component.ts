@@ -347,15 +347,15 @@ export class FinancialFormPageComponent implements OnInit {
     const control = this.form.get(field);
     if (!control || !control.touched || !control.invalid) return null;
     if (control.errors?.['required']) return 'Campo obligatorio';
-    if (control.errors?.['email']) return 'Correo no valido';
-    if (control.errors?.['digitsOnly']) return 'Solo se permiten digitos';
+    if (control.errors?.['email']) return 'Correo no válido';
+    if (control.errors?.['digitsOnly']) return 'Solo se permiten dígitos';
     if (control.errors?.['digitsLength']) {
-      return `Debe tener ${control.errors['digitsLength'].requiredLength} digitos`;
+      return `Debe tener ${control.errors['digitsLength'].requiredLength} dígitos`;
     }
     if (control.errors?.['minlength']) {
-      return `Minimo ${control.errors['minlength'].requiredLength} caracteres`;
+      return `Mínimo ${control.errors['minlength'].requiredLength} caracteres`;
     }
-    return 'Valor no valido';
+    return 'Valor no válido';
   }
 
   onDigitsInput(event: Event, field: string, maxLength: number) {

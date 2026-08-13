@@ -395,10 +395,10 @@ type TableDocument = {
             <input [value]="selected.assigned_emisor_name || selected.assigned_emisor_email || 'Sin asignar'" disabled />
           </label>
         </div>
-        <section class="digital-form-summary" *ngIf="dvsoDigitalFields(selected).length">
-          <h5>Formulario digital DVSO</h5>
+        <section class="digital-form-summary" *ngIf="digitalFormFields(selected).length">
+          <h5>{{ digitalFormTitle(selected) }}</h5>
           <div class="digital-field-grid">
-            <div class="digital-field" *ngFor="let item of dvsoDigitalFields(selected)">
+            <div class="digital-field" *ngFor="let item of digitalFormFields(selected)">
               <span>{{ item.label }}</span>
               <strong>{{ item.value || 'N/D' }}</strong>
             </div>
@@ -409,10 +409,17 @@ type TableDocument = {
           <div class="attachments-list">
             <div class="dpi-box" *ngIf="selected.has_original_form || selected.original_form_filename">
               <div class="dpi-head">
-                <span>Formulario DVSO completado:</span>
-                <strong>{{ selected.original_form_filename || 'formulario-dvso.pdf' }}</strong>
+                <span>{{ originalFormLabel(selected) }}:</span>
+                <strong>{{ selected.original_form_filename || 'formulario.pdf' }}</strong>
               </div>
               <button class="link" type="button" (click)="viewOriginalForm(selected)">Ver PDF</button>
+            </div>
+            <div class="dpi-box" *ngFor="let doc of supportDocuments(selected)">
+              <div class="dpi-head">
+                <span>{{ doc.label }}:</span>
+                <strong>{{ doc.filename || 'documento.pdf' }}</strong>
+              </div>
+              <button class="link" type="button" (click)="viewSupportDocument(selected, doc.key)">Ver PDF</button>
             </div>
             <ng-container *ngIf="isFinancialSubmission(selected); else defaultDpiAttachment">
               <div class="dpi-box" *ngFor="let doc of financialDeclaraguateDocuments(selected)" [hidden]="!doc.has">
@@ -1170,6 +1177,14 @@ export class ReviewPanelComponent implements OnChanges {
     return String(row.unidad_clave || '').toUpperCase() === 'FINANCIERO';
   }
 
+  isTransportSubmission(row: Submission | null | undefined) {
+    return String(row?.unidad_clave || '').toUpperCase() === 'TRANSPORTE_AEREO';
+  }
+
+  isInfrastructureSubmission(row: Submission | null | undefined) {
+    return String(row?.unidad_clave || '').toUpperCase() === 'INFRAESTRUCTURA';
+  }
+
   isFinancialPaymentPasswordFlow(row: Submission | null | undefined) {
     if (!row || !this.isFinancialSubmission(row)) return false;
     const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
@@ -1464,24 +1479,88 @@ export class ReviewPanelComponent implements OnChanges {
     return labels.join(', ');
   }
 
-  dvsoDigitalFields(row: Submission | null) {
-    if (!this.isDvsoSubmission(row) || !row?.detalle_formulario || typeof row.detalle_formulario !== 'object') {
+  digitalFormTitle(row: Submission | null) {
+    if (this.isTransportSubmission(row)) return 'Formulario digital Transporte Aéreo';
+    if (this.isInfrastructureSubmission(row)) return 'Formulario digital Infraestructura';
+    if (this.isDvsoSubmission(row)) return 'Formulario digital DVSO';
+    return 'Formulario digital';
+  }
+
+  originalFormLabel(row: Submission | null) {
+    if (this.isTransportSubmission(row)) return 'Formulario Transporte Aéreo / respaldo';
+    if (this.isInfrastructureSubmission(row)) return 'Formulario Infraestructura completado';
+    if (this.isDvsoSubmission(row)) return 'Formulario DVSO completado';
+    return 'Formulario completado';
+  }
+
+  supportDocuments(row: Submission | null) {
+    if (!row?.detalle_formulario || typeof row.detalle_formulario !== 'object') {
+      return [] as Array<{ key: string; label: string; filename: string }>;
+    }
+    const detail = row.detalle_formulario as Record<string, unknown>;
+    const docs = Array.isArray(detail['documentos_soporte']) ? detail['documentos_soporte'] : [];
+    return docs
+      .map((doc) => {
+        const item = doc && typeof doc === 'object' ? doc as Record<string, unknown> : {};
+        return {
+          key: String(item['key'] || '').trim(),
+          label: String(item['label'] || 'Documento soporte').trim(),
+          filename: String(item['filename'] || '').trim()
+        };
+      })
+      .filter((doc) => doc.key);
+  }
+
+  digitalFormFields(row: Submission | null) {
+    if ((!this.isDvsoSubmission(row) && !this.isTransportSubmission(row) && !this.isInfrastructureSubmission(row)) || !row?.detalle_formulario || typeof row.detalle_formulario !== 'object') {
       return [] as Array<{ label: string; value: string }>;
     }
     const detail = row.detalle_formulario as Record<string, unknown>;
     const fields = detail['campos_digitales'] && typeof detail['campos_digitales'] === 'object'
       ? detail['campos_digitales'] as Record<string, unknown>
       : {};
-    return Object.entries(fields)
+    const values = Object.entries(fields)
       .map(([key, value]) => ({
-        label: key
-          .replace(/_/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .replace(/^./, (char) => char.toUpperCase()),
+        label: this.humanizeDetailKey(key),
         value: String(value ?? '').trim()
       }))
       .filter((item) => item.value);
+
+    const options = detail['opciones'] && typeof detail['opciones'] === 'object'
+      ? detail['opciones'] as Record<string, unknown>
+      : {};
+    for (const [key, value] of Object.entries(options)) {
+      if (Boolean(value)) values.push({ label: this.humanizeDetailKey(key), value: 'Sí' });
+    }
+
+    const tables = detail['tablas'] && typeof detail['tablas'] === 'object'
+      ? detail['tablas'] as Record<string, unknown>
+      : {};
+    for (const [tableKey, tableRows] of Object.entries(tables)) {
+      if (!Array.isArray(tableRows)) continue;
+      tableRows.forEach((rowValue, index) => {
+        if (!rowValue || typeof rowValue !== 'object') return;
+        const rowText = Object.entries(rowValue as Record<string, unknown>)
+          .map(([key, value]) => `${this.humanizeDetailKey(key)}: ${String(value ?? '').trim()}`)
+          .filter((item) => !item.endsWith(':'))
+          .join(' | ');
+        if (rowText) values.push({ label: `${this.humanizeDetailKey(tableKey)} ${index + 1}`, value: rowText });
+      });
+    }
+
+    return values;
+  }
+
+  dvsoDigitalFields(row: Submission | null) {
+    return this.digitalFormFields(row);
+  }
+
+  private humanizeDetailKey(key: string) {
+    return key
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^./, (char) => char.toUpperCase());
   }
 
   ailaValue(row: Submission | null, key: string) {
@@ -2042,6 +2121,14 @@ export class ReviewPanelComponent implements OnChanges {
     this.openSubmissionPdf(
       `${this.apiBase}/submissions/${row.id}/original-form`,
       'No se pudo abrir el formulario DVSO (revisa permisos o sesión).'
+    );
+  }
+
+  viewSupportDocument(row: Submission, key: string) {
+    if (!row.id || !key) return;
+    this.openSubmissionPdf(
+      `${this.apiBase}/submissions/${row.id}/support-documents/${encodeURIComponent(key)}`,
+      'No se pudo abrir el documento soporte (revisa permisos o sesión).'
     );
   }
 

@@ -59,7 +59,7 @@ const REVIEW_ROLES = [
   FINANCIAL_ROLE_AVSEC
 ];
 const ALLOWED_ROLES = Array.from(new Set(["user", ...REVIEW_ROLES, DVSO_ROLE_JEFATURA_OPS]));
-const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO"];
+const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO", "TRANSPORTE_AEREO", "INFRAESTRUCTURA"];
 const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, ...DVSO_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC];
 
 function isDevelopmentEnvironment() {
@@ -544,7 +544,7 @@ function validateAilaPeopleAndEscorts(detail = {}) {
     const escort = filledEscorts[i] || {};
     const phone = String(escort.telefono || "").trim();
     if (!String(escort.nombre || "").trim() || !phone || !String(escort.tia || "").trim() || !String(escort.vencimiento_tia || "").trim()) {
-      return `Completa nombre, telÃ©fono, T.I.A. y vencimiento del escolta ${i + 1}.`;
+      return `Completa nombre, teléfono, T.I.A. y vencimiento del escolta ${i + 1}.`;
     }
   }
 
@@ -628,11 +628,24 @@ function validateNumericSubmissionFields(
 }
 
 function normalizeRegistroPrefix(unidadClave) {
+  const unit = String(unidadClave || "").trim().toUpperCase();
+  if (unit === "TRANSPORTE_AEREO") {
+    return "TRANSPORTE";
+  }
+  if (unit === "INFRAESTRUCTURA") return "INFRA";
   const cleaned = String(unidadClave || "GENERAL")
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
   return cleaned || "GENERAL";
+}
+
+function unitDisplayName(unidadClave) {
+  const unit = String(unidadClave || "GENERAL").trim().toUpperCase();
+  if (unit === "FINANCIERO") return "DEPARTAMENTO FINANCIERO";
+  if (unit === "TRANSPORTE_AEREO") return "Unidad Transporte Aéreo";
+  if (unit === "INFRAESTRUCTURA") return "Unidad Infraestructura";
+  return `Unidad ${unit}`;
 }
 
 async function reserveSubmissionCode(client, unidadClave, referenceDate = new Date()) {
@@ -1210,14 +1223,14 @@ function buildSubmissionPdfHtml(submission) {
       { checked: submission.tipo_certificacion, label: "5. Certificación (Q 50.00)" }
     ]
     : [
-      { checked: submission.tipo_internacion, label: "1. InternaciÃ³n de la Aeronave (0125)" },
-      { checked: submission.tipo_reservacion, label: "2. ReservaciÃ³n de MatrÃ­cula (0105)" },
-      { checked: submission.tipo_inscripcion, label: "3. InscripciÃ³n en e-DRAN (0100)" },
-      { checked: submission.tipo_certificado_prov, label: "4. Certificado de MatrÃ­cula Provisional (0200)" },
-      { checked: submission.tipo_reposicion, label: "5. ReposiciÃ³n de Certificado (0200)" },
+      { checked: submission.tipo_internacion, label: "1. Internación de la Aeronave (0125)" },
+      { checked: submission.tipo_reservacion, label: "2. Reservación de Matrícula (0105)" },
+      { checked: submission.tipo_inscripcion, label: "3. Inscripción en e-DRAN (0100)" },
+      { checked: submission.tipo_certificado_prov, label: "4. Certificado de Matrícula Provisional (0200)" },
+      { checked: submission.tipo_reposicion, label: "5. Reposición de Certificado (0200)" },
       { checked: submission.tipo_cambio_prop, label: "6. Cambio de Propietario (0400)" },
       { checked: submission.tipo_cambio_datos, label: "7. Cambio de datos en Certificados (0105)" },
-      { checked: submission.tipo_certificacion, label: "8. CertificaciÃ³n (050)" }
+      { checked: submission.tipo_certificacion, label: "8. Certificación (050)" }
     ];
   const check = (value) => (value ? "[X]" : "[ ]");
 
@@ -1736,38 +1749,38 @@ function buildSubmissionFallbackPdfBuffer(submission) {
     doc.moveDown(0.5);
     line("No. registro", submission.registro_codigo || submission.id);
     line("Unidad", submission.unidad_clave || "GENERAL");
-    line("GestiÃ³n", submission.gestion_nombre || "Formulario General TG");
+    line("Gestión", submission.gestion_nombre || "Formulario General TG");
     line("Fecha", formatDateOnly(submission.fecha || submission.created_at));
-    line("Fecha de envÃ­o", formatDateTime(submission.created_at));
-    line("Fecha de aprobaciÃ³n", formatDateTime(submission.approved_at));
+    line("Fecha de envío", formatDateTime(submission.created_at));
+    line("Fecha de aprobación", formatDateTime(submission.approved_at));
     doc.moveDown(0.5);
     line("Persona tipo", submission.persona_tipo);
     line("Nombre propietario", submission.nombre_propietario);
     line("Representante legal", submission.representante_legal);
     line("Documento propietario", submission.documento_propietario);
-    line("DirecciÃ³n", submission.direccion);
-    line("TelÃ©fono", submission.telefono);
+    line("Dirección", submission.direccion);
+    line("Teléfono", submission.telefono);
     line("Correo", submission.correo);
     line("NIT", submission.nit);
     line("Nombre orden pago", submission.nombre_orden_pago);
-    line("MatrÃ­cula TG", submission.matricula_tg);
-    line("Nueva matrÃ­cula TG", submission.matricula_tg_nueva);
+    line("Matrícula TG", submission.matricula_tg);
+    line("Nueva matrícula TG", submission.matricula_tg_nueva);
     line("Uso", submission.uso);
     line("Fabricante", submission.fabricante);
-    line("NÃºmero de serie", submission.numero_serie);
+    line("Número de serie", submission.numero_serie);
     line("Modelo", submission.modelo);
-    line("AÃ±o de fabricaciÃ³n", submission.anio_fabricacion);
+    line("Año de fabricación", submission.anio_fabricacion);
     line("Colores", submission.colores);
     line("Especificaciones", submission.especificaciones);
     line("Comentarios", submission.comentarios_revision);
     line("DPI", submission.has_dpi ? "Adjunto" : "No adjunto");
     line("Acta", submission.has_acta ? "Adjunta" : "No adjunta");
     line("Registro mercantil", submission.has_registro_mercantil ? "Adjunto" : "No adjunto");
-    line("PÃ³liza de importaciÃ³n o DUCA (RPA jurÃ­dica extranjero)", submission.has_carta_representacion ? "Adjunto" : "No adjunto");
-    line("Acta nombramiento (RPA jurÃ­dica)", submission.has_rpa_acta_nombramiento ? "Adjunta" : "No adjunta");
-    line("Registro representante (RPA jurÃ­dica)", submission.has_rpa_registro_representante ? "Adjunto" : "No adjunto");
-    line("Registro entidad (RPA jurÃ­dica)", submission.has_rpa_registro_entidad ? "Adjunto" : "No adjunto");
-    line("Documento entidad Estado/ONG o importaciÃ³n/DUCA (RPA)", submission.has_rpa_documento_estado ? "Adjunto" : "No adjunto");
+    line("Póliza de importación o DUCA (RPA jurídica extranjero)", submission.has_carta_representacion ? "Adjunto" : "No adjunto");
+    line("Acta nombramiento (RPA jurídica)", submission.has_rpa_acta_nombramiento ? "Adjunta" : "No adjunta");
+    line("Registro representante (RPA jurídica)", submission.has_rpa_registro_representante ? "Adjunto" : "No adjunto");
+    line("Registro entidad (RPA jurídica)", submission.has_rpa_registro_entidad ? "Adjunto" : "No adjunto");
+    line("Documento entidad Estado/ONG o importación/DUCA (RPA)", submission.has_rpa_documento_estado ? "Adjunto" : "No adjunto");
     doc.end();
   });
 }
@@ -1876,10 +1889,10 @@ function submissionProcessState(row) {
   if (row?.rejected_at) {
     return { code: "rechazado", label: "Rechazado", step: 5, percent: 100 };
   }
-  if (row?.returned_at) return { code: "devuelto", label: "Devuelto para correcciÃ³n", step: 2, percent: 45 };
+  if (row?.returned_at) return { code: "devuelto", label: "Devuelto para corrección", step: 2, percent: 45 };
   if (row?.returned_to_analista_at) {
     return isAilaGeneric
-      ? { code: "devuelto_administracion_aila", label: "Devuelto por Jefatura AVSEC a AdministraciÃ³n AILA", step: 4, percent: 85 }
+      ? { code: "devuelto_administracion_aila", label: "Devuelto por Jefatura AVSEC a Administración AILA", step: 4, percent: 85 }
       : { code: "devuelto_analista", label: "Devuelto por aprobador a analista", step: 3, percent: 70 };
   }
   if (isPaymentPassword && (row?.has_analyst_pdf || row?.analyst_pdf_filename || row?.analyst_pdf)) {
@@ -1902,12 +1915,12 @@ function submissionProcessState(row) {
   }
   if (row?.assigned_analista_id) {
     return isAilaGeneric
-      ? { code: "en_administracion_aila", label: "Asignado a AdministraciÃ³n AILA", step: 2, percent: 58 }
+      ? { code: "en_administracion_aila", label: "Asignado a Administración AILA", step: 2, percent: 58 }
       : { code: "asignado", label: "Asignado a analista", step: 3, percent: 68 };
   }
   if (row?.receptor_opened_at) {
     return isAilaGeneric
-      ? { code: "en_recepcion_aila", label: "Recibido por RecepciÃ³n AILA", step: 2, percent: 42 }
+      ? { code: "en_recepcion_aila", label: "Recibido por Recepción AILA", step: 2, percent: 42 }
       : { code: "en_recepcion", label: "Recibido por receptor", step: 2, percent: 50 };
   }
   return { code: "enviado", label: "Enviado", step: 1, percent: 25 };
@@ -2310,6 +2323,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     original_form_pdf_base64,
     original_form_filename,
     original_form_mime,
+    support_documents,
     payment_id
   } = req.body;
 
@@ -2340,6 +2354,8 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   const isDvsoRequest = unidadClave === "DVSO";
   const isFinancialRequest = unidadClave === "FINANCIERO";
   const isAilaRequest = unidadClave === "AILA";
+  const isTransportRequest = unidadClave === "TRANSPORTE_AEREO";
+  const isInfrastructureRequest = unidadClave === "INFRAESTRUCTURA";
   const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
   const required = isFinancialRequest
     ? [
@@ -2368,7 +2384,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
       ["correo", correo],
       ["telefono", telefono]
     ];
-  if (!isRanCertificacionRequest && !isFinancialRequest && !isAilaRequest && !isDvsoRequest) {
+  if (!isRanCertificacionRequest && !isFinancialRequest && !isAilaRequest && !isDvsoRequest && !isTransportRequest && !isInfrastructureRequest) {
     required.push(["uso", uso]);
   }
   if (requireOwnerDocument && !isFinancialRequest) {
@@ -2380,7 +2396,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (isRanReservaRequest && !isFinancialRequest) {
     required.push(["nombre_orden_pago", nombre_orden_pago]);
   }
-  if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !isDvsoRequest) {
+  if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !isDvsoRequest && !isTransportRequest && !isInfrastructureRequest) {
     required.push(["matricula_tg", matricula_tg]);
     required.push(["numero_serie", numero_serie]);
   }
@@ -2413,6 +2429,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   let ailaEscortPwd2PdfBuffer;
   let ailaEscortPwd3PdfBuffer;
   let originalFormPdfBuffer;
+  let supportDocumentBuffers = [];
   try {
     dpiPdfBuffer = decodePdfBase64(dpi_pdf_base64, "El PDF de DPI");
     financialDeclaraguate2PdfBuffer = decodePdfBase64(financial_declaraguate_2_pdf_base64, "El PDF Declaraguate 2");
@@ -2430,6 +2447,21 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     ailaEscortPwd2PdfBuffer = decodePdfBase64(aila_escort_pwd_2_pdf_base64, "El PDF del escolta 2");
     ailaEscortPwd3PdfBuffer = decodePdfBase64(aila_escort_pwd_3_pdf_base64, "El PDF del escolta 3");
     originalFormPdfBuffer = decodePdfBase64(original_form_pdf_base64, "El PDF original del formulario");
+    if (Array.isArray(support_documents)) {
+      supportDocumentBuffers = support_documents.map((doc, index) => {
+        const key = String(doc?.key || `documento_${index + 1}`).trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+        const label = String(doc?.label || `Documento ${index + 1}`).trim().slice(0, 240);
+        const filename = String(doc?.filename || `${key || "documento"}.pdf`).trim().slice(0, 240);
+        const mime = String(doc?.mime || "application/pdf").trim().slice(0, 120);
+        return {
+          key: key || `documento_${index + 1}`,
+          label,
+          filename,
+          mime,
+          buffer: decodePdfBase64(doc?.pdf_base64, label || `Documento ${index + 1}`)
+        };
+      });
+    }
   } catch (err) {
     return res.status(400).json({ error: err.message || "Uno de los PDFs no es valido." });
   }
@@ -2454,10 +2486,10 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   const effectiveRegistroMercantilMime =
     registro_mercantil_mime || (useSingleActaAsRegistroMercantil ? acta_mime : null);
   if (!["individual", "juridica"].includes(personaTipo)) {
-    return res.status(400).json({ error: "persona_tipo no vÃ¡lido. Usa individual o jurÃ­dica." });
+    return res.status(400).json({ error: "persona_tipo no válido. Usa individual o jurídica." });
   }
   if (personaTipo === "juridica" && !String(representante_legal || "").trim()) {
-    return res.status(400).json({ error: "Para persona jurÃ­dica el representante legal es obligatorio." });
+    return res.status(400).json({ error: "Para persona jurídica el representante legal es obligatorio." });
   }
   if (isFinancialRequest && !cartaRepresentacionPdfBuffer) {
     return res.status(400).json({ error: "La carta de representación en PDF es obligatoria." });
@@ -2526,11 +2558,25 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     return res.status(400).json({ error: ailaExpiredEscortIndexes.includes(3) ? "Debes adjuntar el PDF de la contraseña del escolta 3." : "Debes adjuntar el PDF de la T.I.A. del escolta 3." });
   }
   if (isAilaRequest && ailaHasVehicles && !rpaRegistroRepresentantePdfBuffer) {
-    return res.status(400).json({ error: "Debes adjuntar la tarjeta de circulaciÃ³n de cada vehÃ­culo." });
+    return res.status(400).json({ error: "Debes adjuntar la tarjeta de circulación de cada vehículo." });
+  }
+  if (isTransportRequest) {
+    const requiredSupportDocs = Array.isArray(normalizedDetail.adjuntos_requeridos)
+      ? normalizedDetail.adjuntos_requeridos
+      : [];
+    if (!requiredSupportDocs.length) {
+      return res.status(400).json({ error: "No se definieron los documentos requeridos de Transporte Aéreo." });
+    }
+    if (supportDocumentBuffers.length < requiredSupportDocs.length) {
+      return res.status(400).json({ error: "Debes adjuntar todos los documentos requeridos del formulario." });
+    }
+    if (supportDocumentBuffers.some((doc) => !doc.buffer)) {
+      return res.status(400).json({ error: "Todos los documentos requeridos deben contener un PDF válido." });
+    }
   }
   const numericValidationError = validateNumericSubmissionFields(
     { documento_propietario, telefono, autorizado_documento, autorizado_telefono },
-    { requireMainPhone: !isDvsoRequest, requireOwnerDocument: requireOwnerDocument || isFinancialRequest, flexibleMainPhone: isAilaRequest, flexibleOwnerDocument: unidadClave === "RAN" }
+    { requireMainPhone: !isDvsoRequest, requireOwnerDocument: requireOwnerDocument || isFinancialRequest, flexibleMainPhone: isAilaRequest || isInfrastructureRequest, flexibleOwnerDocument: unidadClave === "RAN" }
   );
   if (numericValidationError) {
     return res.status(400).json({ error: numericValidationError });
@@ -2541,27 +2587,27 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (!isFinancialRequest && requireExtraDocs && !acta_pdf_base64) {
     return res.status(400).json({
       error: isRanDroneRequest
-        ? "Para RPA el Dictamen TÃ©cnico en PDF es obligatorio."
-        : "Para persona jurÃ­dica el acta notarial en PDF es obligatoria."
+        ? "Para RPA el Dictamen Técnico en PDF es obligatorio."
+        : "Para persona jurídica el acta notarial en PDF es obligatoria."
     });
   }
   if (!isFinancialRequest && requireExtraDocs && !effectiveRegistroMercantilPdfBuffer) {
     return res.status(400).json({
       error: isRanDroneRequest
-          ? "Para RPA la Copia autÃ©ntica de la Factura de compra o Acta Notarial de DeclaraciÃ³n Jurada en PDF es obligatoria."
-          : "Para persona jurÃ­dica el registro mercantil en PDF es obligatorio."
+          ? "Para RPA la Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada en PDF es obligatoria."
+          : "Para persona jurídica el registro mercantil en PDF es obligatorio."
     });
   }
   if (!isFinancialRequest && requireRpaDocumentoEstadoUpload && !rpa_documento_estado_pdf_base64) {
     return res.status(400).json({
       error: requireRpaIndividualExtranjeroDocs
-        ? "Para RPA comprado en el extranjero por persona individual, la copia legalizada de importaciÃ³n de la aeronave o DUCA con pago en PDF es obligatoria."
-        : "Para RPA persona jurÃ­dica, el documento de acreditaciÃ³n en PDF es obligatorio."
+        ? "Para RPA comprado en el extranjero por persona individual, la copia legalizada de importación de la aeronave o DUCA con pago en PDF es obligatoria."
+        : "Para RPA persona jurídica, el documento de acreditación en PDF es obligatorio."
     });
   }
   if (!isFinancialRequest && requireRpaJuridicaExtranjeroDocs && !carta_representacion_pdf_base64) {
     return res.status(400).json({
-      error: "Para RPA comprado en el extranjero por persona jurÃ­dica, la copia legalizada de la pÃ³liza de importaciÃ³n o DUCA con pago en PDF es obligatoria."
+      error: "Para RPA comprado en el extranjero por persona jurídica, la copia legalizada de la póliza de importación o DUCA con pago en PDF es obligatoria."
     });
   }
   if (!isFinancialRequest && requireRpaJuridicaSupportingDocs && !rpa_acta_nombramiento_pdf_base64) {
@@ -2571,19 +2617,19 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   }
   if (!isFinancialRequest && requireRpaJuridicaMercantilDocs && !rpa_registro_representante_pdf_base64) {
     return res.status(400).json({
-      error: "Debes adjuntar la certificaciÃ³n de inscripciÃ³n del representante legal en el Registro Mercantil."
+      error: "Debes adjuntar la certificación de inscripción del representante legal en el Registro Mercantil."
     });
   }
   if (!isFinancialRequest && requireRpaJuridicaMercantilDocs && !rpa_registro_entidad_pdf_base64) {
     return res.status(400).json({
-      error: "Debes adjuntar la certificaciÃ³n de inscripciÃ³n de la entidad en el Registro Mercantil."
+      error: "Debes adjuntar la certificación de inscripción de la entidad en el Registro Mercantil."
     });
   }
 
   const now = new Date();
   const fechaActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
  
-// Valida que el pago exista y estÃ© aprobado
+// Valida que el pago exista y esté aprobado
   if (payment_id) {
     const paymentCheck = await pool.query(
       `SELECT * FROM payments WHERE id = $1`,
@@ -2825,6 +2871,21 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
       );
       created = ailaEscortDocsResult.rows[0];
     }
+    if (supportDocumentBuffers.length) {
+      for (const doc of supportDocumentBuffers) {
+        await client.query(
+          `INSERT INTO submission_documents (submission_id, document_key, label, filename, mime, pdf)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (submission_id, document_key)
+           DO UPDATE SET label = EXCLUDED.label,
+                         filename = EXCLUDED.filename,
+                         mime = EXCLUDED.mime,
+                         pdf = EXCLUDED.pdf,
+                         uploaded_at = NOW()`,
+          [created.id, doc.key, doc.label, doc.filename, doc.mime, doc.buffer]
+        );
+      }
+    }
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -2838,7 +2899,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
       submissionId: created.id,
       eventCode: "usuario_envio",
       eventLabel: "Usuario envió el formulario",
-      eventDetail: `${unidadClave === "FINANCIERO" ? "DEPARTAMENTO FINANCIERO" : `Unidad ${unidadClave}`}${gestionNombre ? ` - ${gestionNombre}` : ""}`,
+      eventDetail: `${unitDisplayName(unidadClave)}${gestionNombre ? ` - ${gestionNombre}` : ""}`,
       actorUserId: req.user?.sub || null,
       actorRole: req.user?.role || "user",
       metadata: {
@@ -2857,7 +2918,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
              <p><strong>Registro:</strong> ${created.registro_codigo || created.id}<br/>
              <p><strong>Propietario:</strong> ${nombre_propietario || "N/D"}<br/>
              <strong>Correo:</strong> ${correoNormalizado || "N/D"}<br/>
-             <strong>MatrÃ­cula TG:</strong> ${matricula_tg || "N/D"}</p>`
+             <strong>Matrícula TG:</strong> ${matricula_tg || "N/D"}</p>`
     });
   } catch (err) {
     console.error("Error saving submission", err);
@@ -2867,7 +2928,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
 
 app.put("/api/submissions/:id", requireAuth, requireRole("analista", "admin", "supervisor"), async (_req, res) => {
   return res.status(403).json({
-    error: "Solo el usuario puede modificar datos del formulario. Devuelve el formulario para correcciÃ³n."
+    error: "Solo el usuario puede modificar datos del formulario. Devuelve el formulario para corrección."
   });
 });
 
@@ -3670,7 +3731,7 @@ app.get("/api/supervisor/dashboard", requireAuth, requireRole("supervisor", "adm
     const params = [];
     if (requestedUnit) {
       if (!ALL_UNITS.includes(requestedUnit)) {
-        return res.status(400).json({ error: "Unidad no vÃ¡lida." });
+        return res.status(400).json({ error: "Unidad no válida." });
       }
       params.push(requestedUnit);
       filters.push(`s.unidad_clave = $${params.length}`);
@@ -3723,7 +3784,7 @@ app.get("/api/supervisor/report", requireAuth, requireRole("supervisor", "admin"
     const params = [];
     if (requestedUnit) {
       if (!ALL_UNITS.includes(requestedUnit)) {
-        return res.status(400).json({ error: "Unidad no vÃ¡lida." });
+        return res.status(400).json({ error: "Unidad no válida." });
       }
       params.push(requestedUnit);
       filters.push(`s.unidad_clave = $${params.length}`);
@@ -3976,7 +4037,7 @@ app.post("/api/my-submissions/:id/feedback", requireAuth, requireRole("user"), a
       submissionId: Number(id),
       eventCode: "usuario_califica",
       eventLabel: "Usuario calificó el proceso",
-      eventDetail: `CalificaciÃ³n: ${ratingRaw}/5`,
+      eventDetail: `Calificación: ${ratingRaw}/5`,
       actorUserId: req.user?.sub || null,
       actorRole: req.user?.role || "user",
       metadata: {
@@ -3988,7 +4049,7 @@ app.post("/api/my-submissions/:id/feedback", requireAuth, requireRole("user"), a
     return res.status(201).json(saved.rows[0]);
   } catch (err) {
     console.error("Error saving submission feedback", err);
-    return res.status(500).json({ error: "No se pudo guardar la calificaciÃ³n." });
+    return res.status(500).json({ error: "No se pudo guardar la calificación." });
   }
 });
 
@@ -4074,7 +4135,7 @@ app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin")
 
     const submission = result.rows[0];
     if (!submission.approved_at) {
-      return res.status(400).json({ error: "El formulario aÃºn no estÃ¡ aprobado." });
+      return res.status(400).json({ error: "El formulario aún no está aprobado." });
     }
 
     const isDvsoOriginal =
@@ -4345,7 +4406,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
   if (Object.prototype.hasOwnProperty.call(req.body || {}, "persona_tipo")) {
     const tipo = String(persona_tipo || "").toLowerCase();
     if (!["individual", "juridica"].includes(tipo)) {
-      return res.status(400).json({ error: "persona_tipo no vÃ¡lido. Usa individual o jurÃ­dica." });
+      return res.status(400).json({ error: "persona_tipo no válido. Usa individual o jurídica." });
     }
   }
   if (Object.prototype.hasOwnProperty.call(req.body || {}, "origen_compra")) {
@@ -4375,7 +4436,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
   if (updatesCorreo) {
     const correoValidation = await validateEmailAddress(req.body?.correo);
     if (!correoValidation.ok) {
-      return res.status(400).json({ error: correoValidation.error || "Correo no vÃ¡lido." });
+      return res.status(400).json({ error: correoValidation.error || "Correo no válido." });
     }
     correoNormalizado = correoValidation.email;
   }
@@ -4391,7 +4452,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     rpaRegistroRepresentantePdfBuffer = decodePdfBase64(rpa_registro_representante_pdf_base64, "El PDF de registro del representante");
     rpaRegistroEntidadPdfBuffer = decodePdfBase64(rpa_registro_entidad_pdf_base64, "El PDF de registro de la entidad");
     rpaDocumentoEstadoPdfBuffer = decodePdfBase64(rpa_documento_estado_pdf_base64, "El PDF del documento RPA");
-    cartaRepresentacionPdfBuffer = decodePdfBase64(carta_representacion_pdf_base64, "El PDF de carta de representaciÃ³n");
+    cartaRepresentacionPdfBuffer = decodePdfBase64(carta_representacion_pdf_base64, "El PDF de carta de representación");
     ailaEscortPwd1PdfBuffer = decodePdfBase64(aila_escort_pwd_1_pdf_base64, "El PDF del escolta 1");
     ailaEscortPwd2PdfBuffer = decodePdfBase64(aila_escort_pwd_2_pdf_base64, "El PDF del escolta 2");
     ailaEscortPwd3PdfBuffer = decodePdfBase64(aila_escort_pwd_3_pdf_base64, "El PDF del escolta 3");
@@ -4567,44 +4628,44 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     if (requireExtraDocs && !hasActaAfter) {
       return res.status(400).json({
         error: isRanDroneRequest
-          ? "Para RPA el Dictamen TÃ©cnico en PDF es obligatorio."
-          : "Para persona jurÃ­dica el acta en PDF es obligatoria."
+          ? "Para RPA el Dictamen Técnico en PDF es obligatorio."
+          : "Para persona jurídica el acta en PDF es obligatoria."
       });
     }
     if (requireExtraDocs && !hasRegistroMercantilAfter) {
       return res.status(400).json({
         error: isRanDroneRequest
-          ? "Para RPA la Copia autÃ©ntica de la Factura de compra o Acta Notarial de DeclaraciÃ³n Jurada en PDF es obligatoria."
-          : "Para persona jurÃ­dica el registro mercantil en PDF es obligatorio."
+          ? "Para RPA la Copia auténtica de la Factura de compra o Acta Notarial de Declaración Jurada en PDF es obligatoria."
+          : "Para persona jurídica el registro mercantil en PDF es obligatorio."
       });
     }
     if (isRanDroneRequest && !finalOrigenCompra) {
       return res.status(400).json({ error: "Para RPA debes indicar si fue comprado en Guatemala o en el extranjero." });
     }
     if (requireRpaJuridicaExtranjeroDocs && !hasCartaRepresentacionAfter) {
-      return res.status(400).json({ error: "Debes adjuntar la copia legalizada de la pÃ³liza de importaciÃ³n de la aeronave o DUCA con pago." });
+      return res.status(400).json({ error: "Debes adjuntar la copia legalizada de la póliza de importación de la aeronave o DUCA con pago." });
     }
     if (requireRpaJuridicaSupportingDocs && !hasRpaActaNombramientoAfter) {
       return res.status(400).json({ error: "Debes adjuntar la copia simple del Acta Notarial de Nombramiento del representante legal." });
     }
     if (requireRpaJuridicaMercantilDocs && !hasRpaRegistroRepresentanteAfter) {
-      return res.status(400).json({ error: "Debes adjuntar la certificaciÃ³n de inscripciÃ³n del representante legal en el Registro Mercantil." });
+      return res.status(400).json({ error: "Debes adjuntar la certificación de inscripción del representante legal en el Registro Mercantil." });
     }
     if (requireRpaJuridicaMercantilDocs && !hasRpaRegistroEntidadAfter) {
-      return res.status(400).json({ error: "Debes adjuntar la certificaciÃ³n de inscripciÃ³n de la entidad en el Registro Mercantil." });
+      return res.status(400).json({ error: "Debes adjuntar la certificación de inscripción de la entidad en el Registro Mercantil." });
     }
     if (requireRpaDocumentoEstadoUpload && !hasRpaDocumentoEstadoAfter) {
       return res.status(400).json({
         error: requireRpaIndividualExtranjeroDocs
-          ? "Debes adjuntar la copia legalizada de importaciÃ³n de la aeronave o DUCA con pago."
-          : "Debes adjuntar el documento de acreditaciÃ³n."
+          ? "Debes adjuntar la copia legalizada de importación de la aeronave o DUCA con pago."
+          : "Debes adjuntar el documento de acreditación."
       });
     }
     if ((finalTipo === "juridica" || isFinancialRequest) && !finalRepresentante) {
-      return res.status(400).json({ error: isFinancialRequest ? "El nombre del solicitante es obligatorio." : "Para persona jurÃ­dica el representante legal es obligatorio." });
+      return res.status(400).json({ error: isFinancialRequest ? "El nombre del solicitante es obligatorio." : "Para persona jurídica el representante legal es obligatorio." });
     }
     if (isFinancialRequest && !hasCartaRepresentacionAfter) {
-      return res.status(400).json({ error: "La carta de representaciÃ³n en PDF es obligatoria." });
+      return res.status(400).json({ error: "La carta de representación en PDF es obligatoria." });
     }
     if (isFinancialRequest) {
       const financialProcessCode = String(nextDetail.proceso_codigo || nextDetail.gestion_codigo || "").trim();
@@ -4630,13 +4691,13 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
         return res.status(400).json({ error: "Debes adjuntar el formulario Declaraguate 5 en PDF." });
       }
       if (requiresSolvenciaDocs && !hasActaAfter) {
-        return res.status(400).json({ error: "Debes adjuntar la factura de inspecciÃ³n del aÃ±o en curso." });
+        return res.status(400).json({ error: "Debes adjuntar la factura de inspección del año en curso." });
       }
       if (requiresSolvenciaDocs && !hasRegistroMercantilAfter) {
-        return res.status(400).json({ error: "Debes adjuntar la factura de aproximaciÃ³n del aÃ±o en curso." });
+        return res.status(400).json({ error: "Debes adjuntar la factura de aproximación del año en curso." });
       }
       if (requiresWeightDocs && !hasRpaDocumentoEstadoAfter) {
-        return res.status(400).json({ error: "Debes adjuntar el documento que indica el peso mÃ¡ximo de despegue de la aeronave." });
+        return res.status(400).json({ error: "Debes adjuntar el documento que indica el peso máximo de despegue de la aeronave." });
       }
     }
     if (isAilaRequest && !hasCartaRepresentacionAfter) {
@@ -4655,7 +4716,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       return res.status(400).json({ error: ailaExpiredEscortIndexes.includes(3) ? "Debes adjuntar el PDF de la contraseña del escolta 3." : "Debes adjuntar el PDF de la T.I.A. del escolta 3." });
     }
     if (isAilaRequest && ailaHasVehicles && !hasRpaRegistroRepresentanteAfter) {
-      return res.status(400).json({ error: "Debes adjuntar la tarjeta de circulaciÃ³n de cada vehÃ­culo." });
+      return res.status(400).json({ error: "Debes adjuntar la tarjeta de circulación de cada vehículo." });
     }
     if (!finalNombrePropietario) {
       return res.status(400).json({ error: "Nombre del propietario es obligatorio." });
@@ -4667,23 +4728,23 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       return res.status(400).json({
         error: isFinancialRequest
           ? "El DPI del solicitante es obligatorio."
-          : "En Reserva o CertificaciÃ³n el documento del propietario es obligatorio."
+          : "En Reserva o Certificación el documento del propietario es obligatorio."
       });
     }
     if (isRanReservaRequest && !finalTelefono) {
-      return res.status(400).json({ error: "En Reserva, PrÃ³rroga o CesiÃ³n de MatrÃ­cula el telÃ©fono es obligatorio." });
+      return res.status(400).json({ error: "En Reserva, Prórroga o Cesión de Matrícula el teléfono es obligatorio." });
     }
     if (isRanReservaRequest && !/^\d{8}$/.test(finalTelefono)) {
-      return res.status(400).json({ error: "En Reserva, PrÃ³rroga o CesiÃ³n de MatrÃ­cula el telÃ©fono debe tener 8 dÃ­gitos." });
+      return res.status(400).json({ error: "En Reserva, Prórroga o Cesión de Matrícula el teléfono debe tener 8 dígitos." });
     }
     if ((isRanReservaRequest || isRanCertificacionRequest || isRanDroneRequest || isFinancialRequest) && !finalNit) {
       return res.status(400).json({ error: "El NIT es obligatorio." });
     }
     if (isRanReservaRequest && !finalNombreOrdenPago) {
-      return res.status(400).json({ error: "En Reserva, PrÃ³rroga o CesiÃ³n de MatrÃ­cula el nombre para orden de pago es obligatorio." });
+      return res.status(400).json({ error: "En Reserva, Prórroga o Cesión de Matrícula el nombre para orden de pago es obligatorio." });
     }
     if (!isRanDroneRequest && !isFinancialRequest && !isAilaRequest && !isRanCertificacionRequest && !isDvsoRequest && !finalNumeroSerie) {
-      return res.status(400).json({ error: "NÃºmero de serie es obligatorio." });
+      return res.status(400).json({ error: "Número de serie es obligatorio." });
     }
 
     const updates = [];
@@ -5041,7 +5102,7 @@ app.get("/api/submissions/:id/original-form", requireAuth, requireRole(...REVIEW
     const isApprover = role === "aprobador";
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
-    const where = ["id = $1", "unidad_clave = 'DVSO'"];
+    const where = ["id = $1", "unidad_clave IN ('DVSO', 'TRANSPORTE_AEREO')"];
     const params = [id];
     if (isAnalyst) {
       params.push(req.user?.sub);
@@ -5071,16 +5132,68 @@ app.get("/api/submissions/:id/original-form", requireAuth, requireRole(...REVIEW
       params
     );
     if (!result.rowCount || !result.rows[0].original_form_pdf) {
-      return res.status(404).json({ error: "Formulario DVSO no encontrado" });
+      return res.status(404).json({ error: "Formulario no encontrado" });
     }
     const row = result.rows[0];
-    const filename = sanitizeHeaderFilename(row.original_form_filename || "formulario-dvso.pdf", "formulario-dvso.pdf");
+    const filename = sanitizeHeaderFilename(row.original_form_filename || "formulario.pdf", "formulario.pdf");
     res.setHeader("Content-Type", row.original_form_mime || "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
     return res.send(row.original_form_pdf);
   } catch (err) {
-    console.error("Error fetching DVSO original form", err);
-    return res.status(500).json({ error: "No se pudo obtener el formulario DVSO" });
+    console.error("Error fetching original form", err);
+    return res.status(500).json({ error: "No se pudo obtener el formulario" });
+  }
+});
+
+app.get("/api/submissions/:id/support-documents/:key", requireAuth, requireRole(...REVIEW_ROLES), async (req, res) => {
+  const { id, key } = req.params;
+  const documentKey = String(key || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+  if (!documentKey) {
+    return res.status(400).json({ error: "Documento no válido." });
+  }
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isAnalyst = role === "analista";
+    const isEmitter = role === "emisor";
+    const isApprover = role === "aprobador";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+    const where = ["s.id = $1", "d.document_key = $2"];
+    const params = [id, documentKey];
+    if (isAnalyst) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_analista_id = $${params.length}`);
+    }
+    if (isEmitter) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_emisor_id = $${params.length}`);
+    }
+    if (isUnitRestricted) {
+      params.push(unitAccess);
+      where.push(`s.unidad_clave = ANY($${params.length})`);
+    }
+    if (isApprover) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_aprobador_id = $${params.length}`);
+    }
+    const result = await pool.query(
+      `SELECT d.pdf, d.filename, d.mime
+       FROM submission_documents d
+       JOIN submissions s ON s.id = d.submission_id
+       WHERE ${where.join(" AND ")}`,
+      params
+    );
+    if (!result.rowCount || !result.rows[0].pdf) {
+      return res.status(404).json({ error: "Documento no encontrado" });
+    }
+    const row = result.rows[0];
+    const filename = sanitizeHeaderFilename(row.filename || `${documentKey}.pdf`, `${documentKey}.pdf`);
+    res.setHeader("Content-Type", row.mime || "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    return res.send(row.pdf);
+  } catch (err) {
+    console.error("Error fetching support document", err);
+    return res.status(500).json({ error: "No se pudo obtener el documento." });
   }
 });
 
@@ -5362,7 +5475,7 @@ app.get("/api/submissions/:id/rpa-registro-representante", requireAuth, requireR
       params
     );
     if (!result.rowCount || !result.rows[0].rpa_registro_representante_pdf) {
-      return res.status(404).json({ error: "CertificaciÃ³n del representante legal no encontrada" });
+      return res.status(404).json({ error: "Certificación del representante legal no encontrada" });
     }
     const row = result.rows[0];
     const mime = row.rpa_registro_representante_mime || "application/pdf";
@@ -5371,7 +5484,7 @@ app.get("/api/submissions/:id/rpa-registro-representante", requireAuth, requireR
     return res.send(row.rpa_registro_representante_pdf);
   } catch (err) {
     console.error("Error fetching rpa registro representante", err);
-    return res.status(500).json({ error: "No se pudo obtener la certificaciÃ³n del representante legal." });
+    return res.status(500).json({ error: "No se pudo obtener la certificación del representante legal." });
   }
 });
 
@@ -5409,7 +5522,7 @@ app.get("/api/submissions/:id/rpa-registro-entidad", requireAuth, requireRole(..
       params
     );
     if (!result.rowCount || !result.rows[0].rpa_registro_entidad_pdf) {
-      return res.status(404).json({ error: "CertificaciÃ³n de la entidad no encontrada" });
+      return res.status(404).json({ error: "Certificación de la entidad no encontrada" });
     }
     const row = result.rows[0];
     const mime = row.rpa_registro_entidad_mime || "application/pdf";
@@ -5418,7 +5531,7 @@ app.get("/api/submissions/:id/rpa-registro-entidad", requireAuth, requireRole(..
     return res.send(row.rpa_registro_entidad_pdf);
   } catch (err) {
     console.error("Error fetching rpa registro entidad", err);
-    return res.status(500).json({ error: "No se pudo obtener la certificaciÃ³n de la entidad." });
+    return res.status(500).json({ error: "No se pudo obtener la certificación de la entidad." });
   }
 });
 
@@ -5868,10 +5981,10 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
       return res.status(400).json({ error: "En RAN el aprobador no debe cargar documento firmado." });
     }
     if (isAilaGenericWorkflow(currentRow)) {
-      return res.status(400).json({ error: "En AILA permiso genÃ©rico la Jefatura AILA no debe cargar documento firmado." });
+      return res.status(400).json({ error: "En AILA permiso genérico la Jefatura AILA no debe cargar documento firmado." });
     }
     if (currentRow.approved_at) {
-      return res.status(400).json({ error: "No se puede modificar el documento firmado porque el proceso ya estÃ¡ aprobado." });
+      return res.status(400).json({ error: "No se puede modificar el documento firmado porque el proceso ya está aprobado." });
     }
     if (isEmitter) {
       if (currentUnit !== "FINANCIERO") {
@@ -5912,12 +6025,12 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
   }
 });
 
-// Analista/emisor/admin/supervisor devuelven formulario al usuario para correcciÃ³n
+// Analista/emisor/admin/supervisor devuelven formulario al usuario para corrección
 app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA_AILA, DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const reason = String(req.body?.reason || "").trim();
   if (!reason) {
-    return res.status(400).json({ error: "El motivo de devoluciÃ³n es obligatorio." });
+    return res.status(400).json({ error: "El motivo de devolución es obligatorio." });
   }
   const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
   const isAnalyst = role === "analista";
@@ -6033,7 +6146,7 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("reviso
   const requestedEmisorId = req.body?.emisor_id ? Number(req.body.emisor_id) : null;
   const comentariosRevision = String(req.body?.comentarios_revision || "").trim() || null;
   if (requestedEmisorId !== null && (!Number.isInteger(requestedEmisorId) || requestedEmisorId <= 0)) {
-    return res.status(400).json({ error: "emisor_id no vÃ¡lido." });
+    return res.status(400).json({ error: "emisor_id no válido." });
   }
 
   try {
@@ -6072,7 +6185,7 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("reviso
 
     const submission = submissionResult.rows[0];
     if (submission.approved_at) {
-      return res.status(400).json({ error: "El formulario ya estÃ¡ aprobado." });
+      return res.status(400).json({ error: "El formulario ya está aprobado." });
     }
     const isDvsoSubmission = isDvsoWorkflow(submission);
     const isPaymentPassword = isFinancialPaymentPasswordFlow(submission);
@@ -6080,7 +6193,7 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("reviso
       return res.status(400).json({ error: "Recepción solo puede asignar emisor directamente en solicitud de contraseña de pago." });
     }
     if (isAilaGenericWorkflow(submission) && !isAilaStage2 && role !== "admin" && role !== "supervisor") {
-      return res.status(400).json({ error: "En AILA este paso corresponde a RecepciÃ³n AVSEC." });
+      return res.status(400).json({ error: "En AILA este paso corresponde a Recepción AVSEC." });
     }
     if (isDvsoSubmission && !isDvsoAssistant && role !== "admin" && role !== "supervisor") {
       return res.status(400).json({ error: "En DVSO este paso corresponde al asistente." });
@@ -6208,7 +6321,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
   const requestedAprobadorId = req.body?.aprobador_id ? Number(req.body.aprobador_id) : null;
   const comentariosRevision = String(req.body?.comentarios_revision || "").trim() || null;
   if (requestedAprobadorId !== null && (!Number.isInteger(requestedAprobadorId) || requestedAprobadorId <= 0)) {
-    return res.status(400).json({ error: "aprobador_id no vÃ¡lido." });
+    return res.status(400).json({ error: "aprobador_id no válido." });
   }
 
   try {
@@ -6262,7 +6375,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     const isAdminLike = role === "admin" || role === "supervisor";
     const isDvsoOpsInspectorStep = isDvsoSubmission && isDvsoOps805 && getDvsoStage(submission) === "inspector_revision" && (isDvsoInspector || isAdminLike);
     if (submission.approved_at) {
-      return res.status(400).json({ error: "El formulario ya estÃ¡ aprobado." });
+      return res.status(400).json({ error: "El formulario ya está aprobado." });
     }
     if (isFinancialPaymentPasswordFlow(submission)) {
       return res.status(400).json({ error: "Este proceso finaliza con la boleta de pago y no debe enviarse a aprobador." });
@@ -6431,7 +6544,7 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
   const { id } = req.params;
   const reason = String(req.body?.reason || "").trim();
   if (!reason) {
-    return res.status(400).json({ error: "El motivo de devoluciÃ³n al analista es obligatorio." });
+    return res.status(400).json({ error: "El motivo de devolución al analista es obligatorio." });
   }
 
   const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
@@ -7067,7 +7180,7 @@ app.post("/api/submissions/:id/dvso-send-to-reception", requireAuth, requireRole
   }
 });
 
-// Receptor marca certificaciÃ³n RAN como entregada o procesos financieros como finalizados
+// Receptor marca certificación RAN como entregada o procesos financieros como finalizados
 app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
   const { id } = req.params;
   const {
@@ -7111,7 +7224,7 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
     const isPaymentPassword = isFinancialPaymentPasswordFlow(row);
     const isDvsoAeronavegabilidad = isDvsoAeronavegabilidadWorkflow(row);
     if (!isRan && !isFinancial && !isDvso) {
-      return res.status(400).json({ error: "Este proceso no se puede marcar como entregado o finalizado desde esta acciÃ³n." });
+      return res.status(400).json({ error: "Este proceso no se puede marcar como entregado o finalizado desde esta acción." });
     }
     if (isRan && !row.approved_at) {
       return res.status(400).json({ error: "El proceso debe estar aprobado antes de marcarse como entregado." });
@@ -7230,7 +7343,7 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
         actorRole: role
       });
     } catch (logErr) {
-      console.warn("No se pudo registrar la bitÃ¡cora de entrega/finalizaciÃ³n", logErr);
+      console.warn("No se pudo registrar la bitácora de entrega/finalización", logErr);
     }
 
     sendSubmissionNotification(async () => {
@@ -7245,8 +7358,8 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
 
     return res.json(result.rows[0]);
   } catch (err) {
-    console.error("Error marcando entrega/finalizaciÃ³n", err);
-    return res.status(500).json({ error: "No se pudo marcar la entrega o finalizaciÃ³n." });
+    console.error("Error marcando entrega/finalización", err);
+    return res.status(500).json({ error: "No se pudo marcar la entrega o finalización." });
   }
 });
 
@@ -7568,14 +7681,14 @@ app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
     return res.status(400).json({ error: "name/email/password/role son obligatorios" });
   }
   if (!ALLOWED_ROLES.includes(normalizedRole)) {
-    return res.status(400).json({ error: "Rol no vÃ¡lido" });
+    return res.status(400).json({ error: "Rol no válido" });
   }
   if (!PASSWORD_POLICY_REGEX.test(String(password || ""))) {
     return res.status(400).json({ error: PASSWORD_POLICY_MESSAGE });
   }
   const emailValidation = await validateEmailAddress(email);
   if (!emailValidation.ok) {
-    return res.status(400).json({ error: emailValidation.error || "Correo no vÃ¡lido." });
+    return res.status(400).json({ error: emailValidation.error || "Correo no válido." });
   }
   const normalizedEmail = emailValidation.email;
   const isRestrictedRole = isUnitRestrictedRole(normalizedRole);
@@ -7611,7 +7724,7 @@ app.patch("/api/users/:id/role", requireAuth, requireRole("admin"), async (req, 
   const { role } = req.body || {};
   const normalizedRole = String(role || "").trim().toLowerCase();
   if (!role || !ALLOWED_ROLES.includes(normalizedRole)) {
-    return res.status(400).json({ error: "Rol no vÃ¡lido" });
+    return res.status(400).json({ error: "Rol no válido" });
   }
   try {
     const current = await pool.query("SELECT id, unit_access FROM users WHERE id = $1", [id]);

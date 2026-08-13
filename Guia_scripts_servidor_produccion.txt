@@ -1,0 +1,210 @@
+GUIA RAPIDA DE SCRIPTS - SERVIDOR DE PRODUCCION
+Sistema de Trámites DGAC
+
+Servidor backend:
+Usuario usual: testdev o adminops
+Ruta del proyecto: /opt/api_tramites
+Proceso PM2: api-backend-1
+Puerto interno del backend: 4000
+
+
+============================================================
+1. ENTRAR AL SERVIDOR Y UBICARSE EN EL PROYECTO
+============================================================
+
+Entrar al servidor por SSH:
+
+ssh usuario@IP_DEL_SERVIDOR
+
+Luego entrar a la carpeta del backend:
+
+cd /opt/api_tramites
+
+
+============================================================
+2. VERIFICAR SI EL BACKEND ESTA ARRIBA
+============================================================
+
+Ver estado de procesos PM2:
+
+pm2 list
+
+El proceso debe aparecer como:
+
+api-backend-1    online
+
+Si aparece como "errored", "stopped" o no aparece "online", el backend está caído.
+
+
+============================================================
+3. VER LOGS DEL BACKEND
+============================================================
+
+Ver logs recientes:
+
+pm2 logs api-backend-1 --lines 80
+
+Si el backend está bien, debería aparecer algo parecido a:
+
+API ready on http://localhost:4000
+
+Si aparece un error como:
+
+getaddrinfo EAI_AGAIN dbext01.dgacgt.local
+
+significa que el servidor no está resolviendo el nombre DNS de la base de datos.
+
+
+============================================================
+4. LEVANTAR O REINICIAR EL BACKEND
+============================================================
+
+Reiniciar el backend:
+
+pm2 restart api-backend-1
+
+Luego verificar:
+
+pm2 list
+
+También se puede revisar el endpoint local:
+
+curl -i http://127.0.0.1:4000/api/auth/recaptcha-config
+
+Si responde con HTTP/1.1 200, 401, 404 u otro código HTTP normal, el backend está respondiendo.
+Si dice "Could not connect", el backend no está levantado en el puerto 4000.
+
+
+============================================================
+5. VERIFICAR SI EL PUERTO 4000 ESTA EN USO
+============================================================
+
+Ver si algo está escuchando en el puerto 4000:
+
+ss -ltnp | grep ':4000'
+
+Si no devuelve nada, no hay servicio escuchando en el puerto 4000.
+
+
+============================================================
+6. VERIFICAR DNS DE LA BASE DE DATOS
+============================================================
+
+Ver qué DNS usa el servidor:
+
+resolvectl status
+
+Probar resolución del servidor de base de datos:
+
+nslookup dbext01.dgacgt.local 172.16.0.30
+
+Debe devolver una IP, por ejemplo:
+
+172.18.10.21
+
+Si no resuelve, reportar a infraestructura o agregar temporalmente el host si se tienen permisos.
+
+Ejemplo de entrada en /etc/hosts:
+
+172.18.10.21 dbext01.dgacgt.local
+
+
+============================================================
+7. CARGAR LA CONEXION DE BASE DE DATOS DESDE EL .ENV
+============================================================
+
+IMPORTANTE:
+No usar "source .env", porque la contraseña puede tener caracteres especiales y Bash puede romper el comando.
+
+Usar este comando:
+
+cd /opt/api_tramites
+
+DATABASE_URL="$(node -e "require('dotenv').config({path:'.env'}); process.stdout.write(process.env.DATABASE_URL.trim())")"
+
+Confirmar que tomó la conexión:
+
+echo "$DATABASE_URL"
+
+Debe terminar con el nombre correcto de la base, por ejemplo:
+
+/simplitra
+
+
+============================================================
+8. HACER BACKUP ANTES DE LIMPIAR REGISTROS
+============================================================
+
+Guardar backup en la carpeta del usuario:
+
+pg_dump "$DATABASE_URL" > ~/backup_antes_limpieza_$(date +%F_%H%M).sql
+
+Si el comando termina sin error, el backup quedó creado.
+
+Para confirmar:
+
+ls -lh ~/backup_antes_limpieza_*.sql
+
+
+============================================================
+9. LIMPIAR REGISTROS DE PROCESOS DE LA BASE DE DATOS
+============================================================
+
+Este comando borra procesos creados, pagos, logs, comentarios y correlativos.
+NO borra usuarios ni roles.
+
+psql "$DATABASE_URL" -c "BEGIN; DELETE FROM submission_feedback; DELETE FROM submission_logs; DELETE FROM payments; DELETE FROM submissions; DELETE FROM submission_counters; UPDATE payment_trace_counter SET last_value = 0, updated_at = NOW() WHERE id = 1; COMMIT;"
+
+
+============================================================
+10. VERIFICAR QUE LA BASE QUEDO LIMPIA
+============================================================
+
+Ejecutar:
+
+psql "$DATABASE_URL" -c "SELECT COUNT(*) AS procesos FROM submissions; SELECT COUNT(*) AS pagos FROM payments; SELECT COUNT(*) AS logs FROM submission_logs; SELECT COUNT(*) AS correlativos FROM submission_counters;"
+
+Si todo devuelve 0, la base quedó limpia para nuevas pruebas.
+
+
+============================================================
+11. COMANDO RAPIDO COMPLETO PARA LIMPIEZA
+============================================================
+
+Usar solo cuando ya se sabe que se está en producción y que se desea limpiar los registros.
+
+cd /opt/api_tramites
+DATABASE_URL="$(node -e "require('dotenv').config({path:'.env'}); process.stdout.write(process.env.DATABASE_URL.trim())")"
+pg_dump "$DATABASE_URL" > ~/backup_antes_limpieza_$(date +%F_%H%M).sql
+psql "$DATABASE_URL" -c "BEGIN; DELETE FROM submission_feedback; DELETE FROM submission_logs; DELETE FROM payments; DELETE FROM submissions; DELETE FROM submission_counters; UPDATE payment_trace_counter SET last_value = 0, updated_at = NOW() WHERE id = 1; COMMIT;"
+psql "$DATABASE_URL" -c "SELECT COUNT(*) AS procesos FROM submissions; SELECT COUNT(*) AS pagos FROM payments; SELECT COUNT(*) AS logs FROM submission_logs; SELECT COUNT(*) AS correlativos FROM submission_counters;"
+
+
+============================================================
+12. MENSAJE CORTO PARA REPORTAR PROBLEMAS DE DNS
+============================================================
+
+Tengo el backend caído porque no logra resolver el hostname de la base de datos:
+
+dbext01.dgacgt.local
+
+El error que aparece en PM2 es:
+
+getaddrinfo EAI_AGAIN dbext01.dgacgt.local
+
+Al validar DNS, el servidor no está resolviendo correctamente ese nombre. Necesito apoyo para revisar la resolución DNS o confirmar la IP actual de la base de datos.
+
+
+============================================================
+NOTAS IMPORTANTES
+============================================================
+
+- No ejecutar limpieza sin hacer backup antes.
+- No usar "source .env" para cargar DATABASE_URL.
+- El backend se administra con PM2.
+- El proceso esperado es: api-backend-1.
+- La base usada por producción debe revisarse en DATABASE_URL dentro del archivo .env.
+- Si PM2 muestra "online" pero luego cambia a "errored", revisar logs con:
+
+pm2 logs api-backend-1 --lines 80
+

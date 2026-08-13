@@ -4,7 +4,7 @@ const { authRouter } = require("../routes/authRoutes");
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
-    throw new Error("JWT_SECRET no esta configurado. Agregalo al archivo .env");
+    throw new Error("JWT_SECRET no está configurado. Agrégalo al archivo .env");
   }
   return secret;
 }

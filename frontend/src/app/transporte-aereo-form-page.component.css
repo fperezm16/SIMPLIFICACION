@@ -1,0 +1,452 @@
+:host {
+  display: block;
+  min-height: 100%;
+  background: #eaf4fb;
+  color: #111;
+}
+
+.transport-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 18px 56px;
+}
+
+.submit-button {
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #0b6fa8;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.official-sheet {
+  margin-bottom: 22px;
+  padding: 24px 38px 32px;
+  border: 1px solid #cfe2f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 50, 78, 0.13);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.letterhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 36px;
+  min-height: 96px;
+  padding: 0 4px 14px;
+}
+
+.mciv-logo,
+.dgac-logo-official {
+  display: block;
+  width: min(330px, 45%);
+  max-height: 92px;
+  object-fit: contain;
+}
+
+.mciv-logo {
+  object-position: left center;
+}
+
+.dgac-logo-official {
+  object-position: right center;
+}
+
+.official-title {
+  margin: 4px auto 22px;
+  text-align: center;
+}
+
+.official-title h2 {
+  max-width: 840px;
+  margin: 0 auto;
+  color: #052a4f;
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.official-title p {
+  margin: 9px 0 12px;
+  color: #405d7a;
+  font-size: 14px;
+}
+
+.process-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: min(100%, 560px);
+  padding: 6px 14px;
+  border: 1px solid #9fd0ef;
+  border-radius: 999px;
+  color: #005f99;
+  background: #eef9ff;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.line-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 22px;
+}
+
+.line-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 6px;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.line-field.full {
+  grid-column: 1 / -1;
+}
+
+.line-field span {
+  white-space: nowrap;
+}
+
+.line-field em {
+  color: #b42318;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.line-field input,
+.line-field textarea {
+  width: 100%;
+  min-height: 30px;
+  border: 0;
+  border-bottom: 1.4px solid #111;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  text-transform: none;
+}
+
+.line-field textarea {
+  min-height: 52px;
+  resize: vertical;
+}
+
+.checkbox-section {
+  margin-top: 28px;
+  text-align: center;
+}
+
+.checkbox-section h3,
+.official-table-section h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 70px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.checkbox-grid label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.checkbox-grid input {
+  width: 34px;
+  height: 34px;
+  accent-color: #0b6fa8;
+}
+
+.official-table-section {
+  margin: 28px auto 0;
+  text-align: center;
+}
+
+.official-table-section table {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.official-table-section th,
+.official-table-section td {
+  border: 1.3px solid #111;
+  height: 34px;
+}
+
+.official-table-section th {
+  background: #f5f5f5;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.official-table-section input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  text-align: center;
+  font: inherit;
+}
+
+.attachments {
+  margin-top: 28px;
+  font-size: 16px;
+}
+
+.attachments h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  text-transform: uppercase;
+}
+
+.attachments ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  line-height: 1.55;
+}
+
+.attachments li {
+  margin-bottom: 4px;
+}
+
+.attachments .required-documents {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.attachments .required-document {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.upload-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 16px;
+  align-items: center;
+}
+
+.document-card {
+  border: 1px solid #cfe2f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.upload-title {
+  grid-column: 1;
+  color: #082f52;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.upload-title em {
+  color: #b42318;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.required-document p {
+  grid-column: 1;
+  margin: 2px 0 4px;
+  color: #405d7a;
+  font-size: 12px;
+}
+
+.required-document p strong {
+  color: #082f52;
+}
+
+.upload-inline {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-width: 138px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px dashed #a9cce4;
+  border-radius: 14px;
+  background: #f8fcff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.upload-inline:hover {
+  border-color: #159bd3;
+  background: #f3fbff;
+}
+
+.upload-inline.has-file {
+  border-color: #6fc79d;
+  background: #f1fbf7;
+}
+
+.upload-inline input[type="file"] {
+  display: none;
+}
+
+.upload-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #082f52;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.required-document small {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  color: #526d82;
+  font-size: 11px;
+}
+
+.required-hint {
+  color: #b42318;
+  font-weight: 800;
+}
+
+.date-line {
+  margin: 28px 0 58px;
+  font-size: 16px;
+}
+
+.signature {
+  max-width: 420px;
+  margin: 70px auto 0;
+  text-align: center;
+}
+
+.signature span {
+  display: block;
+  border-top: 1.4px solid #111;
+}
+
+.signature p {
+  margin: 4px 0 0;
+  font-size: 17px;
+}
+
+.note {
+  margin: 28px 0 0;
+  font-size: 16px;
+}
+
+.status {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.status.success {
+  color: #12633f;
+  background: #e9f8f1;
+  border: 1px solid #a9dec5;
+}
+
+.status.error {
+  color: #992d2d;
+  background: #fff0f0;
+  border: 1px solid #efb6b6;
+}
+
+.submit-area {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.submit-button {
+  min-height: 48px;
+  min-width: 290px;
+  padding: 0 24px;
+}
+
+.submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (max-width: 760px) {
+  .submit-button {
+    width: 100%;
+  }
+
+  .official-sheet {
+    padding: 22px 16px;
+  }
+
+  .letterhead {
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 18px;
+  }
+
+  .mciv-logo,
+  .dgac-logo-official {
+    width: min(100%, 360px);
+    max-height: 95px;
+    object-position: center;
+  }
+
+  .official-title h2 {
+    font-size: 21px;
+    letter-spacing: 0.035em;
+  }
+
+  .line-fields,
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .line-field,
+  .line-field.full {
+    grid-template-columns: 1fr;
+  }
+
+  .line-field span {
+    white-space: normal;
+  }
+
+  .upload-block {
+    grid-template-columns: 1fr;
+  }
+
+  .upload-title,
+  .required-document p,
+  .upload-inline,
+  .required-document small {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

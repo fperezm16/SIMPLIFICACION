@@ -18,7 +18,7 @@ async function init() {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'user',
-      unit_access TEXT[] NOT NULL DEFAULT ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[],
+      unit_access TEXT[] NOT NULL DEFAULT ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[],
       email_verified BOOLEAN NOT NULL DEFAULT FALSE,
       email_verified_at TIMESTAMPTZ,
       email_verification_token TEXT,
@@ -188,6 +188,20 @@ async function init() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS submission_documents (
+      id SERIAL PRIMARY KEY,
+      submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+      document_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      filename TEXT,
+      mime TEXT,
+      pdf BYTEA NOT NULL,
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(submission_id, document_key)
+    );
+  `);
+
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS submission_logs_submission_created_idx
       ON submission_logs (submission_id, created_at DESC);
   `);
@@ -249,7 +263,8 @@ async function init() {
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT",
-    "ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_access TEXT[] NOT NULL DEFAULT ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[]",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS unit_access TEXT[] NOT NULL DEFAULT ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[]",
+    "ALTER TABLE users ALTER COLUMN unit_access SET DEFAULT ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[]",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE users ALTER COLUMN email_verified SET DEFAULT FALSE",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ",
@@ -716,7 +731,7 @@ async function init() {
   }
 
   await pool.query("UPDATE users SET role = 'user' WHERE role IS NULL");
-  await pool.query("UPDATE users SET unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[] WHERE unit_access IS NULL");
+  await pool.query("UPDATE users SET unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[] WHERE unit_access IS NULL");
   await pool.query("UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL");
   await pool.query(`
     UPDATE users
@@ -891,7 +906,7 @@ async function init() {
         $2,
         $3,
         'admin',
-        ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[],
+        ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[],
         TRUE,
         NOW()
       )
@@ -900,7 +915,7 @@ async function init() {
         name = EXCLUDED.name,
         password_hash = EXCLUDED.password_hash,
         role = 'admin',
-        unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO']::TEXT[],
+        unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[],
         email_verified = TRUE,
         email_verified_at = COALESCE(users.email_verified_at, NOW())
     `,
