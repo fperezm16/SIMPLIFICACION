@@ -4,6 +4,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, injec
 import { FormsModule } from '@angular/forms';
 import { Analyst, AnalystsService } from './analysts.service';
 import { AuthService } from './auth.service';
+import { SignaturePanelComponent, SignatureResult } from './signature-panel.component';
 import { Submission } from './submission.model';
 
 type SubmissionLog = {
@@ -35,8 +36,6 @@ type TableDocumentKey =
   | 'rpaRegistroEntidad'
   | 'rpaDocumentoEstado'
   | 'boleta'
-  | 'deliveryPaymentReceipt'
-  | 'deliveryPackage'
   | 'signed';
 
 type TableDocument = {
@@ -47,7 +46,7 @@ type TableDocument = {
 
 @Component({
     selector: 'app-review-panel',
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, SignaturePanelComponent],
     template: `
     <section class="review-card">
       <header class="review-head">
@@ -71,7 +70,7 @@ type TableDocument = {
       </div>
 
       <div class="process-list" *ngIf="filtered().length; else empty">
-        <article class="process-card" *ngFor="let row of filtered()" [class]="stateClass(row)">
+        <article class="process-card" *ngFor="let row of filtered()" [class]="statusClass(row)">
           <div class="process-main">
             <div class="process-title-block">
               <div class="process-title">
@@ -133,7 +132,7 @@ type TableDocument = {
                 <span class="log-time">{{ entry.created_at | date:'short' }}</span>
                 <span class="log-role" *ngIf="entry.actor_role">{{ normalizeDisplayText(entry.actor_role) }}</span>
               </div>
-              <span class="log-event" [class]="logEventClass(entry)">{{ displayLogLabel(entry) }}</span>
+              <span class="log-event" [class]="logEventClass(entry)">{{ normalizeDisplayText(entry.event_label) }}</span>
               <small *ngIf="entry.event_detail">{{ normalizeDisplayText(entry.event_detail) }}</small>
               <small *ngIf="logComment(entry)">Comentario: {{ normalizeDisplayText(logComment(entry)) }}</small>
               <small *ngIf="entry.actor_name || entry.actor_email">Por: {{ actorDisplay(entry) }}</small>
@@ -320,46 +319,44 @@ type TableDocument = {
               </div>
             </ng-container>
             <ng-template #genericSubmissionFields>
-              <ng-container *ngIf="!isDvsoSubmission(selected)">
-                <label>Nombre propietario <input [(ngModel)]="edit.nombre_propietario" [disabled]="!canEdit" /></label>
-                <label>Documento propietario <input [(ngModel)]="edit.documento_propietario" [disabled]="!canEdit" /></label>
-                <label>Dirección <input [(ngModel)]="edit.direccion" [disabled]="!canEdit" /></label>
-                <label>Teléfono <input [(ngModel)]="edit.telefono" [disabled]="!canEdit" /></label>
-                <label>Correo <input [(ngModel)]="edit.correo" [disabled]="!canEdit" /></label>
-                <label>NIT <input [(ngModel)]="edit.nit" [disabled]="!canEdit" /></label>
-                <label>Nombre orden de pago <input [(ngModel)]="edit.nombre_orden_pago" [disabled]="!canEdit" /></label>
-                <label>Autorizado nombre <input [(ngModel)]="edit.autorizado_nombre" [disabled]="!canEdit" /></label>
-                <label>Autorizado documento <input [(ngModel)]="edit.autorizado_documento" [disabled]="!canEdit" /></label>
-                <label>Autorizado teléfono <input [(ngModel)]="edit.autorizado_telefono" [disabled]="!canEdit" /></label>
-                <label>Matrícula TG <input [(ngModel)]="edit.matricula_tg" [disabled]="!canEdit" /></label>
-                <label>Matrícula TG nueva <input [(ngModel)]="edit.matricula_tg_nueva" [disabled]="!canEdit" /></label>
-                <label>Uso
-                  <select [(ngModel)]="edit.uso" [disabled]="!canEdit">
-                    <option value="privado">Privado</option>
-                    <option value="comercial">Comercial</option>
-                    <option value="fumigacion">Fumigación</option>
-                    <option value="estado">Entidades de Estado</option>
-                    <option value="otros">Otros</option>
-                  </select>
-                </label>
-                <label>Fabricante <input [(ngModel)]="edit.fabricante" [disabled]="!canEdit" /></label>
-                <label>Número serie <input [(ngModel)]="edit.numero_serie" [disabled]="!canEdit" /></label>
-                <label>Modelo <input [(ngModel)]="edit.modelo" [disabled]="!canEdit" /></label>
-                <label>Año fabricación <input [(ngModel)]="edit.anio_fabricacion" [disabled]="!canEdit" /></label>
-                <label>Colores <input [(ngModel)]="edit.colores" [disabled]="!canEdit" /></label>
-                <label>Especificaciones <input [(ngModel)]="edit.especificaciones" [disabled]="!canEdit" /></label>
-              </ng-container>
+              <label>Nombre propietario <input [(ngModel)]="edit.nombre_propietario" [disabled]="!canEdit" /></label>
+              <label>Documento propietario <input [(ngModel)]="edit.documento_propietario" [disabled]="!canEdit" /></label>
+              <label>Dirección <input [(ngModel)]="edit.direccion" [disabled]="!canEdit" /></label>
+              <label>Teléfono <input [(ngModel)]="edit.telefono" [disabled]="!canEdit" /></label>
+              <label>Correo <input [(ngModel)]="edit.correo" [disabled]="!canEdit" /></label>
+              <label>NIT <input [(ngModel)]="edit.nit" [disabled]="!canEdit" /></label>
+              <label>Nombre orden de pago <input [(ngModel)]="edit.nombre_orden_pago" [disabled]="!canEdit" /></label>
+              <label>Autorizado nombre <input [(ngModel)]="edit.autorizado_nombre" [disabled]="!canEdit" /></label>
+              <label>Autorizado documento <input [(ngModel)]="edit.autorizado_documento" [disabled]="!canEdit" /></label>
+              <label>Autorizado teléfono <input [(ngModel)]="edit.autorizado_telefono" [disabled]="!canEdit" /></label>
+              <label>Matrícula TG <input [(ngModel)]="edit.matricula_tg" [disabled]="!canEdit" /></label>
+              <label>Matrícula TG nueva <input [(ngModel)]="edit.matricula_tg_nueva" [disabled]="!canEdit" /></label>
+              <label>Uso
+                <select [(ngModel)]="edit.uso" [disabled]="!canEdit">
+                  <option value="privado">Privado</option>
+                  <option value="comercial">Comercial</option>
+                  <option value="fumigacion">Fumigación</option>
+                  <option value="estado">Entidades de Estado</option>
+                  <option value="otros">Otros</option>
+                </select>
+              </label>
+              <label>Fabricante <input [(ngModel)]="edit.fabricante" [disabled]="!canEdit" /></label>
+              <label>Número serie <input [(ngModel)]="edit.numero_serie" [disabled]="!canEdit" /></label>
+              <label>Modelo <input [(ngModel)]="edit.modelo" [disabled]="!canEdit" /></label>
+              <label>Año fabricación <input [(ngModel)]="edit.anio_fabricacion" [disabled]="!canEdit" /></label>
+              <label>Colores <input [(ngModel)]="edit.colores" [disabled]="!canEdit" /></label>
+              <label>Especificaciones <input [(ngModel)]="edit.especificaciones" [disabled]="!canEdit" /></label>
             </ng-template>
           </ng-template>
           <label *ngIf="canReturnToUserSelected() || canReturnToAnalyst">
             {{ canReturnToAnalyst ? 'Motivo de devolución al analista' : 'Motivo de devolución al usuario' }}
             <textarea rows="3" [(ngModel)]="returnReason" [disabled]="returning"></textarea>
           </label>
-          <label *ngIf="!isDvsoSubmission(selected) && canWriteReceptionComments(selected)">
+          <label *ngIf="canWriteReceptionComments(selected)">
             {{ reviewCommentsLabel(selected) }}
             <textarea rows="3" [(ngModel)]="reviewComments" [disabled]="saving || sendingToEmitter"></textarea>
           </label>
-          <label *ngIf="analysts.length && canAssign && !assignsPaymentPasswordToEmitter(selected)">Asignar a {{ assignStageLabel(selected) }}
+          <label *ngIf="analysts.length && canAssign">Asignar a {{ assignStageLabel(selected) }}
             <select [(ngModel)]="edit.assigned_analista_id">
               <option [ngValue]="null">Sin asignar</option>
               <option *ngFor="let a of analysts" [ngValue]="a.id">
@@ -367,10 +364,10 @@ type TableDocument = {
               </option>
             </select>
           </label>
-          <label *ngIf="!isDvsoSubmission(selected) && !assignsPaymentPasswordToEmitter(selected)">{{ assignedStageLabel(selected, 'analista') }}
+          <label>{{ assignedStageLabel(selected, 'analista') }}
             <input [value]="selected.assigned_analista_name || selected.assigned_analista_email || 'Sin asignar'" disabled />
           </label>
-          <label *ngIf="!isDvsoSubmission(selected) && !isFinancialPaymentPasswordFlow(selected)">{{ assignedStageLabel(selected, 'aprobador') }}
+          <label>{{ assignedStageLabel(selected, 'aprobador') }}
             <input [value]="selected.assigned_aprobador_name || selected.assigned_aprobador_email || 'Sin asignar'" disabled />
           </label>
           <label *ngIf="canSendSelectedToApprover()">Asignar a {{ assignStageLabel(selected, 'aprobador') }}
@@ -391,36 +388,13 @@ type TableDocument = {
             </select>
             <small class="muted" *ngIf="!emittersForSelected().length">No hay emisores configurados para esta unidad.</small>
           </label>
-          <label *ngIf="!isDvsoSubmission(selected) && showsEmitterField(selected)">{{ assignedStageLabel(selected, 'emisor') }}
+          <label *ngIf="showsEmitterField(selected)">{{ assignedStageLabel(selected, 'emisor') }}
             <input [value]="selected.assigned_emisor_name || selected.assigned_emisor_email || 'Sin asignar'" disabled />
           </label>
         </div>
-        <section class="digital-form-summary" *ngIf="digitalFormFields(selected).length">
-          <h5>{{ digitalFormTitle(selected) }}</h5>
-          <div class="digital-field-grid">
-            <div class="digital-field" *ngFor="let item of digitalFormFields(selected)">
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value || 'N/D' }}</strong>
-            </div>
-          </div>
-        </section>
         <section class="attachments-zone">
           <h5>Documentos del proceso</h5>
           <div class="attachments-list">
-            <div class="dpi-box" *ngIf="selected.has_original_form || selected.original_form_filename">
-              <div class="dpi-head">
-                <span>{{ originalFormLabel(selected) }}:</span>
-                <strong>{{ selected.original_form_filename || 'formulario.pdf' }}</strong>
-              </div>
-              <button class="link" type="button" (click)="viewOriginalForm(selected)">Ver PDF</button>
-            </div>
-            <div class="dpi-box" *ngFor="let doc of supportDocuments(selected)">
-              <div class="dpi-head">
-                <span>{{ doc.label }}:</span>
-                <strong>{{ doc.filename || 'documento.pdf' }}</strong>
-              </div>
-              <button class="link" type="button" (click)="viewSupportDocument(selected, doc.key)">Ver PDF</button>
-            </div>
             <ng-container *ngIf="isFinancialSubmission(selected); else defaultDpiAttachment">
               <div class="dpi-box" *ngFor="let doc of financialDeclaraguateDocuments(selected)" [hidden]="!doc.has">
                 <div class="dpi-head">
@@ -523,14 +497,24 @@ type TableDocument = {
                 <span class="muted" *ngIf="!(selected.has_signed_pdf || selected.signed_pdf_filename)">No adjunto</span>
               </div>
               <button class="link" type="button" *ngIf="selected.has_signed_pdf || selected.signed_pdf_filename" (click)="viewSignedPdf(selected)">Ver PDF</button>
-              <label class="upload-inline" *ngIf="(canApproveSelected() || canUploadFinalSignedPdf(selected)) && !selected?.approved_at">
+              <app-signature-panel
+                *ngIf="canUseElectronicSignature(selected) && !selected?.approved_at"
+                [submissionId]="selected.id"
+                [canSign]="canUseElectronicSignature(selected)"
+                [userEmail]="currentUserEmail"
+                [documentName]="selected.analyst_pdf_filename || ''"
+                [pdfPreviewPath]="apiBase + '/submissions/' + selected.id + '/boleta'"
+                (signed)="handleSignatureCompleted($event)"
+                (failed)="handleSignatureFailed($event)">
+              </app-signature-panel>
+              <label class="upload-inline" *ngIf="showManualSignedUpload(selected) && !selected?.approved_at">
                 <input type="file" accept="application/pdf" [disabled]="uploadingSignedPdf" (change)="onSignedPdfSelected($event)">
                 <span>{{ uploadingSignedPdf ? 'Cargando documento firmado...' : (signedPdfFile?.name || 'Seleccionar documento firmado...') }}</span>
               </label>
               <button
                 type="button"
                 class="send-approver"
-                *ngIf="(canApproveSelected() || canUploadFinalSignedPdf(selected)) && !selected?.approved_at"
+                *ngIf="showManualSignedUpload(selected) && !selected?.approved_at"
                 (click)="uploadSignedPdf()"
                 [disabled]="uploadingSignedPdf || !signedPdfFile">
                 {{ uploadingSignedPdf ? 'Cargando...' : 'Subir PDF' }}
@@ -545,26 +529,8 @@ type TableDocument = {
             </div>
           </div>
         </section>
-        <div class="delivery-docs-box" *ngIf="requiresRanDeliveryDocuments(selected)">
-          <div>
-            <h4>Documentos para entrega RAN</h4>
-            <p>Para marcar este proceso como entregado, carga la boleta de pago y el expediente entregable.</p>
-          </div>
-          <label class="upload-inline delivery-upload">
-            <input type="file" accept="application/pdf" [disabled]="delivering" (change)="onDeliveryPaymentReceiptSelected($event)">
-            <span>{{ deliveryPaymentReceiptFile?.name || selected.delivery_payment_receipt_filename || 'Seleccionar boleta de pago...' }}</span>
-          </label>
-          <label class="upload-inline delivery-upload">
-            <input type="file" accept="application/pdf" [disabled]="delivering" (change)="onDeliveryPackageSelected($event)">
-            <span>{{ deliveryPackageFile?.name || selected.delivery_package_filename || 'Seleccionar expediente entregable...' }}</span>
-          </label>
-          <small class="muted" *ngIf="selected.delivery_documents_uploaded_at">
-            Última carga: {{ selected.delivery_documents_uploaded_at | date:'short' }}
-          </small>
-          <small class="error-text" *ngIf="deliveryDocumentsError">{{ deliveryDocumentsError }}</small>
-        </div>
         <div class="editor-actions">
-          <button *ngIf="canShowPrimarySaveAction()" (click)="save()" [disabled]="saving">
+          <button *ngIf="canEdit || canAssign" (click)="save()" [disabled]="saving">
             {{ primaryActionLabel() }}
           </button>
           <button *ngIf="canSendSelectedToEmitter() && !selected?.approved_at" class="send-approver" (click)="sendToEmitter()" [disabled]="saving || sendingToEmitter">
@@ -574,15 +540,15 @@ type TableDocument = {
             {{ sendingToApprover ? 'Enviando...' : sendToApproverLabel(selected) }}
           </button>
           <button *ngIf="canApproveSelected() && !selected?.approved_at" class="approve" (click)="approve()" [disabled]="saving || approving || requiresSignedPdfBeforeApprove(selected)">
-            {{ approving ? 'Aprobando...' : ((isDvsoAeronavegabilidadSubmission(selected) || isDvsoOperacionesSubmission(selected)) ? 'Firmar y devolver a inspector' : isDvsoSubmission(selected) ? 'Aprobar y devolver a asistente' : 'Marcar aprobado') }}
+            {{ approving ? 'Aprobando...' : (isDvsoSubmission(selected) ? 'Aprobar y devolver a asistente' : 'Marcar aprobado') }}
           </button>
           <button *ngIf="canReturnToDvsoJefatura()" class="send-approver" (click)="returnToDvsoJefatura()" [disabled]="saving || returning">
-            {{ returning ? 'Trasladando...' : (isDvsoOperacionesSubmission(selected) ? 'Enviar a Jefatura de Operaciones' : isDvsoAeronavegabilidadSubmission(selected) ? 'Enviar a Jefe de Sección' : 'Devolver a jefatura DVSO') }}
+            {{ returning ? 'Devolviendo...' : 'Devolver a jefatura DVSO' }}
           </button>
           <button *ngIf="canSendSelectedToDvsoReception()" class="send-approver" (click)="sendToDvsoReception()" [disabled]="saving || sendingToEmitter">
             {{ sendingToEmitter ? 'Trasladando...' : 'Trasladar a recepción DVSO' }}
           </button>
-          <button *ngIf="canMarkDelivered(selected)" class="deliver" (click)="markDelivered()" [disabled]="saving || delivering || !ranDeliveryDocumentsReady(selected)">
+          <button *ngIf="canMarkDelivered(selected)" class="deliver" (click)="markDelivered()" [disabled]="saving || delivering">
             {{ delivering ? 'Marcando...' : deliveryActionLabel(selected) }}
           </button>
           <button *ngIf="canReturnToUserSelected()" class="return" (click)="returnToUser()" [disabled]="saving || returning">
@@ -629,30 +595,10 @@ type TableDocument = {
       background: rgba(255, 255, 255, 0.96);
       box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
     }
-    .process-card.state-assigned,
-    .process-card.state-asignado,
-    .process-card.state-en-aprobacion,
-    .process-card.state-aprobado,
-    .process-card.state-entregado {
-      border-left-color: #22c55e;
-      background: #f3fff7;
-    }
-    .process-card.state-pending,
-    .process-card.state-recepcion {
-      border-left-color: #f59e0b;
-      background: #fffdf0;
-    }
+    .process-card.state-assigned { border-left-color: #22c55e; background: #f3fff7; }
+    .process-card.state-pending { border-left-color: #f59e0b; background: #fffdf0; }
     .process-card.state-unopened,
-    .process-card.state-enviado,
-    .process-card.state-returned,
-    .process-card.state-devuelto {
-      border-left-color: #ef4444;
-      background: #fff7f7;
-    }
-    .process-card.state-devuelto-analista {
-      border-left-color: #f97316;
-      background: #fff7ed;
-    }
+    .process-card.state-returned { border-left-color: #ef4444; background: #fff7f7; }
     .process-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     .process-title-block { min-width: 0; }
     .process-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 16px; color: #0f2d47; }
@@ -723,13 +669,10 @@ type TableDocument = {
       select { min-width: 0; width: 100%; }
     }
     .state-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); }
-    .state-enviado,
-    .state-unopened { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
-    .state-recepcion,
-    .state-pending { background: #fef9c3; border-color: #fde047; color: #854d0e; }
-    .state-asignado,
-    .state-assigned,
-    .state-en-aprobacion { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .state-enviado { background: #fee2e2; border-color: #fca5a5; }
+    .state-recepcion { background: #fef9c3; border-color: #fde047; }
+    .state-asignado { background: #dbeafe; border-color: #93c5fd; }
+    .state-en-aprobacion { background: #dbeafe; border-color: #60a5fa; color: #1e3a8a; }
     .state-devuelto { background: #fee2e2; border-color: #f87171; color: #991b1b; }
     .state-devuelto-analista { background: #ffedd5; border-color: #fdba74; color: #9a3412; }
     .state-aprobado { background: #dcfce7; border-color: #86efac; }
@@ -851,20 +794,9 @@ type TableDocument = {
       font-size: 13px;
     }
     .checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; margin-top: 8px; }
-    .digital-form-summary { margin-top: 14px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 12px; background: #f8fbfe; }
-    .digital-form-summary h5 { margin: 0 0 10px; color: #0f3e69; font-size: 13px; }
-    .digital-field-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
-    .digital-field { display: grid; gap: 3px; padding: 8px; border: 1px solid #d8e7f3; border-radius: 8px; background: #fff; }
-    .digital-field span { color: #526d82; font-size: 12px; }
-    .digital-field strong { color: #102a43; font-size: 13px; overflow-wrap: anywhere; }
     .attachments-zone { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); }
     .attachments-zone h5 { margin: 0 0 8px; font-size: 13px; color: #234868; }
     .attachments-list { display: grid; gap: 8px; }
-    .delivery-docs-box { display: grid; gap: 10px; margin-top: 12px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 12px; background: #eff6ff; }
-    .delivery-docs-box h4 { margin: 0; color: #0f3e69; }
-    .delivery-docs-box p { margin: 2px 0 0; color: #475569; font-size: 13px; }
-    .delivery-upload { width: fit-content; max-width: 100%; }
-    .delivery-upload span { overflow-wrap: anywhere; }
     .editor-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
     .send-approver { background: #dbeafe; border: 1px solid #60a5fa; color: #1e3a8a; }
     .approve { background: #dcfce7; border: 1px solid #22c55e; }
@@ -912,17 +844,14 @@ export class ReviewPanelComponent implements OnChanges {
   analystPdfError = '';
   signedPdfFile: File | null = null;
   signedPdfError = '';
-  deliveryPaymentReceiptFile: File | null = null;
-  deliveryPackageFile: File | null = null;
-  deliveryDocumentsError = '';
   analysts: Analyst[] = [];
   emitters: Analyst[] = [];
   approvers: Analyst[] = [];
   logs: SubmissionLog[] = [];
   logsLoading = false;
-  private openedStageCache = this.loadOpenedStageCache();
   role = this.auth.currentUser?.role || 'user';
-  readonly avsecFinancieroRole = 'avsec_financiero';
+  currentUserEmail = this.auth.currentUser?.email || '';
+  readonly financieroPagosRole = 'operador_pagos';
   readonly ailaRecepcionRole = 'recepcion_aila';
   readonly ailaRecepcionAvsecRole = 'recepcion_avsec';
   readonly ailaJefaturaAvsecRole = 'jefatura_avsec';
@@ -930,9 +859,7 @@ export class ReviewPanelComponent implements OnChanges {
   readonly dvsoRecepcionRole = 'recepcion_dvso';
   readonly dvsoAsistenteRole = 'asistente_dvso';
   readonly dvsoJefaturaRole = 'jefatura_dvso';
-  readonly dvsoJefeAeronavegabilidadRole = 'jefe_aeronavegabilidad';
   readonly dvsoInspectorRole = 'inspector_dvso';
-  readonly dvsoJefaturaOpsRole = 'jefatura_ops';
   currentUserId = this.auth.currentUser?.id || null;
   canEdit = false;
   canApprove = this.role === 'aprobador' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
@@ -940,8 +867,8 @@ export class ReviewPanelComponent implements OnChanges {
   canSendToApprover = this.role === 'emisor' || this.role === this.ailaJefaturaAvsecRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
   canDeliverRole = this.role === 'revisor' || this.role === this.dvsoRecepcionRole;
   canAssign = this.role === 'revisor' || this.role === this.ailaRecepcionRole || this.role === this.dvsoRecepcionRole || this.role === 'admin' || this.role === 'supervisor';
-  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoJefeAeronavegabilidadRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
-  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
+  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
+  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
   canReturnToAnalyst = this.role === 'aprobador';
 
   financialProcessFieldLabel() {
@@ -949,7 +876,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   isFinancialAreaRole() {
-    return this.role === 'revisor' || this.role === 'analista' || this.role === 'emisor' || this.role === 'aprobador' || this.role === this.avsecFinancieroRole;
+    return this.role === 'revisor' || this.role === 'analista' || this.role === 'emisor' || this.role === 'aprobador' || this.role === this.financieroPagosRole;
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -1007,11 +934,7 @@ export class ReviewPanelComponent implements OnChanges {
   private visibleRows() {
     let rows = this.data.filter((d) => !d.delivered_at);
     if (this.role === 'revisor') {
-      rows = rows.filter((d) =>
-        this.isFinancialPaymentPasswordFlow(d)
-          ? (!d.assigned_emisor_id || this.canMarkDelivered(d))
-          : (!d.assigned_analista_id || this.canMarkDelivered(d))
-      );
+      rows = rows.filter((d) => !d.assigned_analista_id || this.canMarkDelivered(d));
     }
     if (this.role === this.ailaRecepcionRole) {
       rows = rows.filter((d) => this.isAilaGenericFlow(d) && !d.assigned_analista_id);
@@ -1072,13 +995,6 @@ export class ReviewPanelComponent implements OnChanges {
         (this.dvsoStage(d) === 'jefatura_revision' || this.dvsoStage(d) === 'jefatura_aprobacion')
       );
     }
-    if (this.role === this.dvsoJefeAeronavegabilidadRole) {
-      rows = rows.filter((d) =>
-        this.isDvsoAeronavegabilidadSubmission(d) &&
-        (this.dvsoStage(d) === 'jefe_revision' || this.dvsoStage(d) === 'jefe_firma') &&
-        !d.delivered_at
-      );
-    }
     if (this.role === 'aprobador') {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) => Number(d.assigned_aprobador_id) === Number(this.currentUserId) && !d.delivered_at);
@@ -1088,31 +1004,7 @@ export class ReviewPanelComponent implements OnChanges {
       rows = rows.filter((d) =>
         this.isDvsoSubmission(d) &&
         Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
-        (
-          (!this.isDvsoOps805Submission(d) && this.dvsoStage(d) === 'inspector_revision') ||
-          ((this.isDvsoAeronavegabilidadSubmission(d) || this.isDvsoOperacionesSubmission(d)) && this.dvsoStage(d) === 'inspector_envio') ||
-          (this.isDvsoOps805Submission(d) && (this.dvsoStage(d) === 'inspector_revision' || this.dvsoStage(d) === 'inspector_finalizacion'))
-        )
-      );
-    }
-    if (this.role === this.dvsoJefaturaOpsRole) {
-      if (!this.currentUserId) return [];
-      rows = rows.filter((d) =>
-        (
-          this.isDvsoOps805Submission(d) &&
-          Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
-          this.dvsoStage(d) === 'jefatura_ops_revision'
-        ) ||
-        (
-          this.isDvso801Submission(d) &&
-          (this.dvsoStage(d) === 'jefe_revision' || this.dvsoStage(d) === 'jefe_firma') &&
-          !d.delivered_at
-        ) ||
-        (
-          this.isDvsoOps805Submission(d) &&
-          (this.dvsoStage(d) === 'jefe_revision' || this.dvsoStage(d) === 'jefe_firma') &&
-          !d.delivered_at
-        )
+        this.dvsoStage(d) === 'inspector_revision'
       );
     }
     if (this.role === this.ailaJefaturaAilaRole) {
@@ -1123,8 +1015,8 @@ export class ReviewPanelComponent implements OnChanges {
         !d.delivered_at
       );
     }
-    if (this.role === this.avsecFinancieroRole) {
-      rows = rows.filter((d) => this.isFinancialAvsecFlow(d) && Boolean(d.approved_at) && Boolean(d.has_signed_pdf || d.signed_pdf_filename));
+    if (this.role === this.financieroPagosRole) {
+      rows = rows.filter((d) => this.isFinancialPaymentsFlow(d) && Boolean(d.approved_at) && Boolean(d.has_signed_pdf || d.signed_pdf_filename));
     }
     return rows;
   }
@@ -1169,20 +1061,12 @@ export class ReviewPanelComponent implements OnChanges {
     if (!row) return false;
     if (this.isAilaGenericFlow(row)) return true;
     if (this.isDvsoSubmission(row)) return true;
-    return this.isFinancialSubmission(row);
+    return this.isFinancialSubmission(row) && !this.isFinancialPaymentPasswordFlow(row);
   }
 
   isFinancialSubmission(row: Submission | null) {
     if (!row) return false;
     return String(row.unidad_clave || '').toUpperCase() === 'FINANCIERO';
-  }
-
-  isTransportSubmission(row: Submission | null | undefined) {
-    return String(row?.unidad_clave || '').toUpperCase() === 'TRANSPORTE_AEREO';
-  }
-
-  isInfrastructureSubmission(row: Submission | null | undefined) {
-    return String(row?.unidad_clave || '').toUpperCase() === 'INFRAESTRUCTURA';
   }
 
   isFinancialPaymentPasswordFlow(row: Submission | null | undefined) {
@@ -1198,7 +1082,7 @@ export class ReviewPanelComponent implements OnChanges {
     return groupCode === 'otros_tramites' || groupLabel.includes('contrasena de pago');
   }
 
-  isFinancialAvsecFlow(row: Submission | null | undefined) {
+  isFinancialPaymentsFlow(row: Submission | null | undefined) {
     if (!row || !this.isFinancialSubmission(row)) return false;
     const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
       ? row.detalle_formulario as Record<string, unknown>
@@ -1216,173 +1100,12 @@ export class ReviewPanelComponent implements OnChanges {
     return String(row?.unidad_clave || '').toUpperCase() === 'DVSO';
   }
 
-  isDvsoOps805Submission(row: Submission | null | undefined) {
-    if (!this.isDvsoSubmission(row)) return false;
-    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
-      ? row.detalle_formulario as Record<string, unknown>
-      : {};
-    const values = [
-      detail['slug'],
-      detail['codigo'],
-      detail['code'],
-      row?.uso,
-      row?.gestion_nombre
-    ].map((value) => String(value || '').trim().toLowerCase());
-    return values.some((value) => value === 'dvso-ops-805' || value.includes('dvso-ops-805'));
-  }
-
-  isDvso639Submission(row: Submission | null | undefined) {
-    if (!this.isDvsoSubmission(row)) return false;
-    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
-      ? row.detalle_formulario as Record<string, unknown>
-      : {};
-    const values = [
-      detail['slug'],
-      detail['codigo'],
-      detail['code'],
-      row?.uso,
-      row?.gestion_nombre
-    ].map((value) => String(value || '').trim().toLowerCase());
-    return values.some((value) => value === 'dvso-639' || value.includes('dvso-639'));
-  }
-
-  isDvso800Submission(row: Submission | null | undefined) {
-    if (!this.isDvsoSubmission(row)) return false;
-    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
-      ? row.detalle_formulario as Record<string, unknown>
-      : {};
-    const values = [
-      detail['slug'],
-      detail['codigo'],
-      detail['code'],
-      row?.uso,
-      row?.gestion_nombre
-    ].map((value) => String(value || '').trim().toLowerCase());
-    return values.some((value) => value === 'dvso-800' || value.includes('dvso-800'));
-  }
-
-  isDvsoAeronavegabilidadSubmission(row: Submission | null | undefined) {
-    return this.isDvso639Submission(row) || this.isDvso800Submission(row);
-  }
-
-  isDvso801Submission(row: Submission | null | undefined) {
-    if (!this.isDvsoSubmission(row)) return false;
-    const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
-      ? row.detalle_formulario as Record<string, unknown>
-      : {};
-    const values = [
-      detail['slug'],
-      detail['codigo'],
-      detail['code'],
-      row?.uso,
-      row?.gestion_nombre
-    ].map((value) => String(value || '').trim().toLowerCase());
-    return values.some((value) => value === 'dvso-801' || value.includes('dvso-801') || value.includes('dvso-ops-801'));
-  }
-
-  isDvsoOperacionesSubmission(row: Submission | null | undefined) {
-    return this.isDvso801Submission(row) || this.isDvsoOps805Submission(row);
-  }
-
   dvsoStage(row: Submission | null | undefined) {
     if (!this.isDvsoSubmission(row)) return '';
     const detail = row?.detalle_formulario && typeof row.detalle_formulario === 'object'
       ? row.detalle_formulario as Record<string, unknown>
       : {};
     return String(detail['dvso_stage'] || 'recepcion').trim().toLowerCase();
-  }
-
-  private openedStageStorageKey() {
-    return `review-opened-stage-cache:${String(this.currentUserId || 'guest')}:${String(this.role || 'user')}`;
-  }
-
-  private loadOpenedStageCache() {
-    try {
-      const raw = sessionStorage.getItem(this.openedStageStorageKey());
-      const parsed = raw ? JSON.parse(raw) : [];
-      return new Set(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string' && value.length > 0) : []);
-    } catch {
-      return new Set<string>();
-    }
-  }
-
-  private persistOpenedStageCache() {
-    try {
-      sessionStorage.setItem(this.openedStageStorageKey(), JSON.stringify(Array.from(this.openedStageCache)));
-    } catch {
-      // Ignore storage errors; visual state still works in memory.
-    }
-  }
-
-  currentStageOpenMarkerKey(row: Submission | null | undefined) {
-    if (!row) return '';
-    const role = String(this.role || '').trim().toLowerCase();
-    const markerUser = this.currentUserId ? String(this.currentUserId) : 'self';
-    const rowId = String(row.id || 'base');
-    if (role === 'revisor') return `revisor:${markerUser}:${rowId}`;
-    if (role === this.ailaRecepcionRole) return `aila_recepcion:${markerUser}:${rowId}`;
-    if (role === this.ailaRecepcionAvsecRole) return `aila_recepcion_avsec:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
-    if (role === this.ailaJefaturaAvsecRole) return `aila_jefatura_avsec:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
-    if (role === this.ailaJefaturaAilaRole) return `aila_jefatura_aila:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
-    if (role === this.dvsoRecepcionRole) return `dvso_${this.dvsoStage(row) || 'recepcion'}:${markerUser}:${rowId}`;
-    if (role === this.dvsoAsistenteRole) return `dvso_${this.dvsoStage(row) || 'asistente_revision'}:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
-    if (role === this.dvsoJefaturaRole) return `dvso_${this.dvsoStage(row) || 'jefatura_revision'}:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
-    if (role === this.dvsoJefeAeronavegabilidadRole) return `dvso_aeronavegabilidad_${this.dvsoStage(row) || 'jefe_revision'}:${markerUser}:${rowId}`;
-    if (role === this.dvsoInspectorRole) return `dvso_inspector_${this.dvsoStage(row) || 'inspector_revision'}:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
-    if (role === this.dvsoJefaturaOpsRole) return `dvso_ops_${this.dvsoStage(row) || 'revision'}:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
-    if (role === 'analista') return `analista:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
-    if (role === 'emisor') return `emisor:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
-    if (role === 'aprobador') return `aprobador:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
-    return '';
-  }
-
-  hasCurrentRoleOpened(row: Submission | null | undefined) {
-    if (!row) return false;
-    const key = this.currentStageOpenMarkerKey(row);
-    if (key && this.openedStageCache.has(key)) {
-      return true;
-    }
-    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
-      ? row.detalle_formulario as Record<string, unknown>
-      : {};
-    const markers = detail['opened_stage_markers'] && typeof detail['opened_stage_markers'] === 'object'
-      ? detail['opened_stage_markers'] as Record<string, unknown>
-      : {};
-    return Boolean(key && markers[key]);
-  }
-
-  private rememberStageOpened(row: Submission | null | undefined) {
-    const key = this.currentStageOpenMarkerKey(row);
-    if (key) {
-      this.openedStageCache.add(key);
-      this.persistOpenedStageCache();
-    }
-  }
-
-  private applyLocalOpenedState(row: Submission, openedAt = new Date().toISOString()) {
-    const markerKey = this.currentStageOpenMarkerKey(row);
-    if (!markerKey) return;
-    this.rememberStageOpened(row);
-    const currentDetail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
-      ? row.detalle_formulario as Record<string, unknown>
-      : {};
-    const currentMarkers = currentDetail['opened_stage_markers'] && typeof currentDetail['opened_stage_markers'] === 'object'
-      ? currentDetail['opened_stage_markers'] as Record<string, unknown>
-      : {};
-    row.detalle_formulario = {
-      ...currentDetail,
-      opened_stage_markers: {
-        ...currentMarkers,
-        [markerKey]: currentMarkers[markerKey] || openedAt
-      }
-    } as Submission['detalle_formulario'];
-    this.data = this.data.map((item) => item.id === row.id ? { ...item, ...row } : item);
-    if (this.selected?.id === row.id) {
-      this.selected = { ...row };
-    }
-    if (this.edit?.id === row.id) {
-      this.edit = { ...this.edit, detalle_formulario: row.detalle_formulario };
-    }
   }
 
   isAilaGenericFlow(row: Submission | null | undefined) {
@@ -1477,90 +1200,6 @@ export class ReviewPanelComponent implements OnChanges {
     if (detail['idioma_ingles']) labels.push('Inglés');
     if (detail['idioma_espanol']) labels.push('Español');
     return labels.join(', ');
-  }
-
-  digitalFormTitle(row: Submission | null) {
-    if (this.isTransportSubmission(row)) return 'Formulario digital Transporte Aéreo';
-    if (this.isInfrastructureSubmission(row)) return 'Formulario digital Infraestructura';
-    if (this.isDvsoSubmission(row)) return 'Formulario digital DVSO';
-    return 'Formulario digital';
-  }
-
-  originalFormLabel(row: Submission | null) {
-    if (this.isTransportSubmission(row)) return 'Formulario Transporte Aéreo / respaldo';
-    if (this.isInfrastructureSubmission(row)) return 'Formulario Infraestructura completado';
-    if (this.isDvsoSubmission(row)) return 'Formulario DVSO completado';
-    return 'Formulario completado';
-  }
-
-  supportDocuments(row: Submission | null) {
-    if (!row?.detalle_formulario || typeof row.detalle_formulario !== 'object') {
-      return [] as Array<{ key: string; label: string; filename: string }>;
-    }
-    const detail = row.detalle_formulario as Record<string, unknown>;
-    const docs = Array.isArray(detail['documentos_soporte']) ? detail['documentos_soporte'] : [];
-    return docs
-      .map((doc) => {
-        const item = doc && typeof doc === 'object' ? doc as Record<string, unknown> : {};
-        return {
-          key: String(item['key'] || '').trim(),
-          label: String(item['label'] || 'Documento soporte').trim(),
-          filename: String(item['filename'] || '').trim()
-        };
-      })
-      .filter((doc) => doc.key);
-  }
-
-  digitalFormFields(row: Submission | null) {
-    if ((!this.isDvsoSubmission(row) && !this.isTransportSubmission(row) && !this.isInfrastructureSubmission(row)) || !row?.detalle_formulario || typeof row.detalle_formulario !== 'object') {
-      return [] as Array<{ label: string; value: string }>;
-    }
-    const detail = row.detalle_formulario as Record<string, unknown>;
-    const fields = detail['campos_digitales'] && typeof detail['campos_digitales'] === 'object'
-      ? detail['campos_digitales'] as Record<string, unknown>
-      : {};
-    const values = Object.entries(fields)
-      .map(([key, value]) => ({
-        label: this.humanizeDetailKey(key),
-        value: String(value ?? '').trim()
-      }))
-      .filter((item) => item.value);
-
-    const options = detail['opciones'] && typeof detail['opciones'] === 'object'
-      ? detail['opciones'] as Record<string, unknown>
-      : {};
-    for (const [key, value] of Object.entries(options)) {
-      if (Boolean(value)) values.push({ label: this.humanizeDetailKey(key), value: 'Sí' });
-    }
-
-    const tables = detail['tablas'] && typeof detail['tablas'] === 'object'
-      ? detail['tablas'] as Record<string, unknown>
-      : {};
-    for (const [tableKey, tableRows] of Object.entries(tables)) {
-      if (!Array.isArray(tableRows)) continue;
-      tableRows.forEach((rowValue, index) => {
-        if (!rowValue || typeof rowValue !== 'object') return;
-        const rowText = Object.entries(rowValue as Record<string, unknown>)
-          .map(([key, value]) => `${this.humanizeDetailKey(key)}: ${String(value ?? '').trim()}`)
-          .filter((item) => !item.endsWith(':'))
-          .join(' | ');
-        if (rowText) values.push({ label: `${this.humanizeDetailKey(tableKey)} ${index + 1}`, value: rowText });
-      });
-    }
-
-    return values;
-  }
-
-  dvsoDigitalFields(row: Submission | null) {
-    return this.digitalFormFields(row);
-  }
-
-  private humanizeDetailKey(key: string) {
-    return key
-      .replace(/_/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/^./, (char) => char.toUpperCase());
   }
 
   ailaValue(row: Submission | null, key: string) {
@@ -1683,10 +1322,10 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   stageAssignee(row: Submission, stage: 'emisor' | 'aprobador') {
+    if (this.isFinancialPaymentPasswordFlow(row)) return 'No aplica';
     if (stage === 'emisor') {
       return row.assigned_emisor_name || row.assigned_emisor_email || 'Sin asignar';
     }
-    if (this.isFinancialPaymentPasswordFlow(row)) return 'No aplica';
     return row.assigned_aprobador_name || row.assigned_aprobador_email || 'Sin asignar';
   }
 
@@ -1698,15 +1337,8 @@ export class ReviewPanelComponent implements OnChanges {
     }
     if (this.isDvsoSubmission(row)) {
       if (stage === 'analista') return 'Asistente DVSO';
-      if (this.isDvsoAeronavegabilidadSubmission(row) && stage === 'emisor') return 'Jefe de Sección de Aeronavegabilidad';
       if (stage === 'emisor') return 'Jefatura DVSO';
-      if (this.isDvsoOps805Submission(row)) return 'Jefatura OPS';
       return 'Inspector DVSO';
-    }
-    if (this.isFinancialPaymentPasswordFlow(row)) {
-      if (stage === 'analista') return 'Emisor';
-      if (stage === 'emisor') return 'Emisor';
-      return 'Aprobador';
     }
     if (stage === 'analista') return 'Analista';
     if (stage === 'emisor') return 'Emisor';
@@ -1724,21 +1356,11 @@ export class ReviewPanelComponent implements OnChanges {
   sendToEmitterLabel(row: Submission | null | undefined) {
     if (this.isAilaGenericFlow(row)) return 'Enviar a Jefatura AVSEC';
     if (this.isDvsoSubmission(row)) return 'Enviar a Jefatura DVSO';
-    if (this.isFinancialPaymentPasswordFlow(row)) return 'Asignar emisor';
     return 'Enviar a emisor';
-  }
-
-  assignsPaymentPasswordToEmitter(row: Submission | null | undefined) {
-    return Boolean(row?.id && this.isFinancialPaymentPasswordFlow(row));
   }
 
   sendToApproverLabel(row: Submission | null | undefined) {
     if (this.isAilaGenericFlow(row)) return 'Enviar a Jefatura AILA';
-    if (this.isDvsoOps805Submission(row)) {
-      return this.role === this.dvsoInspectorRole ? 'Enviar a Jefatura OPS' : 'Enviar a Inspector DVSO';
-    }
-    if (this.isDvsoAeronavegabilidadSubmission(row)) return 'Nombrar inspector';
-    if (this.isDvsoOperacionesSubmission(row)) return 'Nombrar Inspector RPAS';
     if (this.isDvsoSubmission(row)) return 'Enviar a Inspector DVSO';
     return 'Enviar a aprobador';
   }
@@ -1756,7 +1378,7 @@ export class ReviewPanelComponent implements OnChanges {
       docs.push({ key, label, filename });
     };
 
-    if (this.role === this.avsecFinancieroRole && this.isFinancialAvsecFlow(row)) {
+    if (this.role === this.financieroPagosRole && this.isFinancialPaymentsFlow(row)) {
       add('signed', 'Documento firmado', Boolean(row.has_signed_pdf || row.signed_pdf_filename), row.signed_pdf_filename);
       return docs;
     }
@@ -1778,10 +1400,6 @@ export class ReviewPanelComponent implements OnChanges {
     add('rpaDocumentoEstado', this.documentLabel(row, 'rpaDocumentoEstado'), Boolean(row.has_rpa_documento_estado || row.rpa_documento_estado_filename), row.rpa_documento_estado_filename);
     if (!this.isAilaGenericFlow(row)) {
       add('boleta', 'Boleta de pago', Boolean(row.has_analyst_pdf || row.analyst_pdf_filename), row.analyst_pdf_filename);
-    }
-    if (this.isRanSubmission(row)) {
-      add('deliveryPaymentReceipt', 'Boleta de pago entregada', Boolean(row.has_delivery_payment_receipt || row.delivery_payment_receipt_filename), row.delivery_payment_receipt_filename);
-      add('deliveryPackage', 'Expediente entregable', Boolean(row.has_delivery_package || row.delivery_package_filename), row.delivery_package_filename);
     }
     add('signed', 'Documento firmado', Boolean(row.has_signed_pdf || row.signed_pdf_filename), row.signed_pdf_filename);
     return docs;
@@ -1829,12 +1447,6 @@ export class ReviewPanelComponent implements OnChanges {
       case 'boleta':
         this.viewBoleta(row);
         break;
-      case 'deliveryPaymentReceipt':
-        this.viewBoleta(row);
-        break;
-      case 'deliveryPackage':
-        this.viewDeliveryPackage(row);
-        break;
       case 'signed':
         this.viewSignedPdf(row);
         break;
@@ -1846,14 +1458,6 @@ export class ReviewPanelComponent implements OnChanges {
     const actorEmail = this.normalizeDisplayText(entry.actor_email);
     if (actorName && actorEmail) return `${actorName} (${actorEmail})`;
     return actorName || actorEmail || 'Sistema';
-  }
-
-  displayLogLabel(entry: SubmissionLog) {
-    const label = this.normalizeDisplayText(entry?.event_label);
-    if (entry?.event_code === 'receptor_abre' || label === 'Receptor abrió el formulario') {
-      return 'Recepción abrió el formulario';
-    }
-    return label;
   }
 
   logComment(entry: SubmissionLog): string | null {
@@ -1957,9 +1561,6 @@ export class ReviewPanelComponent implements OnChanges {
     this.reviewComments = row.comentarios_revision || '';
     this.analystPdfFile = null;
     this.analystPdfError = '';
-    this.deliveryPaymentReceiptFile = null;
-    this.deliveryPackageFile = null;
-    this.deliveryDocumentsError = '';
     this.logs = [];
     if (this.canViewLogs && row.id) {
       this.loadLogs(row.id);
@@ -1995,9 +1596,6 @@ export class ReviewPanelComponent implements OnChanges {
     this.analystPdfError = '';
     this.signedPdfFile = null;
     this.signedPdfError = '';
-    this.deliveryPaymentReceiptFile = null;
-    this.deliveryPackageFile = null;
-    this.deliveryDocumentsError = '';
     this.logs = [];
     this.logsLoading = false;
   }
@@ -2093,11 +1691,6 @@ export class ReviewPanelComponent implements OnChanges {
     return 'Guardar cambios';
   }
 
-  canShowPrimarySaveAction() {
-    if (this.assignsPaymentPasswordToEmitter(this.selected) && this.role === 'revisor') return false;
-    return this.canEdit || this.canAssign;
-  }
-
   private openSubmissionPdf(path: string, errorMessage: string) {
     this.http.get(path, { responseType: 'blob' }).subscribe({
       next: (blob) => {
@@ -2114,22 +1707,6 @@ export class ReviewPanelComponent implements OnChanges {
   viewDpi(row: Submission) {
     if (!row.id) return;
     this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/dpi`, 'No se pudo abrir el DPI (revisa permisos o sesión).');
-  }
-
-  viewOriginalForm(row: Submission) {
-    if (!row.id) return;
-    this.openSubmissionPdf(
-      `${this.apiBase}/submissions/${row.id}/original-form`,
-      'No se pudo abrir el formulario DVSO (revisa permisos o sesión).'
-    );
-  }
-
-  viewSupportDocument(row: Submission, key: string) {
-    if (!row.id || !key) return;
-    this.openSubmissionPdf(
-      `${this.apiBase}/submissions/${row.id}/support-documents/${encodeURIComponent(key)}`,
-      'No se pudo abrir el documento soporte (revisa permisos o sesión).'
-    );
   }
 
   viewFinancialDeclaraguate(row: Submission, number: number) {
@@ -2195,21 +1772,12 @@ export class ReviewPanelComponent implements OnChanges {
     this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/boleta`, 'No se pudo abrir la boleta de pago (revisa permisos o sesión).');
   }
 
-  viewDeliveryPackage(row: Submission) {
-    if (!row.id) return;
-    this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/expediente-entregable`, 'No se pudo abrir el expediente entregable (revisa permisos o sesión).');
-  }
-
   viewSignedPdf(row: Submission) {
     if (!row.id) return;
     this.openSubmissionPdf(`${this.apiBase}/submissions/${row.id}/documento-firmado`, 'No se pudo abrir el documento firmado (revisa permisos o sesión).');
   }
 
   canSendSelectedToEmitter() {
-    if (this.isFinancialPaymentPasswordFlow(this.selected)) {
-      if (!this.selected?.id || this.selected.assigned_emisor_id || this.selected.delivered_at) return false;
-      return this.role === 'revisor' || this.role === 'admin' || this.role === 'supervisor';
-    }
     if (this.isDvsoSubmission(this.selected)) {
       if (!this.selected) return false;
       if (this.dvsoStage(this.selected) !== 'asistente_revision') return false;
@@ -2244,11 +1812,8 @@ export class ReviewPanelComponent implements OnChanges {
 
   canReturnToUserSelected() {
     if (!this.canReturn) return false;
-    if (this.role === 'emisor' && this.isFinancialSubmission(this.selected) && !this.isFinancialPaymentPasswordFlow(this.selected)) return false;
+    if (this.role === 'emisor' && this.isFinancialSubmission(this.selected)) return false;
     if (this.isDvsoSubmission(this.selected)) {
-      if (this.isDvsoOps805Submission(this.selected)) {
-        return this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
-      }
       return this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
     }
     return true;
@@ -2256,18 +1821,6 @@ export class ReviewPanelComponent implements OnChanges {
 
   canReturnToDvsoJefatura() {
     if (!this.selected?.id || !this.isDvsoSubmission(this.selected)) return false;
-    if (this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected)) {
-      if (this.dvsoStage(this.selected) !== 'inspector_revision') return false;
-      if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoInspectorRole &&
-        Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
-    }
-    if (this.isDvsoOps805Submission(this.selected)) {
-      if (this.dvsoStage(this.selected) !== 'jefatura_ops_revision') return false;
-      if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoJefaturaOpsRole &&
-        Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
-    }
     if (this.dvsoStage(this.selected) !== 'inspector_revision') return false;
     if (this.role === 'admin' || this.role === 'supervisor') return true;
     return this.role === this.dvsoInspectorRole &&
@@ -2285,14 +1838,6 @@ export class ReviewPanelComponent implements OnChanges {
   canSendSelectedToApprover() {
     if (!this.selected || this.isFinancialPaymentPasswordFlow(this.selected)) return false;
     if (this.isDvsoSubmission(this.selected)) {
-      if (this.isDvsoAeronavegabilidadSubmission(this.selected)) {
-        if (this.dvsoStage(this.selected) !== 'jefe_revision') return false;
-        return this.role === this.dvsoJefeAeronavegabilidadRole || this.role === 'admin' || this.role === 'supervisor';
-      }
-      if (this.isDvsoOperacionesSubmission(this.selected)) {
-        if (this.dvsoStage(this.selected) !== 'jefe_revision') return false;
-        return this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
-      }
       if (this.dvsoStage(this.selected) !== 'jefatura_revision') return false;
       if (this.role === 'admin' || this.role === 'supervisor') return true;
       return this.role === this.dvsoJefaturaRole &&
@@ -2314,19 +1859,6 @@ export class ReviewPanelComponent implements OnChanges {
     const unit = String(this.selected?.unidad_clave || 'GENERAL').toUpperCase();
     return this.approvers.filter((approver) => {
       const units = (approver.unit_access || []).map((item) => String(item || '').toUpperCase());
-      const role = String(approver.role || '').trim().toLowerCase();
-      if (this.isDvsoAeronavegabilidadSubmission(this.selected)) {
-        if (role !== this.dvsoInspectorRole) return false;
-      }
-      if (this.isDvsoOperacionesSubmission(this.selected)) {
-        if (role !== this.dvsoInspectorRole) return false;
-      }
-      if (this.isDvsoOps805Submission(this.selected)) {
-        const stage = this.dvsoStage(this.selected);
-        if (stage === 'jefatura_revision' && role !== this.dvsoInspectorRole) return false;
-        if (stage === 'inspector_revision' && role !== this.dvsoJefaturaOpsRole) return false;
-      }
-      if (this.isDvsoSubmission(this.selected) && !this.isDvsoOps805Submission(this.selected) && role === this.dvsoJefaturaOpsRole) return false;
       return units.includes(unit);
     });
   }
@@ -2342,14 +1874,6 @@ export class ReviewPanelComponent implements OnChanges {
   canApproveSelected() {
     if (this.isDvsoSubmission(this.selected)) {
       if (!this.selected) return false;
-      if (this.isDvsoAeronavegabilidadSubmission(this.selected)) {
-        if (this.dvsoStage(this.selected) !== 'jefe_firma') return false;
-        return this.role === this.dvsoJefeAeronavegabilidadRole || this.role === 'admin' || this.role === 'supervisor';
-      }
-      if (this.isDvsoOperacionesSubmission(this.selected)) {
-        if (this.dvsoStage(this.selected) !== 'jefe_firma') return false;
-        return this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
-      }
       if (this.dvsoStage(this.selected) !== 'jefatura_aprobacion') return false;
       if (this.role === 'admin' || this.role === 'supervisor') return true;
       return this.role === this.dvsoJefaturaRole &&
@@ -2390,34 +1914,38 @@ export class ReviewPanelComponent implements OnChanges {
     if (this.isAilaGenericFlow(row)) return false;
     if (this.isDvsoSubmission(row)) return false;
     if (this.isFinancialApproverView(row)) return false;
-    return String(row.unidad_clave || '').toUpperCase() !== 'RAN';
+    return Boolean(
+      this.canUseElectronicSignature(row) ||
+      this.showManualSignedUpload(row) ||
+      row.has_signed_pdf ||
+      row.signed_pdf_filename
+    );
+  }
+
+  canUseElectronicSignature(row: Submission | null | undefined) {
+    if (!row?.id || row.approved_at || row.delivered_at) return false;
+    if (!this.currentUserEmail) return false;
+    if (String(row.unidad_clave || '').toUpperCase() !== 'RAN') return false;
+    if (!(this.role === 'aprobador' || this.role === 'admin' || this.role === 'supervisor')) return false;
+    if (!row.has_analyst_pdf && !row.analyst_pdf_filename) return false;
+    if (this.role === 'aprobador' && Number(row.assigned_aprobador_id) !== Number(this.currentUserId)) return false;
+    return true;
+  }
+
+  showManualSignedUpload(row: Submission | null | undefined) {
+    if (!row?.id) return false;
+    if (String(row.unidad_clave || '').toUpperCase() === 'RAN') return false;
+    return Boolean(this.canApproveSelected() || this.canUploadFinalSignedPdf(row));
   }
 
   canUploadAnalystPdf(row: Submission | null | undefined) {
     if (!row?.id) return false;
     if (this.isAilaGenericFlow(row)) return false;
     if (row.approved_at || row.delivered_at) return false;
-    if (this.isDvsoOps805Submission(row)) {
-      if (this.role === 'admin' || this.role === 'supervisor') return true;
-      if (this.role === this.dvsoJefaturaRole) {
-        return Number(row.assigned_emisor_id) === Number(this.currentUserId) &&
-          this.dvsoStage(row) === 'jefatura_revision';
-      }
-      if (this.role === this.dvsoInspectorRole) {
-        return Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
-          (this.dvsoStage(row) === 'inspector_revision' || this.dvsoStage(row) === 'inspector_envio' || this.dvsoStage(row) === 'inspector_finalizacion');
-      }
-      if (this.role === this.dvsoJefaturaOpsRole) {
-        return this.dvsoStage(row) === 'jefe_revision' ||
-          this.dvsoStage(row) === 'jefe_firma' ||
-          (Number(row.assigned_aprobador_id) === Number(this.currentUserId) && this.dvsoStage(row) === 'jefatura_ops_revision');
-      }
-      return false;
-    }
     if (this.isFinancialSubmission(row)) {
       if (this.isFinancialPaymentPasswordFlow(row)) {
-        if (!(this.role === 'emisor' || this.role === 'admin' || this.role === 'supervisor')) return false;
-        if (this.role === 'emisor' && Number(row.assigned_emisor_id) !== Number(this.currentUserId)) return false;
+        if (!(this.role === 'analista' || this.role === 'admin' || this.role === 'supervisor')) return false;
+        if (this.role === 'analista' && Number(row.assigned_analista_id) !== Number(this.currentUserId)) return false;
         return true;
       }
       return false;
@@ -2432,15 +1960,7 @@ export class ReviewPanelComponent implements OnChanges {
       return false;
     }
     if (this.isDvsoSubmission(row || null)) {
-      return this.isDvsoOps805Submission(row || null) && Boolean(
-        row?.id &&
-        (this.canUploadAnalystPdf(row) ||
-          this.canSendSelectedToApprover() ||
-          this.canReturnToDvsoJefatura() ||
-          this.canMarkDelivered(row) ||
-          row.has_analyst_pdf ||
-          row.analyst_pdf_filename)
-      );
+      return false;
     }
     if (this.isFinancialSubmission(row || null)) {
       if (!this.isFinancialPaymentPasswordFlow(row || null)) {
@@ -2467,9 +1987,6 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   processPdfPanelTitle(row: Submission | null | undefined) {
-    if (this.isDvsoOps805Submission(row || null)) {
-      return 'Archivo del proceso DVSO-OPS-805';
-    }
     if (this.isFinancialPaymentPasswordFlow(row || null)) {
       return 'Boleta de pago (este proceso)';
     }
@@ -2479,8 +1996,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   boletaLockedForAnalyst() {
-    if (!this.selected) return false;
-    if (this.isDvsoOps805Submission(this.selected)) return Boolean(this.selected.delivered_at);
+    if (!this.selected) return false; 
     if (this.isFinancialSubmission(this.selected)) {
       if (this.isFinancialPaymentPasswordFlow(this.selected)) {
         return Boolean(this.selected.delivered_at);
@@ -2502,21 +2018,18 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   analystPdfSelectLabel(row: Submission | null | undefined) {
-    if (this.isDvsoOps805Submission(row || null)) return 'Seleccionar archivo del proceso...';
     if (this.isFinancialPaymentPasswordFlow(row || null)) return 'Seleccionar boleta de pago...';
     if (this.isFinancialSubmission(row || null)) return 'Seleccionar documento PDF...';
     return 'Seleccionar boleta de pago...';
   }
 
   analystPdfUploadingLabel(row: Submission | null | undefined) {
-    if (this.isDvsoOps805Submission(row || null)) return 'Cargando archivo del proceso...';
     if (this.isFinancialPaymentPasswordFlow(row || null)) return 'Cargando boleta de pago...';
     if (this.isFinancialSubmission(row || null)) return 'Cargando documento PDF...';
     return 'Cargando boleta de pago...';
   }
 
   analystPdfCurrentLabel(row: Submission | null | undefined) {
-    if (this.isDvsoOps805Submission(row || null)) return 'Archivo actual';
     if (this.isFinancialPaymentPasswordFlow(row || null)) return 'Boleta actual';
     if (this.isFinancialSubmission(row || null)) return 'Documento actual';
     return 'Boleta actual';
@@ -2703,6 +2216,45 @@ export class ReviewPanelComponent implements OnChanges {
     });
   }
 
+  handleSignatureCompleted(resp: SignatureResult) {
+    if (this.selected) {
+      this.selected.has_signed_pdf = true;
+      this.selected.signed_pdf_filename = resp.signed_pdf_filename || this.selected.signed_pdf_filename || null;
+      this.selected.signed_pdf_mime = resp.signed_pdf_mime || 'application/pdf';
+      this.selected.signed_pdf_uploaded_at = resp.signed_pdf_uploaded_at || new Date().toISOString();
+      this.selected.signature_status = resp.signature_status ?? 'signed';
+      this.selected.signature_provider = resp.signature_provider ?? 'prisma';
+      this.selected.signature_requested_at = resp.signature_requested_at ?? this.selected.signature_requested_at ?? null;
+      this.selected.signature_completed_at = resp.signature_completed_at ?? new Date().toISOString();
+      this.selected.signature_failed_at = null;
+      this.selected.approved_at = resp.approved_at ?? this.selected.approved_at ?? null;
+    }
+    if (this.edit) {
+      this.edit.has_signed_pdf = this.selected?.has_signed_pdf || true;
+      this.edit.signed_pdf_filename = this.selected?.signed_pdf_filename || null;
+      this.edit.signed_pdf_mime = this.selected?.signed_pdf_mime || null;
+      this.edit.signed_pdf_uploaded_at = this.selected?.signed_pdf_uploaded_at || null;
+      this.edit.signature_status = this.selected?.signature_status || 'signed';
+      this.edit.signature_provider = this.selected?.signature_provider || 'prisma';
+      this.edit.signature_requested_at = this.selected?.signature_requested_at || null;
+      this.edit.signature_completed_at = this.selected?.signature_completed_at || null;
+      this.edit.signature_failed_at = null;
+      this.edit.approved_at = resp.approved_at ?? this.edit.approved_at ?? null;
+    }
+    this.status = 'Documento firmado correctamente.';
+    if (this.selected?.id) {
+      this.loadLogs(this.selected.id);
+    }
+    this.updated.emit();
+  }
+
+  handleSignatureFailed(message: string) {
+    this.status = message || 'No se pudo firmar el documento.';
+    if (this.selected?.id) {
+      this.loadLogs(this.selected.id);
+    }
+  }
+
   private readFileAsBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -2717,53 +2269,13 @@ export class ReviewPanelComponent implements OnChanges {
     });
   }
 
-  private isRanSubmission(row: Submission | null | undefined) {
-    return String(row?.unidad_clave || '').toUpperCase() === 'RAN';
-  }
-
-  requiresRanDeliveryDocuments(row: Submission | null | undefined) {
-    return Boolean(row?.id && this.isRanSubmission(row) && row.approved_at && !row.delivered_at && this.canDeliverRole);
-  }
-
-  ranDeliveryDocumentsReady(row: Submission | null | undefined) {
-    if (!this.requiresRanDeliveryDocuments(row)) return true;
-    return Boolean(this.deliveryPaymentReceiptFile && this.deliveryPackageFile);
-  }
-
-  private selectDeliveryPdf(event: Event, target: 'payment' | 'package') {
-    const input = event.target as HTMLInputElement | null;
-    const file = input?.files?.[0] || null;
-    if (target === 'payment') {
-      this.deliveryPaymentReceiptFile = null;
-    } else {
-      this.deliveryPackageFile = null;
+  statusClass(row: Submission) {
+    if (row.returned_at || row.returned_to_analista_at) return 'state-returned';
+    if (row.assigned_aprobador_id || row.sent_to_aprobador_at || row.assigned_emisor_id || row.sent_to_emisor_at || row.assigned_analista_id) {
+      return 'state-assigned';
     }
-    this.deliveryDocumentsError = '';
-    if (!file) return;
-    if (file.type !== 'application/pdf') {
-      this.deliveryDocumentsError = 'Los documentos de entrega deben ser PDF.';
-      if (input) input.value = '';
-      return;
-    }
-    if (file.size > this.maxPdfSizeBytes) {
-      this.deliveryDocumentsError = 'Cada PDF no puede superar los 50 MB.';
-      if (input) input.value = '';
-      return;
-    }
-    if (target === 'payment') {
-      this.deliveryPaymentReceiptFile = file;
-    } else {
-      this.deliveryPackageFile = file;
-    }
-    if (input) input.value = '';
-  }
-
-  onDeliveryPaymentReceiptSelected(event: Event) {
-    this.selectDeliveryPdf(event, 'payment');
-  }
-
-  onDeliveryPackageSelected(event: Event) {
-    this.selectDeliveryPdf(event, 'package');
+    if (!row.receptor_opened_at) return 'state-unopened';
+    return 'state-pending';
   }
 
   isInternalRole() {
@@ -2775,17 +2287,6 @@ export class ReviewPanelComponent implements OnChanges {
       const stage = this.dvsoStage(row);
       if (row.delivered_at) return 'Entregado';
       if (row.returned_at) return 'Devuelto';
-      if (this.isDvsoOps805Submission(row) && stage === 'inspector_envio') return 'Autorización firmada - envío final';
-      if (this.isDvsoOps805Submission(row) && stage === 'jefe_firma') return 'En firma de Jefatura de Operaciones';
-      if (this.isDvsoOps805Submission(row) && stage === 'jefe_revision') return 'En Jefatura de Operaciones';
-      if (this.isDvsoOps805Submission(row) && stage === 'inspector_finalizacion') return 'Devuelto a inspector';
-      if (this.isDvsoOps805Submission(row) && stage === 'jefatura_ops_revision') return 'En Jefatura OPS';
-      if (this.isDvso801Submission(row) && stage === 'inspector_envio') return 'Dictamen firmado - envío final';
-      if (this.isDvso801Submission(row) && stage === 'jefe_firma') return 'En firma de Jefatura de Operaciones';
-      if (this.isDvso801Submission(row) && stage === 'jefe_revision') return 'En Jefatura de Operaciones';
-      if (this.isDvsoAeronavegabilidadSubmission(row) && stage === 'inspector_envio') return this.isDvso800Submission(row) ? 'Permiso firmado - envío final' : 'Certificado firmado - envío final';
-      if (this.isDvsoAeronavegabilidadSubmission(row) && stage === 'jefe_firma') return 'En firma de Jefe de Sección';
-      if (this.isDvsoAeronavegabilidadSubmission(row) && stage === 'jefe_revision') return 'En Jefe de Sección';
       if (stage === 'recepcion_entrega') return 'En recepción';
       if (stage === 'asistente_sello') return 'En sello';
       if (stage === 'jefatura_aprobacion') return 'En jefatura';
@@ -2813,9 +2314,6 @@ export class ReviewPanelComponent implements OnChanges {
     if (row.delivered_at) return 'state-entregado';
     if (this.isFinancialPaymentPasswordFlow(row) && (row.has_analyst_pdf || row.analyst_pdf_filename)) return 'state-en-aprobacion';
     if (row.approved_at) return 'state-aprobado';
-    if (this.currentRoleOwnsStage(row)) {
-      return this.hasCurrentRoleOpened(row) ? 'state-recepcion' : 'state-enviado';
-    }
     if (row.assigned_aprobador_id || row.sent_to_aprobador_at) return 'state-en-aprobacion';
     if (row.assigned_emisor_id || row.sent_to_emisor_at) return 'state-asignado';
     if (row.assigned_analista_id) return 'state-asignado';
@@ -2823,103 +2321,16 @@ export class ReviewPanelComponent implements OnChanges {
     return 'state-enviado';
   }
 
-  currentRoleOwnsStage(row: Submission | null | undefined) {
-    if (!row) return false;
-    const role = String(this.role || '').trim().toLowerCase();
-    if (role === 'revisor') return !row.assigned_analista_id;
-    if (role === this.ailaRecepcionRole) return this.isAilaGenericFlow(row) && !row.assigned_analista_id;
-    if (role === this.dvsoRecepcionRole) {
-      const stage = this.dvsoStage(row);
-      return this.isDvsoSubmission(row) && (stage === 'recepcion' || stage === 'recepcion_entrega');
-    }
-    if (role === 'analista') return Number(row.assigned_analista_id) === Number(this.currentUserId) && !row.sent_to_emisor_at && !row.sent_to_aprobador_at;
-    if (role === this.ailaRecepcionAvsecRole) {
-      return this.isAilaGenericFlow(row) && Number(row.assigned_analista_id) === Number(this.currentUserId);
-    }
-    if (role === this.dvsoAsistenteRole) {
-      const stage = this.dvsoStage(row);
-      return this.isDvsoSubmission(row) &&
-        Number(row.assigned_analista_id) === Number(this.currentUserId) &&
-        (stage === 'asistente_revision' || stage === 'asistente_sello');
-    }
-    if (role === 'emisor') return Number(row.assigned_emisor_id) === Number(this.currentUserId) && !row.sent_to_aprobador_at;
-    if (role === this.ailaJefaturaAvsecRole) {
-      return this.isAilaGenericFlow(row) && Number(row.assigned_emisor_id) === Number(this.currentUserId);
-    }
-    if (role === this.dvsoJefaturaRole) {
-      const stage = this.dvsoStage(row);
-      return this.isDvsoSubmission(row) &&
-        Number(row.assigned_emisor_id) === Number(this.currentUserId) &&
-        (stage === 'jefatura_revision' || stage === 'jefatura_aprobacion');
-    }
-    if (role === this.dvsoJefeAeronavegabilidadRole) {
-      const stage = this.dvsoStage(row);
-      return this.isDvsoAeronavegabilidadSubmission(row) && (stage === 'jefe_revision' || stage === 'jefe_firma');
-    }
-    if (role === 'aprobador') return Number(row.assigned_aprobador_id) === Number(this.currentUserId);
-    if (role === this.ailaJefaturaAilaRole) return this.isAilaGenericFlow(row) && Number(row.assigned_aprobador_id) === Number(this.currentUserId);
-    if (role === this.dvsoInspectorRole) {
-      return this.isDvsoSubmission(row) &&
-        Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
-        (
-          (!this.isDvsoOps805Submission(row) && (this.dvsoStage(row) === 'inspector_revision' || (this.isDvsoAeronavegabilidadSubmission(row) && this.dvsoStage(row) === 'inspector_envio'))) ||
-          (this.isDvsoOps805Submission(row) && (this.dvsoStage(row) === 'inspector_revision' || this.dvsoStage(row) === 'inspector_envio' || this.dvsoStage(row) === 'inspector_finalizacion'))
-        );
-    }
-    if (role === this.dvsoJefaturaOpsRole) {
-      const stage = this.dvsoStage(row);
-      return (
-        this.isDvsoOps805Submission(row) &&
-        Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
-        stage === 'jefatura_ops_revision'
-      ) || (
-        this.isDvsoOperacionesSubmission(row) &&
-        (stage === 'jefe_revision' || stage === 'jefe_firma')
-      );
-    }
-    return false;
-  }
-
   private markAsOpened(row: Submission) {
-    if (!this.currentRoleOwnsStage(row) || !row.id || this.hasCurrentRoleOpened(row)) return;
-    this.applyLocalOpenedState(row);
-    this.http.post<{ receptor_opened_at: string; detalle_formulario?: Record<string, unknown> }>(`${this.apiBase}/submissions/${row.id}/open`, {}).subscribe({
+    if ((this.role !== 'revisor' && this.role !== this.dvsoRecepcionRole) || !row.id || row.receptor_opened_at) return;
+    this.http.post<{ receptor_opened_at: string }>(`${this.apiBase}/submissions/${row.id}/open`, {}).subscribe({
       next: (resp) => {
-        const markerKey = this.currentStageOpenMarkerKey(row);
-        const markerAt = new Date().toISOString();
-        const mergeOpenedDetail = (target: Submission, incoming?: Record<string, unknown>) => {
-          const currentDetail = target.detalle_formulario && typeof target.detalle_formulario === 'object'
-            ? target.detalle_formulario as Record<string, unknown>
-            : {};
-          const nextDetail = incoming && typeof incoming === 'object'
-            ? { ...currentDetail, ...incoming }
-            : { ...currentDetail };
-          const currentMarkers = nextDetail['opened_stage_markers'] && typeof nextDetail['opened_stage_markers'] === 'object'
-            ? nextDetail['opened_stage_markers'] as Record<string, unknown>
-            : {};
-          if (markerKey) {
-            nextDetail['opened_stage_markers'] = {
-              ...currentMarkers,
-              [markerKey]: currentMarkers[markerKey] || markerAt
-            };
-          }
-          target.detalle_formulario = nextDetail as Submission['detalle_formulario'];
-        };
         row.receptor_opened_at = resp.receptor_opened_at;
-        mergeOpenedDetail(row, resp.detalle_formulario);
         if (this.edit?.id === row.id) {
           this.edit.receptor_opened_at = resp.receptor_opened_at;
-          mergeOpenedDetail(this.edit, resp.detalle_formulario);
         }
         if (this.selected?.id === row.id) {
           this.loadLogs(row.id);
-        }
-      },
-      error: () => {
-        const markerKey = this.currentStageOpenMarkerKey(row);
-        if (markerKey) {
-          this.openedStageCache.delete(markerKey);
-          this.persistOpenedStageCache();
         }
       }
     });
@@ -2979,12 +2390,7 @@ export class ReviewPanelComponent implements OnChanges {
   sendToApprover() {
     if (!this.selected || !this.selected.id || !this.canSendSelectedToApprover()) return;
     this.sendingToApprover = true;
-    const sendingOps805FromInspector = this.isDvsoOps805Submission(this.selected) && this.role === this.dvsoInspectorRole;
-    this.status = sendingOps805FromInspector
-      ? 'Enviando a Jefatura OPS...'
-      : this.isDvsoSubmission(this.selected)
-        ? 'Enviando a inspector DVSO...'
-        : 'Enviando a aprobador...';
+    this.status = this.isDvsoSubmission(this.selected) ? 'Enviando a inspector DVSO...' : 'Enviando a aprobador...';
     this.http.post<{ assigned_aprobador_id: number; sent_to_aprobador_at: string; assigned_aprobador_name?: string | null; assigned_aprobador_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-approver`,
       {
@@ -3001,10 +2407,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.returned_to_analista_at = null;
           this.selected.returned_to_analista_reason = null;
           if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
-            this.selected.detalle_formulario = {
-              ...this.selected.detalle_formulario,
-              dvso_stage: sendingOps805FromInspector ? 'jefatura_ops_revision' : 'inspector_revision'
-            };
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'inspector_revision' };
           }
         }
         if (this.edit) {
@@ -3015,18 +2418,11 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.returned_to_analista_at = null;
           this.edit.returned_to_analista_reason = null;
           if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
-            this.edit.detalle_formulario = {
-              ...this.edit.detalle_formulario,
-              dvso_stage: sendingOps805FromInspector ? 'jefatura_ops_revision' : 'inspector_revision'
-            };
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'inspector_revision' };
           }
         }
         this.sendingToApprover = false;
-        this.status = sendingOps805FromInspector
-          ? 'Formulario enviado a Jefatura OPS.'
-          : this.isDvsoSubmission(this.selected)
-            ? 'Formulario enviado al inspector DVSO.'
-            : 'Formulario enviado al aprobador.';
+        this.status = this.isDvsoSubmission(this.selected) ? 'Formulario enviado al inspector DVSO.' : 'Formulario enviado al aprobador.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
         }
@@ -3064,10 +2460,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.returned_at = null;
           this.selected.returned_reason = null;
           if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
-            this.selected.detalle_formulario = {
-              ...this.selected.detalle_formulario,
-              dvso_stage: (this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected)) ? 'inspector_envio' : 'asistente_sello'
-            };
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'asistente_sello' };
           }
         }
         if (this.edit) {
@@ -3081,10 +2474,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.returned_at = null;
           this.edit.returned_reason = null;
           if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
-            this.edit.detalle_formulario = {
-              ...this.edit.detalle_formulario,
-              dvso_stage: (this.isDvsoAeronavegabilidadSubmission(this.edit) || this.isDvsoOperacionesSubmission(this.edit)) ? 'inspector_envio' : 'asistente_sello'
-            };
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'asistente_sello' };
           }
         }
         this.returnReason = '';
@@ -3218,17 +2608,13 @@ export class ReviewPanelComponent implements OnChanges {
 
   returnToDvsoJefatura() {
     if (!this.selected?.id || !this.canReturnToDvsoJefatura()) return;
-    const reason = this.returnReason.trim() || this.reviewComments.trim() || ((this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected)) ? 'Documentación completa y conforme; se envía a firma.' : '');
+    const reason = this.returnReason.trim() || this.reviewComments.trim();
     if (!reason) {
-      this.status = this.isDvsoOps805Submission(this.selected)
-        ? 'Debes indicar el comentario para el inspector.'
-        : 'Debes indicar el comentario para jefatura DVSO.';
+      this.status = 'Debes indicar el comentario para jefatura DVSO.';
       return;
     }
     this.returning = true;
-    const returningOps805ToInspector = this.isDvsoOps805Submission(this.selected);
-    const sendingDvso639ToChief = this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected);
-    this.status = this.isDvsoOperacionesSubmission(this.selected) ? 'Enviando a Jefatura de Operaciones...' : sendingDvso639ToChief ? 'Enviando a Jefe de Sección...' : returningOps805ToInspector ? 'Devolviendo a inspector...' : 'Devolviendo a jefatura DVSO...';
+    this.status = 'Devolviendo a jefatura DVSO...';
     this.http.post<{ comentarios_revision?: string | null; assigned_aprobador_id?: number | null; sent_to_aprobador_at?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/dvso-return-to-jefatura`,
       { reason }
@@ -3239,10 +2625,7 @@ export class ReviewPanelComponent implements OnChanges {
           this.selected.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
           this.selected.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
           if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object') {
-            this.selected.detalle_formulario = {
-              ...this.selected.detalle_formulario,
-              dvso_stage: sendingDvso639ToChief ? 'jefe_firma' : returningOps805ToInspector ? 'inspector_finalizacion' : 'jefatura_aprobacion'
-            };
+            this.selected.detalle_formulario = { ...this.selected.detalle_formulario, dvso_stage: 'jefatura_aprobacion' };
           }
         }
         if (this.edit) {
@@ -3250,21 +2633,18 @@ export class ReviewPanelComponent implements OnChanges {
           this.edit.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
           this.edit.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
           if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object') {
-            this.edit.detalle_formulario = {
-              ...this.edit.detalle_formulario,
-              dvso_stage: sendingDvso639ToChief ? 'jefe_firma' : returningOps805ToInspector ? 'inspector_finalizacion' : 'jefatura_aprobacion'
-            };
+            this.edit.detalle_formulario = { ...this.edit.detalle_formulario, dvso_stage: 'jefatura_aprobacion' };
           }
         }
         this.returning = false;
-        this.status = this.isDvsoOperacionesSubmission(this.selected) ? 'Proceso enviado a Jefatura de Operaciones.' : sendingDvso639ToChief ? 'Proceso enviado a Jefe de Sección.' : returningOps805ToInspector ? 'Proceso devuelto a inspector.' : 'Proceso devuelto a jefatura DVSO.';
+        this.status = 'Proceso devuelto a jefatura DVSO.';
         if (this.selected?.id) this.loadLogs(this.selected.id);
         this.cancel();
         this.updated.emit();
       },
       error: (err) => {
         this.returning = false;
-        this.status = err?.error?.error || (this.isDvsoOperacionesSubmission(this.selected) ? 'No se pudo enviar el proceso a Jefatura de Operaciones.' : returningOps805ToInspector ? 'No se pudo devolver el proceso a inspector.' : 'No se pudo devolver el proceso a jefatura DVSO.');
+        this.status = err?.error?.error || 'No se pudo devolver el proceso a jefatura DVSO.';
       }
     });
   }
@@ -3304,20 +2684,7 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   canMarkDelivered(row: Submission | null | undefined) {
-    if (!row?.id) return false;
-    if ((this.isDvsoAeronavegabilidadSubmission(row) || this.isDvsoOperacionesSubmission(row)) && this.dvsoStage(row) === 'inspector_envio') {
-      if (row.delivered_at) return false;
-      if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoInspectorRole &&
-        Number(row.assigned_aprobador_id) === Number(this.currentUserId);
-    }
-    if (this.isDvsoOps805Submission(row) && this.dvsoStage(row) === 'inspector_finalizacion') {
-      if (row.delivered_at) return false;
-      if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoInspectorRole &&
-        Number(row.assigned_aprobador_id) === Number(this.currentUserId);
-    }
-    if (!this.canDeliverRole) return false;
+    if (!this.canDeliverRole || !row?.id) return false;
     const unit = String(row.unidad_clave || '').toUpperCase();
     if (unit === 'RAN') return Boolean(row.approved_at) && !row.delivered_at;
     if (unit === 'DVSO') return Boolean(row.approved_at) && this.dvsoStage(row) === 'recepcion_entrega' && !row.delivered_at;
@@ -3331,69 +2698,32 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   deliveryActionLabel(row: Submission | null | undefined) {
-    if (this.isDvso801Submission(row || null)) return 'Enviar dictamen';
-    if (this.isDvsoOps805Submission(row || null)) return 'Enviar autorización';
-    if (this.isDvsoAeronavegabilidadSubmission(row || null)) return this.isDvso800Submission(row || null) ? 'Enviar permiso' : 'Enviar certificado';
     return this.isFinancialSubmission(row || null) ? 'Marcar finalizado' : 'Marcar entregado';
   }
 
   requiresSignedPdfBeforeApprove(row: Submission | null | undefined) {
     if (!row?.id) return false;
     const unit = String(row.unidad_clave || '').toUpperCase();
+    if (unit === 'RAN') {
+      return !(row.has_signed_pdf || row.signed_pdf_filename);
+    }
     if (unit !== 'FINANCIERO') return false;
     return false;
   }
 
   markDelivered() {
     if (!this.selected?.id || !this.canMarkDelivered(this.selected)) return;
-    const requiresRanDocs = this.requiresRanDeliveryDocuments(this.selected);
-    if (requiresRanDocs && (!this.deliveryPaymentReceiptFile || !this.deliveryPackageFile)) {
-      this.deliveryDocumentsError = 'Carga la boleta de pago y el expediente entregable antes de marcar como entregado.';
-      return;
-    }
     this.delivering = true;
     const isFinancial = this.isFinancialSubmission(this.selected);
-    const isDvsoOps805 = this.isDvsoOps805Submission(this.selected);
-    this.status = isFinancial || isDvsoOps805 ? 'Marcando finalización...' : 'Marcando entrega...';
-
-    const sendDelivery = (body: Record<string, unknown>) => {
-      this.http.post<{
-        delivered_at: string;
-        delivery_payment_receipt_filename?: string | null;
-        delivery_payment_receipt_mime?: string | null;
-        delivery_documents_uploaded_at?: string | null;
-        delivery_documents_uploaded_by_user_id?: number | null;
-        has_delivery_payment_receipt?: boolean | null;
-        delivery_package_filename?: string | null;
-        delivery_package_mime?: string | null;
-        has_delivery_package?: boolean | null;
-      }>(`${this.apiBase}/submissions/${this.selected?.id}/deliver`, body).subscribe({
+    this.status = isFinancial ? 'Marcando finalización...' : 'Marcando entrega...';
+    this.http.post<{ delivered_at: string }>(`${this.apiBase}/submissions/${this.selected.id}/deliver`, {}).subscribe({
       next: (resp) => {
         if (this.selected) {
           this.selected.delivered_at = resp.delivered_at;
-          this.selected.delivery_payment_receipt_filename = resp.delivery_payment_receipt_filename || this.deliveryPaymentReceiptFile?.name || this.selected.delivery_payment_receipt_filename || null;
-          this.selected.delivery_payment_receipt_mime = resp.delivery_payment_receipt_mime || this.deliveryPaymentReceiptFile?.type || this.selected.delivery_payment_receipt_mime || null;
-          this.selected.delivery_documents_uploaded_at = resp.delivery_documents_uploaded_at || this.selected.delivery_documents_uploaded_at || null;
-          this.selected.delivery_documents_uploaded_by_user_id = resp.delivery_documents_uploaded_by_user_id || this.selected.delivery_documents_uploaded_by_user_id || null;
-          this.selected.has_delivery_payment_receipt = resp.has_delivery_payment_receipt ?? this.selected.has_delivery_payment_receipt ?? requiresRanDocs;
-          this.selected.delivery_package_filename = resp.delivery_package_filename || this.deliveryPackageFile?.name || this.selected.delivery_package_filename || null;
-          this.selected.delivery_package_mime = resp.delivery_package_mime || this.deliveryPackageFile?.type || this.selected.delivery_package_mime || null;
-          this.selected.has_delivery_package = resp.has_delivery_package ?? this.selected.has_delivery_package ?? requiresRanDocs;
         }
         if (this.edit) {
           this.edit.delivered_at = resp.delivered_at;
-          this.edit.delivery_payment_receipt_filename = this.selected?.delivery_payment_receipt_filename || null;
-          this.edit.delivery_payment_receipt_mime = this.selected?.delivery_payment_receipt_mime || null;
-          this.edit.delivery_documents_uploaded_at = this.selected?.delivery_documents_uploaded_at || null;
-          this.edit.delivery_documents_uploaded_by_user_id = this.selected?.delivery_documents_uploaded_by_user_id || null;
-          this.edit.has_delivery_payment_receipt = this.selected?.has_delivery_payment_receipt || null;
-          this.edit.delivery_package_filename = this.selected?.delivery_package_filename || null;
-          this.edit.delivery_package_mime = this.selected?.delivery_package_mime || null;
-          this.edit.has_delivery_package = this.selected?.has_delivery_package || null;
         }
-        this.deliveryPaymentReceiptFile = null;
-        this.deliveryPackageFile = null;
-        this.deliveryDocumentsError = '';
         this.delivering = false;
         this.status = isFinancial ? 'Proceso marcado como finalizado.' : 'Proceso marcado como entregado al usuario.';
         if (this.selected?.id) {
@@ -3405,32 +2735,7 @@ export class ReviewPanelComponent implements OnChanges {
       error: (err) => {
         this.delivering = false;
         this.status = err?.error?.error || 'No se pudo marcar la entrega.';
-        this.deliveryDocumentsError = requiresRanDocs ? this.status : '';
       }
-    });
-    };
-
-    if (!requiresRanDocs) {
-      sendDelivery({});
-      return;
-    }
-
-    Promise.all([
-      this.readFileAsBase64(this.deliveryPaymentReceiptFile as File),
-      this.readFileAsBase64(this.deliveryPackageFile as File)
-    ]).then(([paymentBase64, packageBase64]) => {
-      sendDelivery({
-        delivery_payment_receipt_base64: paymentBase64,
-        delivery_payment_receipt_filename: this.deliveryPaymentReceiptFile?.name || 'boleta-pago-ran.pdf',
-        delivery_payment_receipt_mime: this.deliveryPaymentReceiptFile?.type || 'application/pdf',
-        delivery_package_base64: packageBase64,
-        delivery_package_filename: this.deliveryPackageFile?.name || 'expediente-entregable-ran.pdf',
-        delivery_package_mime: this.deliveryPackageFile?.type || 'application/pdf'
-      });
-    }).catch(() => {
-      this.delivering = false;
-      this.deliveryDocumentsError = 'No se pudieron leer los documentos de entrega.';
-      this.status = this.deliveryDocumentsError;
     });
   }
 }

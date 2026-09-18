@@ -6,7 +6,8 @@ const {
   forgotPassword,
   resetPassword,
   login,
-  getRecaptchaConfig
+  getRecaptchaConfig,
+  switchActiveRole
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -14,6 +15,7 @@ const router = express.Router();
 router.post("/register", register);
 router.get("/recaptcha-config", getRecaptchaConfig);
 router.post("/login", login);
+router.post("/active-role", switchActiveRole);
 router.get("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", forgotPassword);

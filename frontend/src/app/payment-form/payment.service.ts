@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { API_BASE } from '../api.config';
 
@@ -11,23 +11,40 @@ export class PaymentService {
 
   constructor(private http: HttpClient) {}
 
-  // Crea una transacción de pago
   createPayment(payload: any): Observable<any> {
     return this.http.post(`${this.apiUrl}/create`, payload);
   }
 
-  // Anula un pago
+  continuePayment(paymentId: number, payload: any = {}): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${paymentId}/continue`, payload);
+  }
+
   cancelPayment(paymentId: number): Observable<any> {
     return this.http.post(`${this.apiUrl}/${paymentId}/cancel`, {});
   }
 
-  // Ejecuta reversa
-  reversePayment(paymentId: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${paymentId}/reverse`, {});
+  reversePayment(paymentId: number, reason: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${paymentId}/reverse`, { reason });
   }
 
-  // Obtiene el voucher
+  getReversalPayments(query = '', status = ''): Observable<any> {
+    let params = new HttpParams();
+    if (query.trim()) params = params.set('q', query.trim());
+    if (status) params = params.set('status', status);
+    return this.http.get(`${this.apiUrl}/reversals`, { params });
+  }
+
+  getReversalHistory(paymentId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/${paymentId}/reversal-history`);
+  }
+
   getVoucher(paymentId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/${paymentId}/voucher`);
+  }
+
+  getVoucherPdf(paymentId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${paymentId}/voucher/pdf`, {
+      responseType: 'blob'
+    });
   }
 }

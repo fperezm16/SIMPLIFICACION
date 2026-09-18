@@ -14,7 +14,7 @@ function getFrontendBaseUrl() {
 }
 
 function buildReviewUrl() {
-  return `${getFrontendBaseUrl()}/revision`;
+  return `${getFrontendBaseUrl()}/revisión`;
 }
 
 function buildHomeUrl() {
@@ -67,8 +67,8 @@ async function notifyAssignee({ to, recipientName, roleLabel, actionLabel, conte
         <p>Se te asigno un proceso para continuar la gestion como ${safeRole}.</p>
         <p><strong>Tramite:</strong> ${submissionLabel}</p>
         ${safeComments ? `<p><strong>Comentarios:</strong> ${safeComments}</p>` : ""}
-        <p>Ingresa al panel de revision para darle seguimiento:</p>
-        <p><a href="${reviewUrl}" style="display:inline-block;padding:10px 16px;background:#0b8fd9;color:#ffffff;text-decoration:none;border-radius:999px;font-weight:700;">Abrir revision</a></p>
+        <p>Ingresa al panel de revisión para darle seguimiento:</p>
+        <p><a href="${reviewUrl}" style="display:inline-block;padding:10px 16px;background:#0b8fd9;color:#ffffff;text-decoration:none;border-radius:999px;font-weight:700;">Abrir revisión</a></p>
       </div>
     `,
     text:
@@ -77,13 +77,13 @@ async function notifyAssignee({ to, recipientName, roleLabel, actionLabel, conte
       `Se te asigno un proceso como ${safeRole}.\n` +
       `Tramite: ${submissionLabel}\n` +
       `${safeComments ? `Comentarios: ${safeComments}\n` : ""}` +
-      `Revision: ${reviewUrl}\n`
+      `Revisión: ${reviewUrl}\n`
   });
 }
 
 async function notifyUserStatus({ to, recipientName, subjectPrefix, heading, message, context, reason }) {
   const safeName = sanitizeText(recipientName, 120) || "usuario";
-  const safeHeading = sanitizeText(heading, 120) || "Actualizacion de tramite";
+  const safeHeading = sanitizeText(heading, 120) || "Actualización de tramite";
   const safeMessage = sanitizeText(message, 400);
   const safeReason = sanitizeText(reason, 700);
   const homeUrl = buildHomeUrl();
@@ -91,7 +91,7 @@ async function notifyUserStatus({ to, recipientName, subjectPrefix, heading, mes
 
   return safeSendMail({
     to,
-    subject: `${sanitizeText(subjectPrefix, 120) || "Actualizacion"}: ${context.registro_codigo || `ID ${context.id}`}`,
+    subject: `${sanitizeText(subjectPrefix, 120) || "Actualización"}: ${context.registro_codigo || `ID ${context.id}`}`,
     html: `
       <div style="font-family: Arial, Helvetica, sans-serif; color: #12324d; line-height: 1.6;">
         <h2 style="margin-bottom: 12px;">${safeHeading}</h2>

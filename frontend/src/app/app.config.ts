@@ -19,6 +19,8 @@ import { AilaFormPageComponent } from './aila-form-page.component';
 import { DvsoFormPageComponent } from './dvso-form-page.component';
 import { TransporteAereoFormPageComponent } from './transporte-aereo-form-page.component';
 import { InfraestructuraFormPageComponent } from './infraestructura-form-page.component';
+import { PaymentReversalsPageComponent } from './payment-reversals-page.component';
+import { financialPaymentsGuard } from './financial-payments.guard';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -40,6 +42,7 @@ export const appConfig: ApplicationConfig = {
       { path: 'infraestructura/:slug', component: InfraestructuraFormPageComponent, canActivate: [formGuard] },
       { path: 'aila/permiso-trabajo', component: AilaFormPageComponent, canActivate: [formGuard] },
       { path: 'financiero/solvencia-pago', component: FinancialFormPageComponent, canActivate: [formGuard] },
+      { path: 'financiero/reversas', component: PaymentReversalsPageComponent, canActivate: [financialPaymentsGuard] },
       { path: 'revision', component: ReviewPageComponent, canActivate: [revisorGuard] },
       { path: 'busqueda', component: SearchPageComponent, canActivate: [revisorGuard] },
       { path: 'supervision', component: SupervisorPageComponent, canActivate: [supervisorGuard] },

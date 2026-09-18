@@ -1,0 +1,74 @@
+<section class="positioner-shell">
+  <header class="positioner-head">
+    <div>
+      <strong>Ubicación de firma </strong>
+      <small>Preciona Firma dinámica y arrastra la caja sobre el PDF para calcular coordenadas reales.</small>
+    </div>
+    <div class="positioner-stats">
+      <span>Página {{ pageNumber }} de {{ pageCount || 1 }}</span>
+      <span>Zoom {{ zoomPercent }}</span>
+    </div>
+  </header>
+
+  <div class="positioner-controls">
+    <button type="button" class="ghost-button" (click)="previousPage()" [disabled]="loading || pageNumber <= 1">
+      Página anterior
+    </button>
+    <button type="button" class="ghost-button" (click)="nextPage()" [disabled]="loading || pageNumber >= pageCount">
+      Página siguiente
+    </button>
+    <button type="button" class="ghost-button" (click)="zoomOut()" [disabled]="loading || !canZoomOut">
+      Zoom -
+    </button>
+    <button type="button" class="ghost-button" (click)="zoomIn()" [disabled]="loading || !canZoomIn">
+      Zoom +
+    </button>
+    <button type="button" class="ghost-button" (click)="resetPosition()" [disabled]="loading">
+      Restablecer posición
+    </button>
+    <button type="button" class="ghost-button" (click)="toggleDynamicSignature()" [disabled]="loading || !!errorMessage">
+      {{ showDynamicSignature ? 'Ocultar firma dinámica' : 'Firma dinámica' }}
+    </button>
+  </div>
+
+  <div class="positioner-preview" #previewViewport>
+    <div class="positioner-stage" #canvasHost [style.width.px]="renderedWidth" [style.height.px]="renderedHeight" (click)="moveFromStageClick($event)">
+      <canvas #pdfCanvas class="pdf-canvas"></canvas>
+
+      <div class="stage-overlay" *ngIf="loading">
+        Cargando PDF...
+      </div>
+
+    <div class="stage-overlay error" *ngIf="!loading && errorMessage">
+      <span>{{ errorMessage }}</span>
+      <div class="debug-box" *ngIf="debugErrorInfo">
+        <small *ngIf="debugErrorInfo.errorName"><strong>Error:</strong> {{ debugErrorInfo.errorName }}</small>
+        <small *ngIf="debugErrorInfo.errorMessage"><strong>Mensaje:</strong> {{ debugErrorInfo.errorMessage }}</small>
+        <small *ngIf="debugErrorInfo.httpStatus !== null"><strong>HTTP status:</strong> {{ debugErrorInfo.httpStatus }}</small>
+        <small *ngIf="debugErrorInfo.url"><strong>URL:</strong> {{ debugErrorInfo.url }}</small>
+        <small *ngIf="debugErrorInfo.dataType"><strong>Tipo de dato:</strong> {{ debugErrorInfo.dataType }}</small>
+        <small *ngIf="debugErrorInfo.byteLength !== undefined"><strong>Tamaño:</strong> {{ debugErrorInfo.byteLength }} bytes</small>
+      </div>
+    </div>
+
+      <button
+        type="button"
+        class="signature-box"
+        *ngIf="showDynamicSignature && !loading && !errorMessage"
+        [style.left.px]="visualLeftPx"
+        [style.top.px]="visualTopPx"
+        [style.width.px]="visualWidthPx"
+        [style.height.px]="visualHeightPx"
+        (pointerdown)="startDragging($event)"
+        (click)="$event.stopPropagation()">
+        <span class="signature-box-label">Area de firma Prisma</span>
+        <span class="signature-box-coordinates">{{ coordinateSummary }}</span>
+      </button>
+    </div>
+  </div>
+
+  <footer class="positioner-footer">
+    <span>Coordenadas resultantes</span>
+    <strong>{{ coordinateSummary }}</strong>
+  </footer>
+</section>

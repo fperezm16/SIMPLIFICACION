@@ -17,6 +17,9 @@ function requireAuth(req, res, next) {
   }
   try {
     const payload = jwt.verify(token, getJwtSecret());
+    if (payload.role === "financiero_pagos") {
+      payload.role = "operador_pagos";
+    }
     req.user = payload;
     next();
   } catch (_err) {

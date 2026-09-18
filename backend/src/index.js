@@ -9,6 +9,7 @@ const { pool, init } = require("./db");
 const { validateEmailAddress } = require("./email-validator");
 const { sendAlertEmail } = require("./mailer");
 const { notifyAssignee, notifyUserStatus } = require("../services/emailNotificationService");
+const { signPdfWithProvider } = require("../services/signatureProviderService");
 const { authRouter, requireAuth, requireRole } = require("./auth");
 require("dotenv").config();
 //Modulo de pagos
@@ -25,6 +26,7 @@ const AILA_ROLE_UETIA = "uetia";
 const AILA_ROLE_JEFATURA = "jefatura_avsec";
 const AILA_ROLE_JEFATURA_AILA = "jefatura_aila";
 const FINANCIAL_ROLE_AVSEC = "avsec_financiero";
+const FINANCIAL_ROLE_PAYMENTS = "operador_pagos";
 const DVSO_ROLE_RECEPCION = "recepcion_dvso";
 const DVSO_ROLE_ASISTENTE = "asistente_dvso";
 const DVSO_ROLE_JEFATURA = "jefatura_dvso";
@@ -56,11 +58,42 @@ const REVIEW_ROLES = [
   "supervisor",
   ...AILA_WORKFLOW_ROLES,
   ...DVSO_WORKFLOW_ROLES,
-  FINANCIAL_ROLE_AVSEC
+  FINANCIAL_ROLE_AVSEC,
+  FINANCIAL_ROLE_PAYMENTS
 ];
 const ALLOWED_ROLES = Array.from(new Set(["user", ...REVIEW_ROLES, DVSO_ROLE_JEFATURA_OPS]));
 const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO", "TRANSPORTE_AEREO", "INFRAESTRUCTURA"];
-const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, ...DVSO_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC];
+const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, ...DVSO_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC, FINANCIAL_ROLE_PAYMENTS];
+const SIGNATURE_RESET_ASSIGNMENTS = [
+  "signature_status = 'pending'",
+  "signature_provider = NULL",
+  "signature_requested_at = NULL",
+  "signature_completed_at = NULL",
+  "signature_failed_at = NULL",
+  "signature_signed_by_user_id = NULL",
+  "signature_request_payload = NULL",
+  "signature_response_payload = NULL",
+  "signature_error = NULL"
+];
+
+function normalizeRoleAssignments(value, fallbackRole = null) {
+  const source = Array.isArray(value) ? value : (fallbackRole ? [fallbackRole] : []);
+  return [...new Set(source
+    .map((role) => String(role || "").trim().toLowerCase())
+    .map((role) => role === "financiero_pagos" ? FINANCIAL_ROLE_PAYMENTS : role)
+    .filter((role) => ALLOWED_ROLES.includes(role)))];
+}
+
+function hasUnitRestrictedRole(roles) {
+  return roles.some((role) => isUnitRestrictedRole(role));
+}
+
+function assignedRolesSql(roles, userTable = "users") {
+  const normalizedRoles = normalizeRoleAssignments(roles);
+  if (!normalizedRoles.length) return "FALSE";
+  const values = normalizedRoles.map((role) => `'${role.replace(/'/g, "''")}'`).join(", ");
+  return `EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = ${userTable}.id AND ur.role IN (${values}))`;
+}
 
 function isDevelopmentEnvironment() {
   return String(process.env.NODE_ENV || "").trim().toLowerCase() !== "production";
@@ -79,6 +112,8 @@ function getAllowedCorsOrigins() {
 }
 
 const allowedCorsOrigins = getAllowedCorsOrigins();
+const CARDINAL_3DS_ORIGIN = "https://cas.client.cardinaltrusted.com";
+const THREE_DS_RETURN_PATH = "/api/payments/3ds/return";
 
 function isCorsOriginAllowed(origin) {
   if (!origin) return true;
@@ -92,6 +127,14 @@ function isCorsOriginAllowed(origin) {
   return allowedCorsOrigins.includes(normalizedOrigin);
 }
 
+function isThreeDSReturnOriginAllowed(req, origin) {
+  const normalizedOrigin = String(origin || "").trim().replace(/\/+$/, "");
+  return (
+    req.path === THREE_DS_RETURN_PATH &&
+    (normalizedOrigin === CARDINAL_3DS_ORIGIN || normalizedOrigin === "null")
+  );
+}
+
 function normalizeUnitAccess(unitAccess) {
   if (!Array.isArray(unitAccess)) return [...ALL_UNITS];
   const allowed = new Set(ALL_UNITS);
@@ -103,6 +146,16 @@ function normalizeUnitAccess(unitAccess) {
 
 function isUnitRestrictedRole(role = "") {
   return UNIT_RESTRICTED_ROLES.includes(String(role || "").trim().toLowerCase());
+}
+
+function appendSignatureResetUpdates(updates = []) {
+  for (const assignment of SIGNATURE_RESET_ASSIGNMENTS) {
+    updates.push(assignment);
+  }
+}
+
+function getSignatureResetSql() {
+  return SIGNATURE_RESET_ASSIGNMENTS.join(", ");
 }
 
 function isAilaWorkflowRole(role = "") {
@@ -346,7 +399,7 @@ function forcedUnitAccessForRole(role = "", requestedUnits = ALL_UNITS) {
   if (isDvsoWorkflowRole(normalizedRole)) {
     return ["DVSO"];
   }
-  if (normalizedRole === FINANCIAL_ROLE_AVSEC) {
+  if (normalizedRole === FINANCIAL_ROLE_PAYMENTS) {
     return ["FINANCIERO"];
   }
   if (isUnitRestrictedRole(normalizedRole)) {
@@ -428,9 +481,22 @@ function canFinalizeAilaAdministration(row = {}) {
 async function getCurrentUserRole(userId, fallbackRole = "user") {
   const normalizedFallback = String(fallbackRole || "user").trim().toLowerCase();
   try {
-    const result = await pool.query("SELECT role FROM users WHERE id = $1", [userId]);
+    const result = await pool.query(
+      `SELECT
+         role,
+         ARRAY(SELECT ur.role FROM user_roles ur WHERE ur.user_id = users.id ORDER BY ur.role) AS roles
+       FROM users
+       WHERE id = $1`,
+      [userId]
+    );
     if (!result.rowCount) return normalizedFallback;
-    return String(result.rows[0].role || normalizedFallback).trim().toLowerCase();
+    const assignedRoles = (result.rows[0].roles || [])
+      .map((role) => String(role || "").trim().toLowerCase())
+      .filter(Boolean);
+    if (assignedRoles.includes(normalizedFallback)) return normalizedFallback;
+    const defaultRole = String(result.rows[0].role || "").trim().toLowerCase();
+    if (assignedRoles.includes(defaultRole)) return defaultRole;
+    return assignedRoles[0] || defaultRole || normalizedFallback;
   } catch {
     return normalizedFallback;
   }
@@ -714,6 +780,47 @@ function parsePdfUpload({ pdfBase64, filename, mime, label, fallbackFilename }) 
     buffer,
     filename: sanitizeStoredPdfFilename(filename, fallbackFilename),
     mime: safeMime
+  };
+}
+
+function buildSignatureConcept(submission = {}) {
+  const code = String(submission?.registro_codigo || `REG-${submission?.id || "SN"}`).trim();
+  const unit = String(submission?.unidad_clave || "GENERAL").trim().toUpperCase();
+  const owner = String(submission?.nombre_propietario || "").trim();
+  return [unit, code, owner].filter(Boolean).join(" - ").slice(0, 180) || "Firma de documento";
+}
+
+function buildSignaturePlace(submission = {}) {
+  const detail = submission?.detalle_formulario && typeof submission.detalle_formulario === "object"
+    ? submission.detalle_formulario
+    : {};
+  return String(
+    detail.lugar_firma ||
+    detail.municipio ||
+    detail.departamento ||
+    "Guatemala, Guatemala"
+  ).trim().slice(0, 180);
+}
+
+function buildSafeSignatureRequestPayload({
+  concept,
+  place,
+  coordinates,
+  pages,
+  appearance,
+  requestType,
+  fontSize,
+  closeRequest
+}) {
+  return {
+    concept: concept || null,
+    place: place || null,
+    coordinates: coordinates || null,
+    pages: pages || null,
+    appearance: appearance || null,
+    request_type: requestType || null,
+    font_size: fontSize || null,
+    close_request: closeRequest
   };
 }
 
@@ -2190,21 +2297,23 @@ function buildSupervisorCsv(processes = []) {
 }
 
 
-app.use(cors({
-  origin(origin, callback) {
-    if (isCorsOriginAllowed(origin)) {
-      return callback(null, true);
-    }
-    console.error("CORS_NOT_ALLOWED", {
-      origin,
-      allowedCorsOrigins
-    });
-    return callback(new Error("CORS_NOT_ALLOWED"));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+app.use((req, res, next) =>
+  cors({
+    origin(origin, callback) {
+      if (isCorsOriginAllowed(origin) || isThreeDSReturnOriginAllowed(req, origin)) {
+        return callback(null, true);
+      }
+      console.error("CORS_NOT_ALLOWED", {
+        origin,
+        allowedCorsOrigins
+      });
+      return callback(new Error("CORS_NOT_ALLOWED"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })(req, res, next)
+);
 
 app.use(express.json({ limit: "100mb" }));
 app.use("/api/payments", paymentRoutes);
@@ -2213,7 +2322,10 @@ app.use("/api/auth", authRouter);
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, email, name, role, unit_access FROM users WHERE id = $1",
+      `SELECT
+         id, email, name, role, unit_access,
+         ARRAY(SELECT ur.role FROM user_roles ur WHERE ur.user_id = users.id ORDER BY ur.role) AS roles
+       FROM users WHERE id = $1`,
       [req.user?.sub]
     );
     if (!result.rowCount) {
@@ -2224,7 +2336,8 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
+      role: await getCurrentUserRole(user.id, req.user?.role),
+      roles: (user.roles || []).map((role) => String(role || "").trim().toLowerCase()).filter(Boolean),
       unit_access: normalizeUnitAccess(user.unit_access)
     });
   } catch (err) {
@@ -2949,6 +3062,7 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     const isDvsoInspector = isDvsoInspectorRole(role);
     const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
+    const isFinancialPaymentsRole = role === FINANCIAL_ROLE_PAYMENTS;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
     const where = [];
@@ -3051,7 +3165,7 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
       )`);
       where.push(`s.delivered_at IS NULL`);
     }
-    if (isFinancialAvsec) {
+    if (isFinancialPaymentsRole) {
       where.push(`s.unidad_clave = 'FINANCIERO'`);
       where.push(`COALESCE(s.detalle_formulario->>'gestion_grupo_codigo', '') = 'solvencias'`);
       where.push(`COALESCE(s.detalle_formulario->>'proceso_codigo', '') = 'gestion_tia'`);
@@ -3224,6 +3338,7 @@ app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), a
     const isDvsoInspector = isDvsoInspectorRole(role);
     const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
+    const isFinancialPaymentsRole = role === FINANCIAL_ROLE_PAYMENTS;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
     const where = ["sub.delivered_at IS NOT NULL"];
@@ -3249,7 +3364,7 @@ app.get("/api/submissions/archive", requireAuth, requireRole(...REVIEW_ROLES), a
       where.push(`sub.unidad_clave = 'AILA'`);
       where.push(`LOWER(COALESCE(sub.detalle_formulario->>'tipo_permiso', sub.uso, '')) = 'generico'`);
     }
-    if (isFinancialAvsec) {
+    if (isFinancialPaymentsRole) {
       where.push(`sub.unidad_clave = 'FINANCIERO'`);
       where.push(`COALESCE(sub.detalle_formulario->>'gestion_grupo_codigo', '') = 'solvencias'`);
       where.push(`COALESCE(sub.detalle_formulario->>'proceso_codigo', '') = 'gestion_tia'`);
@@ -3340,6 +3455,7 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
     const isAilaJefatura = isAilaStage4Role(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
     const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
+    const isFinancialPaymentsRole = role === FINANCIAL_ROLE_PAYMENTS;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
 
@@ -3383,7 +3499,7 @@ app.get("/api/submissions/:id/logs", requireAuth, requireRole(...REVIEW_ROLES), 
       accessWhere.push(`unidad_clave = 'AILA'`);
       accessWhere.push(`LOWER(COALESCE(detalle_formulario->>'tipo_permiso', uso, '')) = 'generico'`);
     }
-    if (isFinancialAvsec) {
+    if (isFinancialPaymentsRole) {
       accessWhere.push(`unidad_clave = 'FINANCIERO'`);
       accessWhere.push(`COALESCE(detalle_formulario->>'gestion_grupo_codigo', '') = 'solvencias'`);
       accessWhere.push(`COALESCE(detalle_formulario->>'proceso_codigo', '') = 'gestion_tia'`);
@@ -4604,7 +4720,8 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
 
     if (current.returned_by_user_id) {
       const analystResult = await pool.query(
-        "SELECT id, role FROM users WHERE id = $1 AND role IN ('analista', $2)",
+        `SELECT id, role FROM users
+         WHERE id = $1 AND ${assignedRolesSql(["analista", DVSO_ROLE_INSPECTOR])}`,
         [current.returned_by_user_id, DVSO_ROLE_INSPECTOR]
       );
       if (analystResult.rowCount) {
@@ -4990,6 +5107,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     updates.push(`signed_pdf_filename = NULL`);
     updates.push(`signed_pdf_mime = NULL`);
     updates.push(`signed_pdf_uploaded_at = NULL`);
+    appendSignatureResetUpdates(updates);
     updates.push(`assigned_emisor_id = NULL`);
     updates.push(`sent_to_emisor_at = NULL`);
     if (isDvsoAeronavegabilidadRequest || isDvsoOperacionesRequest) {
@@ -5713,12 +5831,12 @@ app.get("/api/submissions/:id/documento-firmado", requireAuth, requireRole(...RE
       params.push(req.user?.sub);
       where.push(`assigned_emisor_id = $${params.length}`);
     }
-    const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
+    const isFinancialPaymentsRole = role === FINANCIAL_ROLE_PAYMENTS;
     if (isApprover) {
       params.push(req.user?.sub);
       where.push(`assigned_aprobador_id = $${params.length}`);
     }
-    if (isFinancialAvsec) {
+    if (isFinancialPaymentsRole) {
       where.push(`unidad_clave = 'FINANCIERO'`);
       where.push(`signed_pdf IS NOT NULL`);
     }
@@ -5916,6 +6034,257 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
   }
 });
 
+app.post("/api/submissions/:id/sign", requireAuth, requireRole("aprobador", "emisor", "admin", "supervisor"), async (req, res) => {
+  const { id } = req.params;
+  const {
+    password_firma,
+    concepto,
+    lugar,
+    coordenadas,
+    paginas,
+    apariencia_firma,
+    tipo_solicitud,
+    font_size,
+    cerrar,
+    ubicacion_firma_confirmada
+  } = req.body || {};
+
+  const signingPassword = String(password_firma || "").trim();
+  if (!signingPassword) {
+    return res.status(400).json({ error: "La password de firma es obligatoria." });
+  }
+  if (ubicacion_firma_confirmada !== true) {
+    return res.status(400).json({ error: "Debes colocar manualmente la firma sobre el documento." });
+  }
+  if (!String(coordenadas || "").trim() || !String(paginas || "").trim()) {
+    return res.status(400).json({ error: "La pagina y las coordenadas manuales de firma son obligatorias." });
+  }
+
+  try {
+    const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
+    const isApprover = role === "aprobador";
+    const isEmitter = role === "emisor";
+    const isUnitRestricted = isUnitRestrictedRole(role);
+    const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
+
+    const accessWhere = ["s.id = $1"];
+    const accessParams = [id];
+    if (isApprover) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`s.assigned_aprobador_id = $${accessParams.length}`);
+    }
+    if (isEmitter) {
+      accessParams.push(req.user?.sub);
+      accessWhere.push(`s.assigned_emisor_id = $${accessParams.length}`);
+    }
+    if (isUnitRestricted) {
+      accessParams.push(unitAccess);
+      accessWhere.push(`s.unidad_clave = ANY($${accessParams.length})`);
+    }
+
+    const current = await pool.query(
+      `SELECT
+         s.id,
+         s.registro_codigo,
+         s.unidad_clave,
+         s.detalle_formulario,
+         s.nombre_propietario,
+         s.analyst_pdf,
+         s.analyst_pdf_filename,
+         s.approved_at,
+         s.approved_by_user_id,
+         s.assigned_emisor_id,
+         s.assigned_aprobador_id,
+         s.signed_pdf,
+         s.signature_status
+       FROM submissions s
+       WHERE ${accessWhere.join(" AND ")}`,
+      accessParams
+    );
+
+    if (!current.rowCount) {
+      return res.status(404).json({ error: "Registro no encontrado o no asignado al usuario." });
+    }
+
+    const currentRow = current.rows[0];
+    const currentUnit = String(currentRow.unidad_clave || "").toUpperCase();
+    if (isAilaGenericWorkflow(currentRow)) {
+      return res.status(400).json({ error: "En AILA permiso generico este proceso no utiliza firma electronica en este modulo." });
+    }
+    if (!currentRow.analyst_pdf) {
+      return res.status(400).json({ error: "No hay un PDF base cargado para firmar." });
+    }
+    if (currentRow.approved_at && !isEmitter) {
+      return res.status(400).json({ error: "No se puede firmar porque el proceso ya esta aprobado." });
+    }
+    if (isEmitter) {
+      if (currentUnit !== "FINANCIERO") {
+        return res.status(400).json({ error: "El rol emisor solo puede firmar documento final en procesos financieros." });
+      }
+      if (!currentRow.approved_by_user_id) {
+        return res.status(400).json({ error: "El proceso debe ser aprobado por el aprobador antes de la firma final del emisor." });
+      }
+    }
+
+    const signerEmail = String(req.user?.email || "").trim().toLowerCase();
+    if (!signerEmail) {
+      return res.status(400).json({ error: "No se encontro el correo del firmante autorizado." });
+    }
+    const closeRequestValue = cerrar === undefined
+      ? null
+      : ["1", "true", "yes", "on"].includes(String(cerrar).trim().toLowerCase());
+
+    const requestConcept = String(concepto || "").trim() || buildSignatureConcept(currentRow);
+    const requestPlace = String(lugar || "").trim() || buildSignaturePlace(currentRow);
+    const safeRequestPayload = buildSafeSignatureRequestPayload({
+      concept: requestConcept,
+      place: requestPlace,
+      coordinates: coordenadas || null,
+      pages: paginas || null,
+      appearance: apariencia_firma || null,
+      requestType: tipo_solicitud || null,
+      fontSize: font_size || null,
+      closeRequest: closeRequestValue
+    });
+    const sourceFilename = sanitizeHeaderFilename(
+      currentRow.analyst_pdf_filename || `documento-${currentRow.registro_codigo || currentRow.id}.pdf`,
+      `documento-${currentRow.id}.pdf`
+    );
+    const signedFilename = sanitizeHeaderFilename(
+      sourceFilename.replace(/\.pdf$/i, "") + "-firmado.pdf",
+      `documento-firmado-${currentRow.id}.pdf`
+    );
+
+    await pool.query(
+      `UPDATE submissions
+       SET signature_status = 'processing',
+           signature_provider = 'prisma',
+           signature_requested_at = NOW(),
+           signature_completed_at = NULL,
+           signature_failed_at = NULL,
+           signature_signed_by_user_id = $2,
+           signature_request_payload = $3,
+           signature_response_payload = NULL,
+           signature_error = NULL
+       WHERE id = $1`,
+      [
+        id,
+        req.user?.sub || null,
+        safeRequestPayload
+      ]
+    );
+
+    let signedResult;
+    try {
+      signedResult = await signPdfWithProvider({
+        pdfBuffer: currentRow.analyst_pdf,
+        filename: sourceFilename,
+        signerEmail,
+        signerPassword: signingPassword,
+        concept: requestConcept,
+        place: requestPlace,
+        coordinates: coordenadas,
+        pages: paginas,
+        appearance: apariencia_firma,
+        requestType: tipo_solicitud,
+        fontSize: font_size,
+        closeRequest: cerrar
+      });
+    } catch (providerError) {
+      const safeError = String(providerError?.message || "No se pudo firmar el documento.").trim().slice(0, 500);
+      const safeProviderResponse = providerError?.responsePayloadSummary || null;
+      console.error("[FIRMA] Error del proveedor al firmar documento", {
+        submissionId: Number(id),
+        registroCodigo: currentRow.registro_codigo || null,
+        signerEmail,
+        sourceFilename,
+        error: safeError,
+        providerResponse: safeProviderResponse
+      });
+      await pool.query(
+        `UPDATE submissions
+         SET signature_status = 'failed',
+             signature_failed_at = NOW(),
+             signature_completed_at = NULL,
+             signature_provider = 'prisma',
+             signature_response_payload = $2,
+             signature_error = $3
+         WHERE id = $1`,
+        [id, safeProviderResponse, safeError]
+      );
+      await registerSubmissionLog({
+        submissionId: Number(id),
+        eventCode: "firma_electronica_fallida",
+        eventLabel: "Fallo la firma electronica del documento",
+        eventDetail: safeError,
+        actorUserId: req.user?.sub || null,
+        actorRole: role
+      });
+      return res.status(502).json({ error: safeError });
+    }
+
+    const result = await pool.query(
+      `UPDATE submissions
+       SET signed_pdf = $1,
+           signed_pdf_filename = $2,
+           signed_pdf_mime = 'application/pdf',
+           signed_pdf_uploaded_at = NOW(),
+           signature_status = 'signed',
+           signature_provider = 'prisma',
+           signature_completed_at = NOW(),
+           signature_failed_at = NULL,
+           signature_signed_by_user_id = $3,
+           signature_request_payload = $4,
+           signature_response_payload = $5,
+           signature_error = NULL,
+           approved_at = CASE WHEN $7 THEN NOW() ELSE approved_at END,
+           delivered_at = CASE WHEN $7 THEN NULL ELSE delivered_at END,
+           delivered_by_user_id = CASE WHEN $7 THEN NULL ELSE delivered_by_user_id END
+       WHERE id = $6
+       RETURNING
+         id,
+         signed_pdf_filename,
+         signed_pdf_mime,
+         signed_pdf_uploaded_at,
+         approved_at,
+         signature_status,
+         signature_provider,
+         signature_requested_at,
+         signature_completed_at`,
+      [
+        signedResult.signedPdfBuffer,
+        sanitizeHeaderFilename(signedResult.filename || signedFilename, signedFilename),
+        req.user?.sub || null,
+        signedResult.requestPayloadSummary || safeRequestPayload,
+        signedResult.responsePayloadSummary || null,
+        id,
+        isEmitter
+      ]
+    );
+
+    await registerSubmissionLog({
+      submissionId: Number(id),
+      eventCode: "firma_electronica_completada",
+      eventLabel: isEmitter ? "Emisor firmo electronicamente el documento final" : "Aprobador firmo electronicamente el documento",
+      eventDetail: result.rows[0]?.signed_pdf_filename || signedFilename,
+      actorUserId: req.user?.sub || null,
+      actorRole: role,
+      metadata: {
+        provider: "prisma",
+        external_id: signedResult.externalId || null
+      }
+    });
+
+    return res.json({
+      ok: true,
+      ...result.rows[0]
+    });
+  } catch (err) {
+    console.error("Error signing submission document", err);
+    return res.status(500).json({ error: err.message || "No se pudo firmar el documento." });
+  }
+});
+
 app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador", "emisor", "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const { pdf_base64, filename, mime } = req.body || {};
@@ -6001,12 +6370,32 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
            signed_pdf_filename = $2,
            signed_pdf_mime = $3,
            signed_pdf_uploaded_at = NOW(),
-           approved_at = CASE WHEN $5 THEN NOW() ELSE approved_at END,
-           delivered_at = CASE WHEN $5 THEN NULL ELSE delivered_at END,
-           delivered_by_user_id = CASE WHEN $5 THEN NULL ELSE delivered_by_user_id END
+           signature_status = 'signed',
+           signature_provider = 'manual_upload',
+           signature_requested_at = COALESCE(signature_requested_at, NOW()),
+           signature_completed_at = NOW(),
+           signature_failed_at = NULL,
+           signature_signed_by_user_id = $5,
+           signature_request_payload = NULL,
+           signature_response_payload = $6,
+           signature_error = NULL,
+           approved_at = CASE WHEN $7 THEN NOW() ELSE approved_at END,
+           delivered_at = CASE WHEN $7 THEN NULL ELSE delivered_at END,
+           delivered_by_user_id = CASE WHEN $7 THEN NULL ELSE delivered_by_user_id END
        WHERE id = $4
-       RETURNING id, signed_pdf_filename, signed_pdf_mime, signed_pdf_uploaded_at, approved_at, approved_by_user_id`,
-      [pdfBuffer, safeFilename, safeMime, id, isEmitter]
+       RETURNING id, signed_pdf_filename, signed_pdf_mime, signed_pdf_uploaded_at, approved_at, approved_by_user_id, signature_status, signature_provider`,
+      [
+        pdfBuffer,
+        safeFilename,
+        safeMime,
+        id,
+        req.user?.sub || null,
+        {
+          source: "manual_upload",
+          actor_role: role
+        },
+        isEmitter
+      ]
     );
 
     await registerSubmissionLog({
@@ -6092,6 +6481,7 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
            signed_pdf_filename = NULL,
            signed_pdf_mime = NULL,
            signed_pdf_uploaded_at = NULL,
+           ${getSignatureResetSql()},
            assigned_emisor_id = NULL,
            sent_to_emisor_at = NULL,
            assigned_aprobador_id = NULL,
@@ -6253,6 +6643,7 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("reviso
            signed_pdf_filename = NULL,
            signed_pdf_mime = NULL,
            signed_pdf_uploaded_at = NULL,
+           ${getSignatureResetSql()},
            returned_to_analista_at = NULL,
            returned_to_analista_reason = NULL,
            returned_to_analista_by_user_id = NULL,
@@ -6435,9 +6826,12 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     }
 
     let approverResult;
+    const approverRoleSql = assignedRolesSql(
+      isAilaGeneric ? [AILA_ROLE_JEFATURA_AILA] : isDvsoSubmission ? [dvsoNextRole] : ["aprobador"]
+    );
     if (requestedAprobadorId) {
       approverResult = await pool.query(
-        `SELECT id, name, email, unit_access FROM users WHERE id = $1 AND ${isAilaGeneric ? `role = '${AILA_ROLE_JEFATURA_AILA}'` : isDvsoSubmission ? `role = '${dvsoNextRole}'` : `role = 'aprobador'`}`,
+        `SELECT id, name, email, unit_access FROM users WHERE id = $1 AND ${approverRoleSql}`,
         [requestedAprobadorId]
       );
       if (!approverResult.rowCount) {
@@ -6447,7 +6841,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
       approverResult = await pool.query(
         `SELECT id, name, email, unit_access
          FROM users
-         WHERE ${isAilaGeneric ? `role = '${AILA_ROLE_JEFATURA_AILA}'` : isDvsoSubmission ? `role = '${dvsoNextRole}'` : `role = 'aprobador'`}
+         WHERE ${approverRoleSql}
            AND unit_access @> ARRAY[$1]::TEXT[]
          ORDER BY created_at ASC, id ASC
          LIMIT 1`,
@@ -6477,6 +6871,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
            signed_pdf_mime = NULL,
            signed_pdf_uploaded_at = NULL,
            detalle_formulario = $3,
+           ${getSignatureResetSql()},
            approved_at = NULL,
            approved_by_user_id = NULL,
            delivered_at = NULL,
@@ -6574,6 +6969,7 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
            signed_pdf_filename = NULL,
            signed_pdf_mime = NULL,
            signed_pdf_uploaded_at = NULL,
+           ${getSignatureResetSql()},
            approved_at = NULL,
            approved_by_user_id = NULL,
            delivered_at = NULL,
@@ -7090,6 +7486,9 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
         assigned_aprobador_email: null
       });
     }
+    if (currentUnit === "RAN" && !currentRow.signed_pdf) {
+      return res.status(400).json({ error: "Debes firmar electronicamente el documento antes de aprobar el proceso RAN." });
+    }
     const result = await pool.query(
       `UPDATE submissions
        SET approved_at = NOW(),
@@ -7477,7 +7876,7 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
 
     if (!analista_id) {
       const cleared = await pool.query(
-        "UPDATE submissions SET assigned_analista_id = NULL, comentarios_revision = $2, assigned_emisor_id = NULL, sent_to_emisor_at = NULL, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL, signed_pdf = NULL, signed_pdf_filename = NULL, signed_pdf_mime = NULL, signed_pdf_uploaded_at = NULL WHERE id = $1 RETURNING id",
+        `UPDATE submissions SET assigned_analista_id = NULL, comentarios_revision = $2, assigned_emisor_id = NULL, sent_to_emisor_at = NULL, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL, signed_pdf = NULL, signed_pdf_filename = NULL, signed_pdf_mime = NULL, signed_pdf_uploaded_at = NULL, ${getSignatureResetSql()} WHERE id = $1 RETURNING id`,
         [id, comentariosRevision]
       );
       if (!cleared.rowCount) {
@@ -7518,7 +7917,21 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
       return res.status(400).json({ error: "El analista no tiene acceso a la unidad de este formulario." });
     }
     const result = await pool.query(
-      "UPDATE submissions SET assigned_analista_id = $1, comentarios_revision = $3, detalle_formulario = $4, assigned_emisor_id = NULL, sent_to_emisor_at = NULL, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL, signed_pdf = NULL, signed_pdf_filename = NULL, signed_pdf_mime = NULL, signed_pdf_uploaded_at = NULL WHERE id = $2 RETURNING id",
+      `UPDATE submissions
+       SET assigned_analista_id = $1,
+           comentarios_revision = $3,
+           detalle_formulario = $4,
+           assigned_emisor_id = NULL,
+           sent_to_emisor_at = NULL,
+           assigned_aprobador_id = NULL,
+           sent_to_aprobador_at = NULL,
+           signed_pdf = NULL,
+           signed_pdf_filename = NULL,
+           signed_pdf_mime = NULL,
+           signed_pdf_uploaded_at = NULL,
+           ${getSignatureResetSql()}
+       WHERE id = $2
+       RETURNING id`,
       [analista_id, id, comentariosRevision, isDvsoSubmission ? withDvsoStage(submissionRow.detalle_formulario, 'asistente_revision') : submissionRow.detalle_formulario]
     );
     if (!result.rowCount) {
@@ -7581,10 +7994,10 @@ app.get("/api/analistas", requireAuth, requireRole("revisor", AILA_ROLE_RECEPCIO
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
     const params = [];
     let where = role === AILA_ROLE_RECEPCION
-      ? `(role = 'recepcion_avsec' OR role = 'administracion_aila')`
+      ? assignedRolesSql([AILA_ROLE_RECEPCION_AVSEC, AILA_ROLE_ADMINISTRACION])
       : role === DVSO_ROLE_RECEPCION
-        ? `role = '${DVSO_ROLE_ASISTENTE}'`
-        : "role = 'analista'";
+        ? assignedRolesSql([DVSO_ROLE_ASISTENTE])
+        : assignedRolesSql(["analista"]);
     if (isUnitRestricted) {
       params.push(unitAccess);
       where += ` AND unit_access && $1::TEXT[]`;
@@ -7608,16 +8021,16 @@ app.get("/api/aprobadores", requireAuth, requireRole("analista", "emisor", AILA_
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
     const params = [];
     let where = isAilaStage3Role(role)
-      ? `(role = '${AILA_ROLE_JEFATURA_AILA}')`
+      ? assignedRolesSql([AILA_ROLE_JEFATURA_AILA])
       : isDvsoJefaturaRole(role)
-        ? `(role = '${DVSO_ROLE_INSPECTOR}' OR role = '${DVSO_ROLE_JEFATURA_OPS}')`
+        ? assignedRolesSql([DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS])
         : isDvsoJefeAeronavegabilidadRole(role)
-          ? `role = '${DVSO_ROLE_INSPECTOR}'`
-        : isDvsoJefaturaOpsRole(role)
-          ? `role = '${DVSO_ROLE_INSPECTOR}'`
-        : isDvsoInspectorRole(role)
-          ? `role = '${DVSO_ROLE_JEFATURA_OPS}'`
-        : "role = 'aprobador'";
+          ? assignedRolesSql([DVSO_ROLE_INSPECTOR])
+          : isDvsoJefaturaOpsRole(role)
+            ? assignedRolesSql([DVSO_ROLE_INSPECTOR])
+            : isDvsoInspectorRole(role)
+              ? assignedRolesSql([DVSO_ROLE_JEFATURA_OPS])
+        : assignedRolesSql(["aprobador"]);
     if (isUnitRestricted) {
       params.push(unitAccess);
       where += ` AND unit_access && $1::TEXT[]`;
@@ -7641,10 +8054,10 @@ app.get("/api/emisores", requireAuth, requireRole("revisor", "analista", AILA_RO
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
     const params = [];
     let where = isAilaStage2Role(role)
-      ? `(role = '${AILA_ROLE_JEFATURA}' OR role = '${AILA_ROLE_UETIA}')`
+      ? assignedRolesSql([AILA_ROLE_JEFATURA, AILA_ROLE_UETIA])
       : isDvsoAssistantRole(role)
-        ? `(role = '${DVSO_ROLE_JEFATURA}')`
-        : "role = 'emisor'";
+        ? assignedRolesSql([DVSO_ROLE_JEFATURA])
+        : assignedRolesSql(["emisor"]);
     if (isUnitRestricted) {
       params.push(unitAccess);
       where += ` AND unit_access && $1::TEXT[]`;
@@ -7664,9 +8077,17 @@ app.get("/api/emisores", requireAuth, requireRole("revisor", "analista", AILA_RO
 app.get("/api/users", requireAuth, requireRole("admin"), async (_req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, name, email, role, unit_access, created_at FROM users ORDER BY created_at DESC"
+      `SELECT
+         id, name, email, role, unit_access, created_at,
+         ARRAY(SELECT ur.role FROM user_roles ur WHERE ur.user_id = users.id ORDER BY ur.role) AS roles
+       FROM users
+       ORDER BY created_at DESC`
     );
-    res.json(result.rows.map((row) => ({ ...row, unit_access: normalizeUnitAccess(row.unit_access) })));
+    res.json(result.rows.map((row) => ({
+      ...row,
+      roles: normalizeRoleAssignments(row.roles, row.role),
+      unit_access: normalizeUnitAccess(row.unit_access)
+    })));
   } catch (err) {
     console.error("Error reading users", err);
     res.status(500).json({ error: "Failed to fetch users" });
@@ -7675,12 +8096,13 @@ app.get("/api/users", requireAuth, requireRole("admin"), async (_req, res) => {
 
 // Admin: crear usuario con rol especifico
 app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
-  const { name, email, password, role, unit_access } = req.body || {};
-  const normalizedRole = String(role || "").trim().toLowerCase();
-  if (!email || !password || !role) {
-    return res.status(400).json({ error: "name/email/password/role son obligatorios" });
+  const { name, email, password, role, roles, unit_access } = req.body || {};
+  const assignedRoles = normalizeRoleAssignments(roles, role);
+  const normalizedRole = assignedRoles[0];
+  if (!email || !password || !assignedRoles.length) {
+    return res.status(400).json({ error: "email/password/roles son obligatorios" });
   }
-  if (!ALLOWED_ROLES.includes(normalizedRole)) {
+  if ((Array.isArray(roles) && assignedRoles.length !== roles.length) || (!Array.isArray(roles) && role && !ALLOWED_ROLES.includes(normalizedRole))) {
     return res.status(400).json({ error: "Rol no válido" });
   }
   if (!PASSWORD_POLICY_REGEX.test(String(password || ""))) {
@@ -7691,7 +8113,7 @@ app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
     return res.status(400).json({ error: emailValidation.error || "Correo no válido." });
   }
   const normalizedEmail = emailValidation.email;
-  const isRestrictedRole = isUnitRestrictedRole(normalizedRole);
+  const isRestrictedRole = hasUnitRestrictedRole(assignedRoles);
   const normalizedUnitAccess = isRestrictedRole ? normalizeUnitAccess(unit_access) : [...ALL_UNITS];
   if (isRestrictedRole && !normalizedUnitAccess.length) {
     return res.status(400).json({ error: "Debes asignar al menos una unidad." });
@@ -7702,19 +8124,80 @@ app.post("/api/users", requireAuth, requireRole("admin"), async (req, res) => {
       return res.status(409).json({ error: "El correo ya existe." });
     }
     const passwordHash = await bcrypt.hash(String(password), 10);
-    const created = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, unit_access, email_verified, email_verified_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, name, email, role, unit_access, created_at`,
-      [name || null, normalizedEmail, passwordHash, normalizedRole, normalizedUnitAccess, true, new Date()]
-    );
+    const client = await pool.connect();
+    let created;
+    try {
+      await client.query("BEGIN");
+      created = await client.query(
+        `INSERT INTO users (name, email, password_hash, role, unit_access, email_verified, email_verified_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, name, email, role, unit_access, created_at`,
+        [name || null, normalizedEmail, passwordHash, normalizedRole, normalizedUnitAccess, true, new Date()]
+      );
+      await client.query(
+        "INSERT INTO user_roles (user_id, role) SELECT $1, unnest($2::TEXT[])",
+        [created.rows[0].id, assignedRoles]
+      );
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
     return res.status(201).json({
       ...created.rows[0],
+      roles: assignedRoles,
       unit_access: normalizeUnitAccess(created.rows[0].unit_access)
     });
   } catch (err) {
     console.error("Error creating user", err);
     return res.status(500).json({ error: "No se pudo crear el usuario." });
+  }
+});
+
+// Admin: actualizar roles asignados y definir el primero como perfil predeterminado.
+app.patch("/api/users/:id/roles", requireAuth, requireRole("admin"), async (req, res) => {
+  const { id } = req.params;
+  const assignedRoles = normalizeRoleAssignments(req.body?.roles);
+  if (!assignedRoles.length || !Array.isArray(req.body?.roles) || assignedRoles.length !== req.body.roles.length) {
+    return res.status(400).json({ error: "Debes asignar al menos un rol válido." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const current = await client.query("SELECT id, unit_access FROM users WHERE id = $1 FOR UPDATE", [id]);
+    if (!current.rowCount) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const currentUnits = normalizeUnitAccess(current.rows[0].unit_access);
+    const nextUnits = hasUnitRestrictedRole(assignedRoles)
+      ? (currentUnits.length ? currentUnits : [...ALL_UNITS])
+      : [...ALL_UNITS];
+    await client.query("DELETE FROM user_roles WHERE user_id = $1", [id]);
+    await client.query(
+      "INSERT INTO user_roles (user_id, role) SELECT $1, unnest($2::TEXT[])",
+      [id, assignedRoles]
+    );
+    const updated = await client.query(
+      "UPDATE users SET role = $1, unit_access = $2 WHERE id = $3 RETURNING id, name, email, role, unit_access, created_at",
+      [assignedRoles[0], nextUnits, id]
+    );
+    await client.query("COMMIT");
+    return res.json({
+      ...updated.rows[0],
+      roles: assignedRoles,
+      unit_access: normalizeUnitAccess(updated.rows[0].unit_access)
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error updating roles", err);
+    return res.status(500).json({ error: "No se pudieron actualizar los roles." });
+  } finally {
+    client.release();
   }
 });
 
@@ -7734,11 +8217,13 @@ app.patch("/api/users/:id/role", requireAuth, requireRole("admin"), async (req, 
     const shouldRestrict = isUnitRestrictedRole(normalizedRole);
     const currentUnits = normalizeUnitAccess(current.rows[0].unit_access);
     const nextUnits = shouldRestrict ? (currentUnits.length ? currentUnits : [...ALL_UNITS]) : [...ALL_UNITS];
+    await pool.query("DELETE FROM user_roles WHERE user_id = $1", [id]);
+    await pool.query("INSERT INTO user_roles (user_id, role) VALUES ($1, $2)", [id, normalizedRole]);
     const updated = await pool.query(
       "UPDATE users SET role = $1, unit_access = $2 WHERE id = $3 RETURNING id, name, email, role, unit_access, created_at",
       [normalizedRole, nextUnits, id]
     );
-    return res.json({ ...updated.rows[0], unit_access: normalizeUnitAccess(updated.rows[0].unit_access) });
+    return res.json({ ...updated.rows[0], roles: [normalizedRole], unit_access: normalizeUnitAccess(updated.rows[0].unit_access) });
   } catch (err) {
     console.error("Error updating role", err);
     return res.status(500).json({ error: "No se pudo actualizar el rol." });
@@ -7754,18 +8239,24 @@ app.patch("/api/users/:id/units", requireAuth, requireRole("admin"), async (req,
     return res.status(400).json({ error: "Debes asignar al menos una unidad." });
   }
   try {
-    const existing = await pool.query("SELECT id, role FROM users WHERE id = $1", [id]);
+    const existing = await pool.query(
+      `SELECT id, role,
+        ARRAY(SELECT ur.role FROM user_roles ur WHERE ur.user_id = users.id ORDER BY ur.role) AS roles
+       FROM users WHERE id = $1`,
+      [id]
+    );
     if (!existing.rowCount) {
       return res.status(404).json({ error: "Usuario no encontrado" });
     }
-    if (!isUnitRestrictedRole(existing.rows[0].role)) {
+    const assignedRoles = normalizeRoleAssignments(existing.rows[0].roles, existing.rows[0].role);
+    if (!hasUnitRestrictedRole(assignedRoles)) {
       return res.status(400).json({ error: "Solo aplica para roles revisor, analista, emisor y aprobador." });
     }
     const updated = await pool.query(
       "UPDATE users SET unit_access = $1 WHERE id = $2 RETURNING id, name, email, role, unit_access, created_at",
       [normalizedUnits, id]
     );
-    return res.json({ ...updated.rows[0], unit_access: normalizeUnitAccess(updated.rows[0].unit_access) });
+    return res.json({ ...updated.rows[0], roles: assignedRoles, unit_access: normalizeUnitAccess(updated.rows[0].unit_access) });
   } catch (err) {
     console.error("Error updating units", err);
     return res.status(500).json({ error: "No se pudieron actualizar las unidades." });

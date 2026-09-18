@@ -34,6 +34,15 @@ async function init() {
       ON users (LOWER(email));
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_roles (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, role)
+    );
+  `);
+
   // Create table with full schema
   await pool.query(`
     CREATE TABLE IF NOT EXISTS submissions (
@@ -146,6 +155,15 @@ async function init() {
       original_form_pdf BYTEA,
       original_form_filename TEXT,
       original_form_mime TEXT,
+      signature_status TEXT NOT NULL DEFAULT 'pending',
+      signature_provider TEXT,
+      signature_requested_at TIMESTAMPTZ,
+      signature_completed_at TIMESTAMPTZ,
+      signature_failed_at TIMESTAMPTZ,
+      signature_signed_by_user_id INTEGER,
+      signature_request_payload JSONB,
+      signature_response_payload JSONB,
+      signature_error TEXT,
       receptor_opened_at TIMESTAMPTZ,
       created_by_user_id INTEGER,
       approved_at TIMESTAMPTZ,
@@ -386,6 +404,15 @@ async function init() {
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS original_form_pdf BYTEA",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS original_form_filename TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS original_form_mime TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_status TEXT NOT NULL DEFAULT 'pending'",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_provider TEXT",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_requested_at TIMESTAMPTZ",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_completed_at TIMESTAMPTZ",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_failed_at TIMESTAMPTZ",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_signed_by_user_id INTEGER",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_request_payload JSONB",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_response_payload JSONB",
+    "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS signature_error TEXT",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS receptor_opened_at TIMESTAMPTZ",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER",
     "ALTER TABLE submissions ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ",
@@ -433,6 +460,20 @@ async function init() {
          ALTER TABLE submissions
            ADD CONSTRAINT submissions_assigned_emisor_fkey
            FOREIGN KEY (assigned_emisor_id)
+           REFERENCES users(id)
+           ON DELETE SET NULL;
+       END IF;
+     END $$`,
+    `DO $$
+     BEGIN
+       IF NOT EXISTS (
+         SELECT 1
+         FROM pg_constraint
+         WHERE conname = 'submissions_signature_signed_by_user_fkey'
+       ) THEN
+         ALTER TABLE submissions
+           ADD CONSTRAINT submissions_signature_signed_by_user_fkey
+           FOREIGN KEY (signature_signed_by_user_id)
            REFERENCES users(id)
            ON DELETE SET NULL;
        END IF;
@@ -731,6 +772,22 @@ async function init() {
   }
 
   await pool.query("UPDATE users SET role = 'user' WHERE role IS NULL");
+  await pool.query("UPDATE users SET role = 'operador_pagos' WHERE role = 'financiero_pagos'");
+  await pool.query(`
+    DELETE FROM user_roles old_role
+    USING user_roles assigned_role
+    WHERE old_role.user_id = assigned_role.user_id
+      AND old_role.role = 'financiero_pagos'
+      AND assigned_role.role = 'operador_pagos'
+  `);
+  await pool.query("UPDATE user_roles SET role = 'operador_pagos' WHERE role = 'financiero_pagos'");
+  await pool.query(`
+    INSERT INTO user_roles (user_id, role)
+    SELECT id, role
+    FROM users
+    WHERE role IS NOT NULL
+    ON CONFLICT (user_id, role) DO NOTHING
+  `);
   await pool.query("UPDATE users SET unit_access = ARRAY['GENERAL','RAN','DVSO','AILA','FINANCIERO','TRANSPORTE_AEREO','INFRAESTRUCTURA']::TEXT[] WHERE unit_access IS NULL");
   await pool.query("UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL");
   await pool.query(`

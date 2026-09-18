@@ -3,8 +3,10 @@ import { HttpClient } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
+import { InstitutionalLoaderComponent } from './institutional-loader/institutional-loader.component';
 import { isUnitVisibleInCurrentRuntime } from './runtime-flags';
 import { Submission } from './submission.model';
 
@@ -12,8 +14,13 @@ type UnitGroup = { unit: string; rows: Submission[] };
 
 @Component({
     selector: 'app-home-page',
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, InstitutionalLoaderComponent],
     template: `
+    <app-institutional-loader
+      [visible]="documentOperationLoading"
+      [message]="documentLoadingMessage">
+    </app-institutional-loader>
+
     <section class="home">
       <header class="head">
         <div>
@@ -403,6 +410,8 @@ export class HomePageComponent implements OnInit, OnDestroy {
     { value: 5, emoji: '🙂', label: 'Bueno' }
   ] as const;
   loading = false;
+  documentOperationLoading = false;
+  documentLoadingMessage = 'Generando documento...';
   allRows: Submission[] = [];
   groups: UnitGroup[] = [];
   downloadError = '';
@@ -533,7 +542,13 @@ export class HomePageComponent implements OnInit, OnDestroy {
   downloadApprovedPdf(row: Submission) {
     if (!row.id || !row.approved_at) return;
     this.downloadError = '';
-    this.http.get(`${this.apiBase}/my-submissions/${row.id}/pdf`, { responseType: 'blob' }).subscribe({
+    this.documentOperationLoading = true;
+    this.documentLoadingMessage = 'Generando documento...';
+    this.http.get(`${this.apiBase}/my-submissions/${row.id}/pdf`, { responseType: 'blob' }).pipe(
+      finalize(() => {
+        this.documentOperationLoading = false;
+      })
+    ).subscribe({
       next: (blob) => {
         if (!blob || blob.size === 0) {
           this.downloadError = 'No se generó el PDF. Intenta de nuevo.';

@@ -7,7 +7,8 @@ export interface AuthUser {
   id: number;
   email: string;
   name?: string | null;
-  role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'emisor' | 'aprobador' | 'avsec_financiero' | 'recepcion_aila' | 'recepcion_avsec' | 'jefatura_avsec' | 'jefatura_aila' | 'recepcion_dvso' | 'asistente_dvso' | 'jefatura_dvso' | 'inspector_dvso' | 'user' | string;
+  role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'emisor' | 'aprobador' | 'operador_pagos' | 'recepcion_aila' | 'recepcion_avsec' | 'jefatura_avsec' | 'jefatura_aila' | 'recepcion_dvso' | 'asistente_dvso' | 'jefatura_dvso' | 'inspector_dvso' | 'user' | string;
+  roles?: string[];
   unit_access?: string[];
 }
 
@@ -95,6 +96,12 @@ export class AuthService {
       const token = this.token;
       if (token) this.setSession(token, user);
     }));
+  }
+
+  switchActiveRole(role: string) {
+    return this.http
+      .post<{ token: string; user: AuthUser }>(`${API_BASE}/auth/active-role`, { role })
+      .pipe(tap(({ token, user }) => this.setSession(token, user)));
   }
 
   verifyEmail(token: string) {

@@ -103,6 +103,11 @@ export type Submission = {
   signed_pdf_mime?: string | null;
   signed_pdf_uploaded_at?: string | null;
   has_signed_pdf?: boolean | null;
+  signature_status?: string | null;
+  signature_provider?: string | null;
+  signature_requested_at?: string | null;
+  signature_completed_at?: string | null;
+  signature_failed_at?: string | null;
   feedback_rating?: number | null;
   feedback_comment?: string | null;
   feedback_created_at?: string | null;

@@ -1,12 +1,13 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
 import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTransporteAereoInCurrentRuntime } from './runtime-flags';
 
 @Component({
     selector: 'app-root',
-    imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+    imports: [CommonModule, FormsModule, RouterOutlet, RouterLink, RouterLinkActive],
     template: `
     <div class="shell">
       <header class="shell__header">
@@ -14,12 +15,20 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
           <img class="brand-logo" src="assets/dgac-header.png" alt="Dirección General de Aeronáutica Civil">
         </div>
         <div class="header__right">
+          <button
+            type="button"
+            class="header-back"
+            *ngIf="showHeaderBackButton"
+            (click)="goBack()">
+            Volver
+          </button>
           <nav class="nav" *ngIf="auth.user$ | async as user; else guestNav">
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
-            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
-            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
+            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'operador_pagos' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
+            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'operador_pagos' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
+            <a routerLink="/financiero/reversas" routerLinkActive="active" *ngIf="user.role === 'operador_pagos' || user.role === 'supervisor' || user.role === 'admin'">Reversas</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">
               <button type="button" class="units-trigger">Unidades</button>
               <div class="units-dropdown">
@@ -69,6 +78,12 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
           </nav>
           <div class="user" *ngIf="auth.user$ | async as user; else guest">
             <span class="chip">{{ user.name || user.email }} <small class="role">({{ displayRole(user.role) }})</small></span>
+            <label class="active-role" *ngIf="user.roles && user.roles.length > 1">
+              <span>Perfil activo</span>
+              <select [ngModel]="user.role" (ngModelChange)="switchActiveRole($event)">
+                <option *ngFor="let role of user.roles" [value]="role">{{ displayRole(role) }}</option>
+              </select>
+            </label>
             <button (click)="logout()">Cerrar sesión</button>
           </div>
           <ng-template #guest></ng-template>
@@ -173,6 +188,15 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
     .units-submenu:hover > .units-submenu-panel { display: block; }
     .shell__body { margin-top: 16px; }
     .header__right { display: flex; align-items: center; gap: 12px; }
+    .header-back {
+      padding: 8px 14px;
+      border: 1px solid #0b8fd9;
+      background: linear-gradient(90deg, #0b8fd9, #31a8e8);
+      color: #ffffff;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+    }
     .chip {
       padding: 7px 12px;
       background: #f1f8ff;
@@ -191,15 +215,8 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
       cursor: pointer;
       margin-left: 6px;
     }
-    .cta {
-      padding: 8px 14px;
-      background: linear-gradient(90deg, #0b8fd9, #31a8e8);
-      color: #fff;
-      border-radius: 999px;
-      font-weight: 700;
-      text-decoration: none;
-      border: 1px solid #0b8fd9;
-    }
+    .active-role { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; color: #577794; font-size: 12px; }
+    .active-role select { border: 1px solid #9ec3dd; border-radius: 999px; background: #f8fcff; color: #12385a; padding: 6px 9px; }
     @media (max-width: 900px) {
       .shell__header { flex-direction: column; align-items: flex-start; }
       .brand { width: 100%; text-align: center; }
@@ -221,6 +238,10 @@ export class AppComponent {
     return this.router.url !== '/auth';
   }
 
+  get showHeaderBackButton() {
+    return this.router.url.startsWith('/pago');
+  }
+
   canAccessForms(role: string | null | undefined) {
     return role === 'user' || role === 'admin';
   }
@@ -230,6 +251,23 @@ export class AppComponent {
     if (role === 'jefatura_ops') return 'Jefatura OPS';
     if (role === 'jefe_aeronavegabilidad') return 'Jefe de Sección de Aeronavegabilidad';
     return role || 'user';
+  }
+
+  switchActiveRole(role: string) {
+    if (!role || role === this.auth.currentUser?.role) return;
+    this.auth.switchActiveRole(role).subscribe({
+      next: () => this.router.navigateByUrl('/'),
+      error: () => this.auth.me().subscribe()
+    });
+  }
+
+  goBack() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    this.router.navigateByUrl('/');
   }
 
   logout() {

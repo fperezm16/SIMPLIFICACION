@@ -12,6 +12,7 @@ type UserRow = {
   name: string | null;
   email: string;
   role: string;
+  roles?: string[];
   unit_access?: string[] | null;
   created_at: string;
 };
@@ -43,7 +44,7 @@ type UserRow = {
           </label>
           <label>Rol
             <select [(ngModel)]="createForm.role" (ngModelChange)="onCreateRoleChange()">
-              <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+              <option *ngFor="let role of roles" [value]="role">{{ role }}</option>
             </select>
           </label>
         </div>
@@ -70,7 +71,7 @@ type UserRow = {
             <tr>
               <th>Email</th>
               <th>Nombre</th>
-              <th>Rol</th>
+              <th>Roles</th>
               <th>Unidades</th>
               <th>Creado</th>
               <th></th>
@@ -81,12 +82,22 @@ type UserRow = {
               <td>{{ u.email }}</td>
               <td>{{ u.name || 'N/D' }}</td>
               <td>
-                <select [(ngModel)]="u.role">
-                  <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
-                </select>
+                <div class="role-summary" *ngIf="editingRoleUserId !== u.id">
+                  <span class="role-pill" *ngFor="let role of u.roles">{{ role }}</span>
+                </div>
+                <div class="roles-inline" *ngIf="editingRoleUserId === u.id">
+                  <label *ngFor="let role of roles">
+                    <input
+                      type="checkbox"
+                      [checked]="hasRole(u.roles, role)"
+                      (change)="toggleUserRole(u, role, $any($event.target).checked)"
+                    />
+                    {{ role }}
+                  </label>
+                </div>
               </td>
               <td>
-                <div class="units-inline" *ngIf="isUnitRole(u.role); else allUnits">
+                <div class="units-inline" *ngIf="hasUnitRole(u.roles); else allUnits">
                   <label *ngFor="let unit of unitOptions">
                     <input
                       type="checkbox"
@@ -102,10 +113,32 @@ type UserRow = {
               </td>
               <td>{{ u.created_at | date:'short' }}</td>
               <td class="actions">
-                <button class="primary" (click)="updateRole(u)" [disabled]="loading">Guardar rol</button>
                 <button
                   class="primary"
-                  *ngIf="isUnitRole(u.role)"
+                  *ngIf="editingRoleUserId !== u.id"
+                  (click)="editRoles(u.id)"
+                  [disabled]="loading"
+                >
+                  Editar roles
+                </button>
+                <button
+                  class="primary"
+                  *ngIf="editingRoleUserId === u.id"
+                  (click)="updateRoles(u)"
+                  [disabled]="loading"
+                >
+                  Guardar roles
+                </button>
+                <button
+                  *ngIf="editingRoleUserId === u.id"
+                  (click)="cancelRoleEdit()"
+                  [disabled]="loading"
+                >
+                  Cancelar
+                </button>
+                <button
+                  class="primary"
+                  *ngIf="hasUnitRole(u.roles)"
                   (click)="updateUnits(u)"
                   [disabled]="loading"
                 >
@@ -141,6 +174,8 @@ type UserRow = {
     .units-grid { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin: 6px 0 10px; font-size: 13px; }
     .units-grid label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; }
     .units-grid input { width: auto; margin: 0; padding: 0; }
+    .roles-inline label { display: inline-flex; flex-direction: row; align-items: center; gap: 5px; margin: 0; }
+    .roles-inline input { width: auto; margin: 0; padding: 0; }
     .table-wrap { overflow: auto; margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); text-align: left; }
@@ -149,6 +184,9 @@ type UserRow = {
     .units-inline { display: grid; grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 6px 10px; min-width: 230px; }
     .units-inline label { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; font-size: 12px; }
     .units-inline input { width: auto; margin: 0; padding: 0; }
+    .role-summary { display: flex; flex-wrap: wrap; gap: 5px; min-width: 150px; }
+    .role-pill { border: 1px solid #b9d5e9; border-radius: 999px; background: #f1f8ff; color: #0e3f64; padding: 3px 7px; font-size: 11px; white-space: nowrap; }
+    .roles-inline { display: grid; grid-template-columns: repeat(2, minmax(135px, 1fr)); gap: 6px 10px; min-width: 290px; padding: 8px; border: 1px solid #b9d5e9; border-radius: 8px; background: #f7fbff; }
     .primary { background: #e8f4ff; border: 1px solid #8fc5e8; color: #0c4672; padding: 6px 10px; border-radius: 999px; cursor: pointer; font-weight: 600; }
     .danger { background: #fff1f2; border: 1px solid #fda4af; color: #881337; padding: 6px 10px; border-radius: 999px; cursor: pointer; font-weight: 600; }
     button[disabled] { opacity: 0.6; cursor: not-allowed; }
@@ -160,16 +198,17 @@ export class AdminPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
   readonly roles = hideDvsoInCurrentRuntime()
-    ? ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'admin', 'supervisor']
-    : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero', 'admin', 'supervisor'];
+    ? ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'operador_pagos', 'admin', 'supervisor']
+    : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero', 'operador_pagos', 'admin', 'supervisor'];
   readonly unitOptions: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO', 'TRANSPORTE_AEREO', 'INFRAESTRUCTURA']);
   private readonly unitRoles = new Set(
     hideDvsoInCurrentRuntime()
-      ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero']
-      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero']
+      ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'operador_pagos']
+      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero', 'operador_pagos']
   );
 
   users: UserRow[] = [];
+  editingRoleUserId: number | null = null;
   loading = false;
   error = '';
   message = '';
@@ -189,6 +228,14 @@ export class AdminPageComponent implements OnInit {
     return this.unitRoles.has(String(role || '').toLowerCase());
   }
 
+  hasUnitRole(roles: string[] | null | undefined) {
+    return this.normalizeRoles(roles).some((role) => this.isUnitRole(role));
+  }
+
+  hasRole(roles: string[] | null | undefined, role: string) {
+    return this.normalizeRoles(roles).includes(role);
+  }
+
   hasUnit(unitAccess: string[] | null | undefined, unit: string) {
     return this.normalizeUnits(unitAccess).includes(unit);
   }
@@ -204,6 +251,19 @@ export class AdminPageComponent implements OnInit {
     this.createForm.unit_access = this.toggleUnit(this.createForm.unit_access, unit, checked);
   }
 
+  toggleUserRole(user: UserRow, role: string, checked: boolean) {
+    user.roles = this.toggleRole(user.roles, role, checked);
+  }
+
+  editRoles(userId: number) {
+    this.editingRoleUserId = userId;
+  }
+
+  cancelRoleEdit() {
+    this.editingRoleUserId = null;
+    this.fetch();
+  }
+
   toggleUserUnit(user: UserRow, unit: string, checked: boolean) {
     user.unit_access = this.toggleUnit(user.unit_access, unit, checked);
   }
@@ -216,6 +276,18 @@ export class AdminPageComponent implements OnInit {
     if (!this.createForm.unit_access.length) {
       this.createForm.unit_access = [...this.unitOptions];
     }
+  }
+
+  private toggleRole(roles: string[] | null | undefined, role: string, checked: boolean) {
+    const current = this.normalizeRoles(roles);
+    if (checked) return current.includes(role) ? current : [...current, role];
+    return current.length > 1 ? current.filter((item) => item !== role) : current;
+  }
+
+  private normalizeRoles(roles: string[] | null | undefined) {
+    const allowed = new Set(this.roles);
+    if (!Array.isArray(roles)) return [];
+    return Array.from(new Set(roles.map((role) => String(role || '').trim().toLowerCase()).filter((role) => allowed.has(role))));
   }
 
   private toggleUnit(units: string[] | null | undefined, unit: string, checked: boolean) {
@@ -246,7 +318,11 @@ export class AdminPageComponent implements OnInit {
     this.message = '';
     this.http.get<UserRow[]>(`${this.apiBase}/users`).subscribe({
       next: (rows) => {
-        this.users = rows.map((row) => ({ ...row, unit_access: this.normalizeUnits(row.unit_access) }));
+        this.users = rows.map((row) => ({
+          ...row,
+          roles: this.normalizeRoles(row.roles?.length ? row.roles : [row.role]),
+          unit_access: this.normalizeUnits(row.unit_access)
+        }));
         this.loading = false;
       },
       error: (err) => {
@@ -276,6 +352,7 @@ export class AdminPageComponent implements OnInit {
     this.loading = true;
     this.http.post<UserRow>(`${this.apiBase}/users`, {
       ...this.createForm,
+      roles: [this.createForm.role],
       unit_access: isRestricted ? selectedUnits : this.unitOptions
     }).subscribe({
       next: () => {
@@ -291,15 +368,23 @@ export class AdminPageComponent implements OnInit {
     });
   }
 
-  updateRole(u: UserRow) {
+  updateRoles(u: UserRow) {
     this.error = '';
     this.message = '';
+    const roles = this.normalizeRoles(u.roles);
+    if (!roles.length) {
+      this.error = 'Debes asignar al menos un rol.';
+      return;
+    }
     this.loading = true;
-    this.http.patch<UserRow>(`${this.apiBase}/users/${u.id}/role`, { role: u.role }).subscribe({
+    this.http.patch<UserRow>(`${this.apiBase}/users/${u.id}/roles`, { roles }).subscribe({
       next: (updated) => {
+        u.role = updated.role;
+        u.roles = this.normalizeRoles(updated.roles?.length ? updated.roles : [updated.role]);
         u.unit_access = this.normalizeUnits(updated.unit_access);
+        this.editingRoleUserId = null;
         this.loading = false;
-        this.message = 'Rol actualizado.';
+        this.message = 'Roles actualizados.';
       },
       error: (err) => {
         this.loading = false;
@@ -311,8 +396,8 @@ export class AdminPageComponent implements OnInit {
   updateUnits(u: UserRow) {
     this.error = '';
     this.message = '';
-    if (!this.isUnitRole(u.role)) {
-      this.error = 'Solo aplica para revisor, analista, emisor, aprobador o avsec_financiero.';
+    if (!this.hasUnitRole(u.roles)) {
+      this.error = 'Solo aplica para revisor, analista, emisor, aprobador u operador_pagos.';
       return;
     }
     const units = this.normalizeUnits(u.unit_access);

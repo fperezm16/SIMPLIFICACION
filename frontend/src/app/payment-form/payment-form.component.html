@@ -12,7 +12,7 @@
     <div class="payment-form-area">
       <div class="form-header">
         <div>
-          <span class="section-label">Pasarela de pago</span>
+          <span class="section-label">Formulario de pago</span>
           <h3>Datos de tarjeta</h3>
         </div>
         <span class="status-pill" [ngClass]="statusToneClass">{{ statusBadgeLabel }}</span>
@@ -33,11 +33,17 @@
       <div class="form-group">
         <div class="label-row">
           <label for="cardNumber">Numero de tarjeta</label>
-          <span class="card-brand" *ngIf="cardBrand">{{ cardBrand }}</span>
+          <span
+            class="card-brand"
+            [class.card-brand--danger]="showCardWarning"
+            *ngIf="cardStatusLabel">
+            {{ cardStatusLabel }}
+          </span>
         </div>
         <input
           id="cardNumber"
           type="text"
+          [class.input-danger]="showCardWarning"
           [value]="cardNumber"
           (input)="onCardNumberInput($event)"
           placeholder="4000 0000 0000 0416"
@@ -77,65 +83,103 @@
       <button
         type="button"
         class="pay-button"
+        [class.pay-button--approved]="isApproved"
         (click)="processPayment()"
         [disabled]="isPayButtonDisabled">
         {{ payButtonLabel }}
       </button>
-
-      <div class="message success-box" *ngIf="successMessage">
-        <strong>Pago aprobado</strong>
-        <span>{{ successMessage }}</span>
-      </div>
 
       <div class="message error-box" *ngIf="errorMessage">
         <strong>Atencion</strong>
         <span>{{ errorMessage }}</span>
       </div>
 
+      <div class="message success-box" *ngIf="successMessage">
+        <strong>Exito</strong>
+        <span>{{ successMessage }}</span>
+      </div>
+
+      <div class="message info-box" *ngIf="infoMessage">
+        <strong>Seguimiento</strong>
+        <span>{{ infoMessage }}</span>
+      </div>
+
       <section class="summary-box" *ngIf="hasPaymentResponse">
         <div class="summary-header">
-          <div>
+          <div class="summary-copy">
             <span class="section-label">Resultado</span>
-            <h4>Resumen de transaccion</h4>
+            <h4>Comprobante</h4>
+            <p class="summary-description">Detalle del pago procesado.</p>
           </div>
           <button
             type="button"
             class="voucher-button"
             *ngIf="canRequestVoucher"
             (click)="requestVoucher()">
-            Ver voucher
+            Voucher
           </button>
         </div>
 
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span class="summary-label">ID de pago</span>
-            <strong>{{ paymentResponse.payment.id }}</strong>
+        <div class="summary-status-line">
+          <span class="summary-status-label">Estado actual</span>
+          <strong class="summary-status-value">{{ statusBadgeLabel }}</strong>
+        </div>
+
+        <div class="summary-receipt">
+          <div class="receipt-row">
+            <span class="receipt-key">ID de pago</span>
+            <strong class="receipt-value">#{{ paymentResponse.payment.id }}</strong>
           </div>
-          <div class="summary-item">
-            <span class="summary-label">Estado</span>
-            <strong>{{ paymentStatus || 'N/D' }}</strong>
+          <div class="receipt-row">
+            <span class="receipt-key">Estado</span>
+            <strong class="receipt-value">{{ paymentStatusDisplayLabel }}</strong>
           </div>
-          <div class="summary-item">
-            <span class="summary-label">Referencia</span>
-            <strong>{{ paymentResponse.payment.reference_number || 'N/D' }}</strong>
+          <div class="receipt-row">
+            <span class="receipt-key">Referencia</span>
+            <strong class="receipt-value">{{ paymentResponse.payment.reference_number || 'N/D' }}</strong>
           </div>
-          <div class="summary-item">
-            <span class="summary-label">Autorizacion</span>
-            <strong>{{ paymentResponse.payment.authorization_code || 'N/D' }}</strong>
+          <div class="receipt-row">
+            <span class="receipt-key">Autorizacion</span>
+            <strong class="receipt-value">{{ paymentResponse.payment.authorization_code || 'N/D' }}</strong>
           </div>
-          <div class="summary-item">
-            <span class="summary-label">Auditoria</span>
-            <strong>{{ paymentResponse.payment.audit_number || 'N/D' }}</strong>
+          <div class="receipt-row">
+            <span class="receipt-key">Auditoria</span>
+            <strong class="receipt-value">{{ paymentResponse.payment.audit_number || 'N/D' }}</strong>
           </div>
-          <div class="summary-item">
-            <span class="summary-label">Monto</span>
-            <strong>Q {{ paymentResponse.payment.amount }}</strong>
+          <div class="receipt-row receipt-row--total">
+            <span class="receipt-key">Monto</span>
+            <strong class="receipt-value">Q {{ paymentResponse.payment.amount }}</strong>
           </div>
         </div>
       </section>
     </div>
   </section>
+
+  <div class="three-ds-modal" *ngIf="threeDSChallengeVisible">
+    <div class="three-ds-backdrop" (click)="closeStepUpChallenge()"></div>
+    <section class="three-ds-dialog" aria-label="Autenticacion 3DS">
+      <div class="three-ds-header">
+        <div>
+          <span class="section-label">Autenticacion</span>
+          <h4>Verificacion del emisor</h4>
+        </div>
+        <button type="button" class="three-ds-close" (click)="closeStepUpChallenge()">
+          Cerrar
+        </button>
+      </div>
+
+      <p class="three-ds-copy">
+        Completa la validacion solicitada por el banco para continuar con el pago.
+      </p>
+
+      <iframe
+        [id]="'payment-3ds-stepup-iframe'"
+        [name]="'payment-3ds-stepup-iframe'"
+        class="three-ds-iframe"
+        title="Challenge 3DS">
+      </iframe>
+    </section>
+  </div>
 </div>
 
 <ng-template #noPaymentBlock>

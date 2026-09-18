@@ -6,7 +6,7 @@ import { PaymentFormComponent } from '../payment-form/payment-form.component';
   standalone: true,
   imports: [PaymentFormComponent],
   template: `
-    <h1>Prueba de Pago</h1>
+  
 
     <app-payment-form
       [amount]="1400"

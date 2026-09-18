@@ -129,12 +129,30 @@ async function enforceRecaptcha(req, res) {
   return false;
 }
 
-function signAuthToken(user) {
+function normalizeRole(role = "user") {
+  const normalized = String(role || "user").trim().toLowerCase();
+  return normalized === "financiero_pagos" ? "operador_pagos" : normalized;
+}
+
+async function getAssignedRoles(userId, fallbackRole = "user") {
+  const fallback = normalizeRole(fallbackRole);
+  const result = await pool.query(
+    "SELECT role FROM user_roles WHERE user_id = $1 ORDER BY role",
+    [userId]
+  );
+  const roles = [...new Set(result.rows.map((row) => normalizeRole(row.role)).filter(Boolean))];
+  return roles.length ? roles : [fallback];
+}
+
+function signAuthToken(user, assignedRoles = []) {
+  const roles = [...new Set(assignedRoles.map((role) => normalizeRole(role)).filter(Boolean))];
+  const activeRole = normalizeRole(user.role);
   const payload = {
     sub: user.id,
     email: user.email,
     name: user.name || null,
-    role: user.role || "user"
+    role: roles.includes(activeRole) ? activeRole : (roles[0] || "user"),
+    roles: roles.length ? roles : [activeRole]
   };
   return jwt.sign(payload, getJwtSecret(), { expiresIn: "7d" });
 }
@@ -358,6 +376,10 @@ async function register(req, res) {
     );
 
     const user = created.rows[0];
+    await pool.query(
+      "INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [user.id, "user"]
+    );
     const verification = await dispatchVerificationEmail(user);
 
     const response = {
@@ -618,20 +640,65 @@ async function login(req, res) {
       });
     }
 
-    const token = signAuthToken(user);
+    const roles = await getAssignedRoles(user.id, user.role);
+    const activeRole = roles.includes(normalizeRole(user.role)) ? normalizeRole(user.role) : roles[0];
+    const token = signAuthToken({ ...user, role: activeRole }, roles);
     return res.json({
       token,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: activeRole,
+        roles,
         unit_access: normalizeUnitAccess(user.unit_access)
       }
     });
   } catch (err) {
     console.error("Error en login", err);
     return res.status(500).json({ error: "No se pudo iniciar sesión." });
+  }
+}
+
+async function switchActiveRole(req, res) {
+  const requestedRole = normalizeRole(req.body?.role);
+  const header = String(req.headers.authorization || "");
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: "No autenticado." });
+
+  try {
+    const payload = jwt.verify(token, getJwtSecret());
+    const userResult = await pool.query(
+      "SELECT id, email, name, role, unit_access FROM users WHERE id = $1",
+      [payload.sub]
+    );
+    if (!userResult.rowCount) return res.status(404).json({ error: "Usuario no encontrado." });
+
+    const user = userResult.rows[0];
+    const roles = await getAssignedRoles(user.id, user.role);
+    if (!roles.includes(requestedRole)) {
+      return res.status(403).json({ error: "El rol seleccionado no está asignado a este usuario." });
+    }
+
+    const activeUser = { ...user, role: requestedRole };
+    const nextToken = signAuthToken(activeUser, roles);
+    return res.json({
+      token: nextToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: requestedRole,
+        roles,
+        unit_access: normalizeUnitAccess(user.unit_access)
+      }
+    });
+  } catch (err) {
+    if (err?.name === "JsonWebTokenError" || err?.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Token no válido o expirado." });
+    }
+    console.error("Error cambiando rol activo", err);
+    return res.status(500).json({ error: "No se pudo cambiar el rol activo." });
   }
 }
 
@@ -649,6 +716,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   login,
-  getRecaptchaConfig
+  getRecaptchaConfig,
+  switchActiveRole
 };
 
