@@ -318,7 +318,7 @@ const unitCases = [
     expected: { status: "approved", reason: "step3_frictionless_approved" }
   },
   {
-    name: "step3 frictionless responseCode 10 resolves approved",
+    name: "step3 frictionless responseCode 10 resolves partial approval",
     input: {
       requestedStep: "3",
       storedReferenceId: "ref-prev",
@@ -328,7 +328,7 @@ const unitCases = [
         referenceId: "ref-prev"
       })
     },
-    expected: { status: "approved", reason: "step3_frictionless_approved" }
+    expected: { status: "partial_approved", reason: "step3_frictionless_partial_approved" }
   },
   {
     name: "step3 frictionless without AccessToken still resolves approved",
@@ -402,7 +402,7 @@ const unitCases = [
     expected: { status: "approved", reason: "step5_approved" }
   },
   {
-    name: "step5 responseCode 10 final coherent resolves approved",
+    name: "step5 responseCode 10 final coherent resolves partial approval",
     input: {
       requestedStep: "5",
       storedReferenceId: "ref-prev",
@@ -412,7 +412,7 @@ const unitCases = [
         referenceId: ""
       })
     },
-    expected: { status: "approved", reason: "step5_approved" }
+    expected: { status: "partial_approved", reason: "step5_partial_approved" }
   },
   {
     name: "step5 without AccessToken final coherent still resolves approved",
@@ -604,8 +604,10 @@ test("reason codes are stable and controlled", () => {
     "step3_challenge",
     "step3_challenge_incomplete",
     "step3_frictionless_approved",
+    "step3_frictionless_partial_approved",
     "step3_contradictory",
     "step5_approved",
+    "step5_partial_approved",
     "step5_incomplete",
     "gateway_rejected",
     "gateway_timeout",

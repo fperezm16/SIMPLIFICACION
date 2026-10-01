@@ -82,6 +82,10 @@ function isApproved(code) {
   return code === "00" || code === "10";
 }
 
+function isPartialApproval(code) {
+  return String(code || "").trim() === "10";
+}
+
 function isTimeoutResponseCode(code) {
   return String(code || "").trim() === "91";
 }
@@ -95,13 +99,15 @@ function isRejectedResponseCode(code) {
 }
 
 function getPaymentStatus(code) {
-  if (code === "00" || code === "10") return "approved";
+  if (code === "00") return "approved";
+  if (code === "10") return "partial_approved";
   if (code === "91") return "timeout";
   return "rejected";
 }
 
 function getPaymentMessage(status) {
   if (status === "approved") return "Pago aprobado correctamente";
+  if (status === "partial_approved") return "La transaccion fue autorizada parcialmente.";
   if (status === "timeout") return "La transacción excedio el tiempo de espera.";
   if (status === "pending_3ds") return "Se requiere verificación 3DS para continuar.";
   if (status === "challenge_required") return "Se requiere autenticación adicional del emisor.";
@@ -134,13 +140,24 @@ function extractNameParts(cardholderName) {
   };
 }
 
-function getShopperIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (Array.isArray(forwarded) && forwarded.length) return forwarded[0];
-  if (typeof forwarded === "string" && forwarded.trim()) {
-    return forwarded.split(",")[0].trim();
+function normalizeShopperIp(value) {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "::1") return "127.0.0.1";
+
+  // Algunos proxies representan IPv4 como una direccion IPv6 mapeada.
+  const mappedIpv4 = raw.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i);
+  return mappedIpv4 ? mappedIpv4[1] : raw;
+}
+
+function getShopperIp(req = {}) {
+  const forwarded = req.headers?.["x-forwarded-for"];
+  if (Array.isArray(forwarded) && forwarded.length) {
+    return normalizeShopperIp(forwarded[0]);
   }
-  return req.ip || "127.0.0.1";
+  if (typeof forwarded === "string" && forwarded.trim()) {
+    return normalizeShopperIp(forwarded.split(",")[0]);
+  }
+  return normalizeShopperIp(req.ip);
 }
 
 function getBrowserThreeDSData(req) {
@@ -229,6 +246,10 @@ function cloneAndSanitizeForLog(value, path = [], seen = new WeakMap()) {
 
     for (const [key, nestedValue] of Object.entries(value)) {
       const normalizedKey = normalizeSensitiveKey(key);
+
+      if (normalizedKey === "reversalrequest") {
+        continue;
+      }
       const nestedPath = [...path, normalizedKey];
 
       if (
@@ -306,12 +327,22 @@ function cloneAndSanitizeForClient(value, seen = new WeakMap()) {
         normalizedKey.includes("merchantpasswd") ||
         normalizedKey.includes("merchantuser") ||
         normalizedKey.includes("password") ||
-        normalizedKey.includes("authorization") ||
+        (normalizedKey.includes("authorization") && normalizedKey !== "authorizationcode") ||
         normalizedKey === "cookie" ||
         normalizedKey === "setcookie" ||
         normalizedKey.includes("accesstoken") ||
         normalizedKey === "jwt"
       ) {
+        continue;
+      }
+
+      if (normalizedKey === "primaryacctnum" || normalizedKey === "pan") {
+        next[key] = maskCardNumber(nestedValue);
+        continue;
+      }
+
+      if (normalizedKey === "referenceid") {
+        next[key] = maskReferenceIdForLog(nestedValue);
         continue;
       }
 
@@ -456,6 +487,7 @@ module.exports = {
   getLocalTransactionTime,
   getLocalTransactionDate,
   isApproved,
+  isPartialApproval,
   isTimeoutResponseCode,
   hasUsableResponseCode,
   isRejectedResponseCode,
@@ -464,6 +496,7 @@ module.exports = {
   formatVoucherDate,
   formatVoucherAmount,
   extractNameParts,
+  normalizeShopperIp,
   getShopperIp,
   getBrowserThreeDSData,
   REDACTED_VALUE,

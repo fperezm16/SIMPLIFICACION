@@ -6,8 +6,6 @@ const {
   isRejectedResponseCode,
   sanitizeGatewayMessage
 } = require("./paymentHelpersService");
-const { getNextSystemsTraceNo } = require("./paymentPersistenceService");
-const { buildBasePayload } = require("./paymentPayloadService");
 
 function buildMockResponse(payload) {
   return {
@@ -292,33 +290,25 @@ function mapGatewayError(error) {
   };
 }
 
-async function executeAutomaticReverse(originalPayload, shopperIP) {
-  const reversePayload = buildBasePayload();
-
-  reversePayload.MessageTypeId = "0400";
-  reversePayload.ProcessingCode = "000000";
-  reversePayload.SystemsTraceNo = await getNextSystemsTraceNo();
-  reversePayload.Card.Type = originalPayload.Card?.Type || "";
-  reversePayload.Card.PrimaryAcctNum = originalPayload.Card?.PrimaryAcctNum || "";
-  reversePayload.Card.DateExpiration = originalPayload.Card?.DateExpiration || "";
-  reversePayload.Card.Cvv2 = originalPayload.Card?.Cvv2 || "";
-  reversePayload.Amount.AmountTrans = originalPayload.Amount?.AmountTrans || "";
-  reversePayload.PrivateUse63.HostReferenceData31 =
-    originalPayload.PrivateUse63?.HostReferenceData31 || "";
-
-  if (originalPayload.PayerAuthentication?.Step) {
-    reversePayload.PayerAuthentication = {
-      Step: String(originalPayload.PayerAuthentication.Step || ""),
-      ReferenceId: String(originalPayload.PayerAuthentication.ReferenceId || "")
-    };
+function buildReversePayloadFromOriginal(originalPayload) {
+  if (!originalPayload || typeof originalPayload !== "object") {
+    throw new Error("No existe el request original para la reversa");
   }
 
-  return dispatchPayment(reversePayload, shopperIP);
+  // NeoNet exige conservar el request de venta y modificar solo MessageTypeId.
+  const reversePayload = JSON.parse(JSON.stringify(originalPayload));
+  reversePayload.MessageTypeId = "0400";
+  return reversePayload;
+}
+
+async function executeAutomaticReverse(originalPayload, shopperIP) {
+  return dispatchPayment(buildReversePayloadFromOriginal(originalPayload), shopperIP);
 }
 
 module.exports = {
   dispatchPayment,
   classifyGatewayError,
   mapGatewayError,
+  buildReversePayloadFromOriginal,
   executeAutomaticReverse
 };

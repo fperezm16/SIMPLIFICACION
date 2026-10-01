@@ -4,6 +4,7 @@ const {
   extractNameParts,
   sanitizeText,
   isApproved,
+  isPartialApproval,
   isTimeoutResponseCode,
   isRejectedResponseCode
 } = require("./paymentHelpersService");
@@ -171,7 +172,7 @@ function evaluateThreeDSResult({
     isApprovedCode,
     isPending: status === "pending_3ds",
     isChallenge: status === "challenge_required",
-    isFinal: status === "approved",
+    isFinal: status === "approved" || status === "partial_approved",
     hasReferenceId,
     hasResponseReferenceId,
     hasStoredReferenceId,
@@ -230,7 +231,12 @@ function evaluateThreeDSResult({
       return buildResult("timeout", "step3_contradictory");
     }
 
-    return buildResult("approved", "step3_frictionless_approved");
+    return buildResult(
+      isPartialApproval(responseCode) ? "partial_approved" : "approved",
+      isPartialApproval(responseCode)
+        ? "step3_frictionless_partial_approved"
+        : "step3_frictionless_approved"
+    );
   }
 
   if (requested === "5") {
@@ -240,7 +246,10 @@ function evaluateThreeDSResult({
       return buildResult("timeout", "step5_incomplete");
     }
 
-    return buildResult("approved", "step5_approved");
+    return buildResult(
+      isPartialApproval(responseCode) ? "partial_approved" : "approved",
+      isPartialApproval(responseCode) ? "step5_partial_approved" : "step5_approved"
+    );
   }
 
   return buildResult("timeout", "unsupported_requested_step");

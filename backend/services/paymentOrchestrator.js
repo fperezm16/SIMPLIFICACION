@@ -5,7 +5,12 @@ const {
   isApproved,
   getPaymentStatus,
   getPaymentMessage,
-  sanitizeText
+  sanitizeText,
+  sanitizeForLog,
+  sanitizeNeoResponseForClient,
+  sanitizePaymentForClient,
+  buildAxiosErrorLog,
+  maskReferenceIdForLog
 } = require("./paymentHelpersService");
 const {
   dispatchPayment,
@@ -121,8 +126,14 @@ function buildCreatePaymentResponse(paymentStatus, payment, neoResponse, threeDS
     ok: true,
     status: paymentStatus,
     message: getPaymentMessage(paymentStatus),
-    payment,
-    neo_response: neoResponse
+    payment:
+      typeof sanitizePaymentForClient === "function"
+        ? sanitizePaymentForClient(payment)
+        : payment,
+    neo_response:
+      typeof sanitizeNeoResponseForClient === "function"
+        ? sanitizeNeoResponseForClient(neoResponse)
+        : neoResponse
   };
 
   if (threeDS) {
@@ -130,6 +141,10 @@ function buildCreatePaymentResponse(paymentStatus, payment, neoResponse, threeDS
   }
 
   return body;
+}
+
+function buildSafeGatewayErrorLog(error) {
+  return typeof buildAxiosErrorLog === "function" ? buildAxiosErrorLog(error) : error;
 }
 
 function resolveTransactionId(neoResponse, fallbackValue) {
@@ -193,13 +208,25 @@ function buildThreeDSStep1RawResponse(neoResponse) {
   });
 }
 
-function buildThreeDSMergedResponse(existingPayment, stepKey, neoResponse, paymentStatus) {
+function buildThreeDSMergedResponse(
+  existingPayment,
+  stepKey,
+  neoResponse,
+  paymentStatus,
+  reversalRequest
+) {
   const existingRaw = existingPayment?.raw_response || {};
   const threeDSData = buildThreeDSClientData(neoResponse);
 
   return mergeThreeDSRawResponse(existingRaw, {
     latest: neoResponse,
     [stepKey]: neoResponse,
+    reversal_request: reversalRequest
+      ? {
+          step: stepKey,
+          payload: reversalRequest
+        }
+      : undefined,
     threeDS: {
       ...(existingRaw.threeDS || {}),
       ...threeDSData,
@@ -333,10 +360,26 @@ async function createThreeDSPayment(input, context, validationValue) {
   });
 
   const shopperIP = context.shopperIP;
+  traceThreeDS("createPayment.request", {
+    submissionId: submission_id,
+    step: "1",
+    systemsTraceNo,
+    shopperIP,
+    requestPayload: payload
+  });
   const neoResponse = await dispatchPayment(payload, shopperIP);
 
   const threeDSResult = evaluateThreeDSResult({
     requestedStep: "1",
+    neoResponse
+  });
+
+  traceThreeDS("createPayment.response", {
+    submissionId: submission_id,
+    step: "1",
+    systemsTraceNo,
+    responseCode: neoResponse?.ResponseCode,
+    alternateHostResponse: neoResponse?.PrivateUse63?.AlternateHostResponse22,
     neoResponse
   });
 
@@ -408,7 +451,7 @@ async function createPayment(input, context = {}) {
     return createStandardPayment(input, context, validation.value);
   } catch (error) {
     const gatewayError = mapGatewayError(error);
-    console.error("createPayment:", error);
+    console.error("createPayment:", buildSafeGatewayErrorLog(error));
     return {
       statusCode: gatewayError.statusCode,
       body: {
@@ -451,13 +494,49 @@ function shouldTraceThreeDS() {
 function traceThreeDS(eventName, details = {}) {
   if (!shouldTraceThreeDS()) return;
 
+  const trace = {
+    payment_id: details.paymentId ?? null,
+    submission_id: details.submissionId ?? null,
+    current_status: details.currentStatus ?? null,
+    step: details.step ?? null,
+    systems_trace_no: details.systemsTraceNo ?? null,
+    shopper_ip: details.shopperIP ?? null,
+    response_step: details.neoResponse?.PayerAuthentication?.Step ?? null,
+    response_type_operation: details.neoResponse?.TypeOperation ?? null,
+    response_message_type: details.neoResponse?.MessageTypeId ?? null,
+    response_systems_trace_no: details.neoResponse?.SystemsTraceNo ?? null,
+    response_keys: details.neoResponse ? Object.keys(details.neoResponse) : [],
+    response_has_reference: Boolean(details.neoResponse?.PayerAuthentication?.ReferenceId),
+    response_has_access_token: Boolean(details.neoResponse?.PayerAuthentication?.AccessToken),
+    reference_id: details.referenceId
+      ? typeof maskReferenceIdForLog === "function"
+        ? maskReferenceIdForLog(details.referenceId)
+        : "[REDACTED]"
+      : null,
+    response_code: details.responseCode ?? null,
+    alternate_host_response: details.alternateHostResponse ?? null,
+    retrieval_ref_no: details.retrievalRefNo ?? null,
+    auth_id_response: details.authIdResponse ?? null
+  };
+
+  if (details.requestPayload) {
+    trace.request_payload = details.requestPayload;
+  }
+
   try {
     console.log(
       `[3DS TRACE] ${eventName}`,
-      JSON.stringify(details, null, 2)
+      JSON.stringify(
+        typeof sanitizeForLog === "function" ? sanitizeForLog(trace) : trace,
+        null,
+        2
+      )
     );
   } catch (_error) {
-    console.log(`[3DS TRACE] ${eventName}`, details);
+    console.log(
+      `[3DS TRACE] ${eventName}`,
+      typeof sanitizeForLog === "function" ? sanitizeForLog(trace) : trace
+    );
   }
 }
 
@@ -508,6 +587,7 @@ async function continuePayment(paymentId, _input = {}, context = {}) {
 
     traceThreeDS("continuePayment.request", {
       paymentId: Number(paymentId),
+      submissionId: payment.submission_id,
       currentStatus: payment.status,
       step,
       systemsTraceNo,
@@ -521,8 +601,10 @@ async function continuePayment(paymentId, _input = {}, context = {}) {
 
     traceThreeDS("continuePayment.response", {
       paymentId: Number(paymentId),
+      submissionId: payment.submission_id,
       currentStatus: payment.status,
       step,
+      systemsTraceNo,
       responseCode: neoResponse?.ResponseCode || "",
       alternateHostResponse:
         neoResponse?.PrivateUse63?.AlternateHostResponse22 || "",
@@ -540,7 +622,13 @@ async function continuePayment(paymentId, _input = {}, context = {}) {
 
     if (step === "3" && threeDSResult.isChallenge) {
       const paymentStatus = "challenge_required";
-      const rawResponse = buildThreeDSMergedResponse(payment, "step3", neoResponse, paymentStatus);
+      const rawResponse = buildThreeDSMergedResponse(
+        payment,
+        "step3",
+        neoResponse,
+        paymentStatus,
+        payload
+      );
       const transactionId = resolveTransactionId(neoResponse, payment.transaction_id || systemsTraceNo);
       const updated = await updatePaymentResult(paymentId, {
         paymentStatus,
@@ -558,7 +646,13 @@ async function continuePayment(paymentId, _input = {}, context = {}) {
 
     const paymentStatus = threeDSResult.status || getPaymentStatus(neoResponse.ResponseCode);
     const stepKey = step === "3" ? "step3" : "step5";
-    const rawResponse = buildThreeDSMergedResponse(payment, stepKey, neoResponse, paymentStatus);
+    const rawResponse = buildThreeDSMergedResponse(
+      payment,
+      stepKey,
+      neoResponse,
+      paymentStatus,
+      payload
+    );
     const transactionId = resolveTransactionId(neoResponse, payment.transaction_id || systemsTraceNo);
     const updated = await updatePaymentResult(paymentId, {
       paymentStatus,
@@ -574,7 +668,7 @@ async function continuePayment(paymentId, _input = {}, context = {}) {
     };
   } catch (error) {
     const gatewayError = mapGatewayError(error);
-    console.error("continuePayment:", error);
+    console.error("continuePayment:", buildSafeGatewayErrorLog(error));
     return {
       statusCode: gatewayError.statusCode,
       body: {

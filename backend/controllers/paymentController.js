@@ -3,7 +3,6 @@ const { pool } = require("../src/db");
 const {
   sanitizeHeaderFilename,
   shouldUseMock,
-  formatAmount,
   isApproved,
   getPaymentMessage,
   getShopperIp,
@@ -17,10 +16,12 @@ const {
   generateVoucherPdfBuffer: generateVoucherPdfBufferFromService
 } = require("../services/paymentVoucherService");
 const paymentOrchestrator = require("../services/paymentOrchestrator");
+const { summarizeReturnFields } = require("../services/paymentReturnDiagnostics");
 const { resolveThreeDSReturnUrl } = require("../services/paymentThreeDSService");
 const {
   dispatchPayment,
-  mapGatewayError
+  mapGatewayError,
+  buildReversePayloadFromOriginal
 } = require("../services/paymentGatewayService");
 const {
   getNextSystemsTraceNo,
@@ -75,6 +76,16 @@ exports.continuePayment = async (req, res) => {
 };
 
 exports.renderThreeDSReturnPage = async (req, res) => {
+  if (String(process.env.NEOPAY_3DS_DEBUG || "").trim().toLowerCase() === "true") {
+    console.log("[3DS TRACE] stepUp.return", JSON.stringify({
+      received_at: new Date().toISOString(),
+      method: req.method,
+      body: summarizeReturnFields(req.body),
+      query: summarizeReturnFields(req.query),
+      diagnostic_only: true,
+      callback_signature_verified_by_app: false
+    }, null, 2));
+  }
   const frontendOrigin = process.env.FRONTEND_BASE_URL || "*";
   const returnUrl = resolveThreeDSReturnUrl();
   const payload = {
@@ -251,27 +262,24 @@ exports.reversePayment = async (req, res) => {
     const threeDS = payment.raw_response?.threeDS || {};
     const reversalStep = String(threeDS.step || "").trim();
     const referenceId = String(threeDS.referenceId || "").trim();
+    const storedReversalRequest = payment.raw_response?.reversal_request;
+    const originalPayload = storedReversalRequest?.payload;
 
     if (
       payment.raw_response?.flow !== "3ds" ||
       !["3", "5"].includes(reversalStep) ||
       !referenceId ||
-      !payment.audit_number
+      !payment.audit_number ||
+      storedReversalRequest?.step !== `step${reversalStep}` ||
+      !originalPayload
     ) {
       return res.status(400).json({
         ok: false,
-        message: "El pago no tiene datos 3DS suficientes para una reversa controlada"
+        message: "El pago no conserva el request 3DS original requerido para una reversa controlada"
       });
     }
 
-    const payload = buildBasePayload();
-    payload.MessageTypeId = "0400";
-    payload.ProcessingCode = "000000";
-    payload.SystemsTraceNo = String(payment.audit_number);
-    payload.Amount.AmountTrans = formatAmount(payment.amount);
-    payload.PrivateUse63.HostReferenceData31 = payment.reference_number || "";
-    payload.PayerAuthentication.Step = reversalStep;
-    payload.PayerAuthentication.ReferenceId = referenceId;
+    const payload = buildReversePayloadFromOriginal(originalPayload);
 
     const shopperIP = getShopperIp(req);
     const neoResponse = await dispatchPayment(payload, shopperIP);
@@ -288,7 +296,7 @@ exports.reversePayment = async (req, res) => {
       return res.status(400).json({
         ok: false,
         message: "Reversa rechazada",
-        neo_response: neoResponse
+        neo_response: sanitizeNeoResponseForClient(neoResponse)
       });
     }
 
@@ -380,6 +388,9 @@ exports.listReversalPayments = async (req, res) => {
              AND p.raw_response->>'flow' = '3ds'
              AND COALESCE(p.raw_response->'threeDS'->>'referenceId', '') <> ''
              AND COALESCE(p.audit_number, '') <> ''
+             AND COALESCE(p.raw_response->'reversal_request'->>'step', '')
+                 = CONCAT('step', p.raw_response->'threeDS'->>'step')
+             AND p.raw_response->'reversal_request'->'payload' IS NOT NULL
            THEN TRUE
            ELSE FALSE
          END AS can_reverse

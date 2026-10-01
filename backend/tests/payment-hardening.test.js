@@ -261,7 +261,22 @@ test("reversePayment registers administrative audit on success and failure", asy
     audit_number: "000123",
     raw_response: {
       flow: "3ds",
-      threeDS: { step: "5", referenceId: "reference-test" }
+      threeDS: { step: "5", referenceId: "reference-test" },
+      reversal_request: {
+        step: "step5",
+        payload: {
+          MessageTypeId: "0200",
+          ProcessingCode: "000000",
+          SystemsTraceNo: "000123",
+          TimeLocalTrans: "101010",
+          DateLocalTrans: "0925",
+          PayerAuthentication: {
+            Step: "5",
+            ReferenceId: "reference-test",
+            browserLanguage: "es-GT"
+          }
+        }
+      }
     }
   };
 
@@ -284,6 +299,10 @@ test("reversePayment registers administrative audit on success and failure", asy
         },
         "../services/paymentGatewayService.js": {
           dispatchPayment: async () => neoResponse,
+          buildReversePayloadFromOriginal: (originalPayload) => ({
+            ...originalPayload,
+            MessageTypeId: "0400"
+          }),
           mapGatewayError: (error) => ({
             statusCode: 500,
             message: error?.message || "error",

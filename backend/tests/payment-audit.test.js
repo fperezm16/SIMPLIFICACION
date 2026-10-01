@@ -265,6 +265,10 @@ test("reversePayment does not expose historical accessToken in returned payment"
           ResponseCode: "00",
           RetrievalRefNo: "620411000777"
         }),
+        buildReversePayloadFromOriginal: (payload) => ({
+          ...payload,
+          MessageTypeId: "0400"
+        }),
         mapGatewayError: () => ({
           statusCode: 500,
           message: "error",
@@ -282,7 +286,15 @@ test("reversePayment does not expose historical accessToken in returned payment"
           audit_number: "000777",
           raw_response: {
             flow: "3ds",
-            threeDS: { step: "5", referenceId: "reference-test" }
+            threeDS: { step: "5", referenceId: "reference-test" },
+            reversal_request: {
+              step: "step5",
+              payload: {
+                MessageTypeId: "0200",
+                SystemsTraceNo: "000777",
+                PayerAuthentication: { Step: "5", ReferenceId: "reference-test" }
+              }
+            }
           }
         }),
         markPaymentCancelled: async () => ({ rows: [] }),
