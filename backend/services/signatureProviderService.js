@@ -92,6 +92,45 @@ function getConfig() {
   };
 }
 
+// Permite validar el entorno antes de una firma sin revelar secretos.
+function getConfigDiagnostics() {
+  const providerUrl = sanitizeText(
+    process.env.SIGNER_PROVIDER_URL ||
+    process.env.PRISMA_SIGN_URL ||
+    process.env.PRISMA_SIGNER_URL ||
+    DEFAULT_PROVIDER_URL,
+    500
+  );
+  const accessKey = sanitizeText(
+    process.env.SIGNER_ACCESS_KEY ||
+    process.env.PRISMA_LLAVE_ACCESO ||
+    process.env.PRISMA_ACCESS_KEY,
+    500
+  );
+  const rubricBase64 = sanitizeText(
+    process.env.SIGNER_RUBRIC_BASE64 || process.env.SIGNER_RUBRIC,
+    2_000_000
+  );
+
+  return {
+    ok: Boolean(providerUrl && accessKey),
+    provider: sanitizeText(process.env.SIGNER_PROVIDER_NAME || DEFAULT_PROVIDER_NAME, 80) || DEFAULT_PROVIDER_NAME,
+    checks: {
+      provider_url: Boolean(providerUrl),
+      access_key: Boolean(accessKey),
+      rubric: Boolean(rubricBase64)
+    },
+    settings: {
+      sync: normalizeBoolean(process.env.SIGNER_SYNC, true),
+      close_request: normalizeBoolean(process.env.SIGNER_CLOSE, false),
+      callback_configured: Boolean(sanitizeText(process.env.SIGNER_CALLBACK_URL, 500)),
+      show_dn: parseOptionalBoolean(process.env.SIGNER_SHOW_DN),
+      appearance: sanitizeText(process.env.SIGNER_APPEARANCE, 80) || "GRAPHIC_AND_DESCRIPTION",
+      request_type: sanitizeText(process.env.SIGNER_REQUEST_TYPE, 80) || "PDF Especial"
+    }
+  };
+}
+
 // Usa timeout nativo cuando la version de Node lo permite.
 function createTimeoutSignal(timeoutMs) {
   if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
@@ -466,6 +505,7 @@ async function signPdfWithProvider({
 
 module.exports = {
   signPdfWithProvider,
+  getConfigDiagnostics,
   __private: {
     getConfig,
     parseOptionalBoolean,

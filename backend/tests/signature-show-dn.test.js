@@ -178,6 +178,35 @@ test("la rubrica institucional es global y conserva identidad y coordenadas por 
   assert.equal(second.scalarFields.get("solicitud_firma[tipo_solicitud]"), "PDF Especial");
 });
 
+test("el diagnostico de firma no expone secretos y refleja la configuracion requerida", () => {
+  withEnv(
+    {
+      SIGNER_PROVIDER_URL: "https://example.test/sign",
+      SIGNER_ACCESS_KEY: "secret-access-key",
+      SIGNER_RUBRIC: "base64-rubric",
+      SIGNER_SHOW_DN: "false",
+      SIGNER_SYNC: "true",
+      SIGNER_CLOSE: "true"
+    },
+    () => {
+      const service = loadSignatureProviderService();
+      const diagnostics = service.getConfigDiagnostics();
+
+      assert.equal(diagnostics.ok, true);
+      assert.deepEqual(diagnostics.checks, {
+        provider_url: true,
+        access_key: true,
+        rubric: true
+      });
+      assert.equal(diagnostics.settings.show_dn, false);
+      assert.equal(diagnostics.settings.sync, true);
+      assert.equal(diagnostics.settings.close_request, true);
+      assert.equal(JSON.stringify(diagnostics).includes("secret-access-key"), false);
+      assert.equal(JSON.stringify(diagnostics).includes("base64-rubric"), false);
+    }
+  );
+});
+
 test("la firma rechaza coordenadas ausentes o invalidas en lugar de usar valores por defecto", async () => {
   const service = loadSignatureProviderService();
 

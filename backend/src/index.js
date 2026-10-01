@@ -9,7 +9,10 @@ const { pool, init } = require("./db");
 const { validateEmailAddress } = require("./email-validator");
 const { sendAlertEmail } = require("./mailer");
 const { notifyAssignee, notifyUserStatus } = require("../services/emailNotificationService");
-const { signPdfWithProvider } = require("../services/signatureProviderService");
+const {
+  signPdfWithProvider,
+  getConfigDiagnostics: getSignatureConfigDiagnostics
+} = require("../services/signatureProviderService");
 const { authRouter, requireAuth, requireRole } = require("./auth");
 require("dotenv").config();
 //Modulo de pagos
@@ -2350,6 +2353,10 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+app.get("/api/signature/health", requireAuth, requireRole("admin", "supervisor"), (_req, res) => {
+  res.json(getSignatureConfigDiagnostics());
 });
 
 app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (req, res) => {
