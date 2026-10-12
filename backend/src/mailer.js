@@ -70,7 +70,7 @@ function extractSmtpError(err) {
   return "SMTP_SEND_FAILED";
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, attachments }) {
   const smtpTransporter = ensureTransporter();
   const recipient = String(to || "").trim();
   if (!recipient) {
@@ -83,7 +83,8 @@ async function sendEmail({ to, subject, html, text }) {
       to: recipient,
       subject: String(subject || "").trim() || "Notificacion",
       html: html || "<p></p>",
-      text: text || undefined
+      text: text || undefined,
+      attachments: Array.isArray(attachments) ? attachments : undefined
     });
   } catch (err) {
     const wrapped = new Error(extractSmtpError(err));

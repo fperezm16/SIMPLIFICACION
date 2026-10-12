@@ -19,14 +19,14 @@ router.post("/:id/continue", paymentController.continuePayment);
 router.get(
   "/reversals",
   requireAuth,
-  requireRole("admin", "supervisor", "operador_pagos"),
+  requireRole("admin", "operador_pagos"),
   paymentController.listReversalPayments
 );
 
 router.get(
   "/:id/reversal-history",
   requireAuth,
-  requireRole("admin", "supervisor", "operador_pagos"),
+  requireRole("admin", "operador_pagos"),
   paymentController.getReversalHistory
 );
 
@@ -34,16 +34,36 @@ router.get(
 router.post(
   "/:id/cancel",
   requireAuth,
-  requireRole("admin", "supervisor", "operador_pagos"),
+  requireRole("admin", "operador_pagos"),
   paymentController.cancelPayment
 );
 
-// Ejecuta reversa automática de un pago
-router.post(
-  "/:id/reverse",
+router.get(
+  "/:id/cancellation-receipt",
   requireAuth,
-  requireRole("admin", "supervisor", "operador_pagos"),
-  paymentController.reversePayment
+  requireRole("admin", "operador_pagos"),
+  paymentController.getCancellationReceipt
+);
+
+router.get(
+  "/:id/cancellation-receipt/pdf",
+  requireAuth,
+  requireRole("admin", "operador_pagos"),
+  paymentController.downloadCancellationReceiptPdf
+);
+
+router.post(
+  "/:id/cancellation-receipt/review",
+  requireAuth,
+  requireRole("admin", "operador_pagos"),
+  paymentController.reviewCancellationReceipt
+);
+
+router.post(
+  "/:id/cancellation-receipt/send",
+  requireAuth,
+  requireRole("admin", "operador_pagos"),
+  paymentController.sendCancellationReceipt
 );
 
 // Obtener voucher de pago

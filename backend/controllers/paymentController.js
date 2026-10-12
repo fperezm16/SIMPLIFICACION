@@ -24,16 +24,23 @@ const {
   buildReversePayloadFromOriginal
 } = require("../services/paymentGatewayService");
 const {
-  getNextSystemsTraceNo,
   getPaymentById,
   markPaymentCancelled,
   markPaymentReversed
 } = require("../services/paymentPersistenceService");
-const { buildBasePayload } = require("../services/paymentPayloadService");
+const {
+  buildAdministrativeCancellationPayload
+} = require("../services/paymentPayloadService");
 const {
   registerAdministrativeCancellationAudit,
   registerAdministrativeReverseAudit
 } = require("../services/paymentAdminAuditService");
+const {
+  ensureCancellationReceipt,
+  generateCancellationReceiptPdf,
+  reviewCancellationReceipt,
+  sendCancellationReceipt
+} = require("../services/paymentCancellationReceiptService");
 
 exports.getPaymentHealth = async (_req, res) => {
   const diagnostics = neonetService.getConfigDiagnostics();
@@ -123,10 +130,18 @@ exports.renderThreeDSReturnPage = async (req, res) => {
         }
         if (window.opener && window.opener !== window.parent) {
           notify(window.opener);
+          window.setTimeout(function () {
+            try {
+              window.close();
+            } catch (_error) {
+              // Algunos navegadores solo permiten cerrar ventanas creadas por script.
+            }
+          }, 250);
         }
       })();
     </script>
-    <p>Autenticación 3DS completada. Puede cerrar esta ventana.</p>
+    <p>Autenticación 3DS completada. Esta ventana se cerrará automáticamente.</p>
+    <p>Si permanece abierta, puede cerrarla manualmente.</p>
   </body>
 </html>`);
 };
@@ -167,16 +182,27 @@ exports.cancelPayment = async (req, res) => {
       });
     }
 
-    const payload = buildBasePayload();
-    payload.MessageTypeId = "0200";
-    payload.ProcessingCode = "020000";
-    payload.SystemsTraceNo = await getNextSystemsTraceNo();
-    payload.PrivateUse63.HostReferenceData31 = payment.reference_number || "";
+    const originalSystemsTraceNo = String(
+      payment.raw_response?.reversal_request?.payload?.SystemsTraceNo ||
+      payment.audit_number ||
+      ""
+    ).trim();
+
+    if (!/^\d{6}$/.test(originalSystemsTraceNo)) {
+      return res.status(400).json({
+        ok: false,
+        message: "El pago no conserva el correlativo original requerido para la anulacion"
+      });
+    }
+
+    const payload = buildAdministrativeCancellationPayload({
+      systemsTraceNo: originalSystemsTraceNo
+    });
 
     const shopperIP = getShopperIp(req);
     const neoResponse = await dispatchPayment(payload, shopperIP);
 
-    if (!isApproved(neoResponse.ResponseCode)) {
+    if (String(neoResponse.ResponseCode || "").trim() !== "00") {
       await registerAdministrativeCancellationAudit({
         payment,
         actorUserId: req.user?.sub,
@@ -188,11 +214,22 @@ exports.cancelPayment = async (req, res) => {
       return res.status(400).json({
         ok: false,
         message: "Anulación rechazada",
-        neo_response: neoResponse
+        neo_response: sanitizeNeoResponseForClient(neoResponse)
       });
     }
 
-    const updated = await markPaymentCancelled(req.params.id, neoResponse);
+    const cancellationRawResponse = {
+      ...(payment.raw_response || {}),
+      cancellation: {
+        request: payload,
+        response: neoResponse
+      }
+    };
+    const updated = await markPaymentCancelled(
+      req.params.id,
+      neoResponse,
+      cancellationRawResponse
+    );
 
     await registerAdministrativeCancellationAudit({
       payment,
@@ -202,6 +239,20 @@ exports.cancelPayment = async (req, res) => {
       outcome: "success",
       neoResponse
     });
+
+    try {
+      await ensureCancellationReceipt(req.params.id);
+    } catch (receiptError) {
+      console.error(
+        "ensureCancellationReceipt:",
+        buildAxiosErrorLog(receiptError, {
+          service: "paymentController",
+          phase: "cancelPayment.receipt_snapshot",
+          paymentId: Number(req.params.id),
+          submissionId: payment.submission_id
+        })
+      );
+    }
 
     return res.json({
       ok: true,
@@ -341,12 +392,12 @@ exports.listReversalPayments = async (req, res) => {
   try {
     const query = String(req.query?.q || "").trim().slice(0, 120);
     const status = String(req.query?.status || "").trim().toLowerCase();
-    const selectedStatus = ["approved", "timeout", "reversed"].includes(status)
+    const selectedStatus = ["approved", "cancelled"].includes(status)
       ? status
       : "";
     const limit = Math.min(Math.max(Number(req.query?.limit) || 100, 1), 200);
     const params = [];
-    const where = ["p.status IN ('approved', 'timeout', 'reversed')"];
+    const where = ["p.status IN ('approved', 'cancelled')"];
 
     if (selectedStatus) {
       params.push(selectedStatus);
@@ -383,19 +434,32 @@ exports.listReversalPayments = async (req, res) => {
          s.gestion_nombre,
          s.unidad_clave,
          s.nombre_propietario,
+         s.correo AS recipient_email,
          CASE
-           WHEN p.status IN ('approved', 'timeout')
-             AND p.raw_response->>'flow' = '3ds'
-             AND COALESCE(p.raw_response->'threeDS'->>'referenceId', '') <> ''
-             AND COALESCE(p.audit_number, '') <> ''
-             AND COALESCE(p.raw_response->'reversal_request'->>'step', '')
-                 = CONCAT('step', p.raw_response->'threeDS'->>'step')
-             AND p.raw_response->'reversal_request'->'payload' IS NOT NULL
+           WHEN p.status = 'cancelled'
+             THEN COALESCE(pcr.review_status, 'pending_review')
+           ELSE NULL
+         END AS receipt_review_status,
+         CASE
+           WHEN p.status = 'cancelled'
+             THEN COALESCE(pcr.send_status, 'not_sent')
+           ELSE NULL
+         END AS receipt_send_status,
+         pcr.sent_to AS receipt_sent_to,
+         pcr.sent_at AS receipt_sent_at,
+         CASE
+           WHEN p.status = 'approved'
+             AND COALESCE(
+               p.raw_response->'reversal_request'->'payload'->>'SystemsTraceNo',
+               p.audit_number,
+               ''
+             ) ~ '^[0-9]{6}$'
            THEN TRUE
            ELSE FALSE
-         END AS can_reverse
+         END AS can_cancel
        FROM payments p
        LEFT JOIN submissions s ON s.id = p.submission_id
+       LEFT JOIN payment_cancellation_receipts pcr ON pcr.payment_id = p.id
        WHERE ${where.join(" AND ")}
        ORDER BY p.updated_at DESC
        LIMIT $${params.length}`,
@@ -405,25 +469,109 @@ exports.listReversalPayments = async (req, res) => {
     return res.json({ ok: true, payments: result.rows });
   } catch (error) {
     console.error("listReversalPayments:", error);
-    return res.status(500).json({ ok: false, message: "No se pudo cargar la gestion de reversas" });
+    return res.status(500).json({ ok: false, message: "No se pudo cargar la gestion de pagos" });
   }
 };
 
 exports.getReversalHistory = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT event_code, event_label, event_detail, actor_role, created_at, metadata
-       FROM submission_logs
-       WHERE submission_id = (SELECT submission_id FROM payments WHERE id = $1)
-         AND metadata->>'payment_id' = $1
-         AND event_code IN ('payment_reversed_admin', 'payment_reverse_failed_admin')
-       ORDER BY created_at DESC`,
+      `SELECT
+         pol.event_label,
+         pol.reason AS event_detail,
+         pol.actor_role,
+         COALESCE(u.name, u.email) AS actor_name,
+         pol.created_at,
+         pol.metadata
+       FROM payment_operation_logs pol
+       LEFT JOIN users u ON u.id = pol.actor_user_id
+       WHERE pol.payment_id = $1
+         AND pol.operation_type IN ('cancel', 'receipt_review', 'receipt_email')
+       ORDER BY pol.created_at DESC`,
       [String(req.params.id)]
     );
     return res.json({ ok: true, history: result.rows });
   } catch (error) {
     console.error("getReversalHistory:", error);
-    return res.status(500).json({ ok: false, message: "No se pudo cargar el historial de reversas" });
+    return res.status(500).json({ ok: false, message: "No se pudo cargar el historial de anulaciones" });
+  }
+};
+
+exports.getCancellationReceipt = async (req, res) => {
+  try {
+    const receipt = await ensureCancellationReceipt(req.params.id);
+    return res.json({ ok: true, receipt });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      code: error.code || "RECEIPT_ERROR",
+      message: error.message || "No se pudo obtener el comprobante de anulacion"
+    });
+  }
+};
+
+exports.downloadCancellationReceiptPdf = async (req, res) => {
+  try {
+    const receipt = await ensureCancellationReceipt(req.params.id);
+    const pdfBuffer = await generateCancellationReceiptPdf(receipt.snapshot);
+    const filename = sanitizeHeaderFilename(
+      `comprobante-anulacion-${receipt.receipt_number}.pdf`,
+      "comprobante-anulacion.pdf"
+    );
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    return res.send(pdfBuffer);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      code: error.code || "RECEIPT_ERROR",
+      message: error.message || "No se pudo generar el comprobante de anulacion"
+    });
+  }
+};
+
+exports.reviewCancellationReceipt = async (req, res) => {
+  if (req.body?.confirmed !== true) {
+    return res.status(400).json({
+      ok: false,
+      message: "Debe confirmar que reviso los datos del comprobante"
+    });
+  }
+
+  try {
+    const receipt = await reviewCancellationReceipt(req.params.id, req.user);
+    return res.json({
+      ok: true,
+      message: "Comprobante revisado correctamente",
+      receipt
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      code: error.code || "RECEIPT_ERROR",
+      message: error.message || "No se pudo confirmar la revision"
+    });
+  }
+};
+
+exports.sendCancellationReceipt = async (req, res) => {
+  try {
+    const receipt = await sendCancellationReceipt(
+      req.params.id,
+      req.body?.email,
+      req.user
+    );
+    return res.json({
+      ok: true,
+      message: "Comprobante enviado correctamente",
+      receipt
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      code: error.code || "RECEIPT_ERROR",
+      message: error.message || "No se pudo enviar el comprobante"
+    });
   }
 };
 

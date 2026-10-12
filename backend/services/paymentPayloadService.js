@@ -129,7 +129,23 @@ function buildStandardSalePayload({
   return payload;
 }
 
+function buildAdministrativeCancellationPayload({ systemsTraceNo }) {
+  const payload = buildBasePayload();
+  payload.MessageTypeId = "0200";
+  payload.ProcessingCode = "020000";
+  payload.SystemsTraceNo = String(systemsTraceNo || "").trim();
+  payload.TimeLocalTrans = "";
+  payload.DateLocalTrans = "";
+  payload.PayerAuthentication = {
+    Step: "",
+    UrlCommerce: "",
+    ReferenceId: ""
+  };
+  return payload;
+}
+
 module.exports = {
   buildBasePayload,
-  buildStandardSalePayload
+  buildStandardSalePayload,
+  buildAdministrativeCancellationPayload
 };

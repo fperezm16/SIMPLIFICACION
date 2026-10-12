@@ -28,7 +28,7 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
             <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'operador_pagos' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
-            <a routerLink="/financiero/reversas" routerLinkActive="active" *ngIf="user.role === 'operador_pagos' || user.role === 'supervisor' || user.role === 'admin'">Reversas</a>
+            <a routerLink="/financiero/reversas" routerLinkActive="active" *ngIf="user.role === 'operador_pagos' || user.role === 'admin'">Operaciones</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">
               <button type="button" class="units-trigger">Unidades</button>
               <div class="units-dropdown">

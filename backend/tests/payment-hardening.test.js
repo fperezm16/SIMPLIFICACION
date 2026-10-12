@@ -152,7 +152,7 @@ function createBasePayload() {
   };
 }
 
-test("manual reverse route enforces auth and allowed roles before controller", async () => {
+test("administrative cancellation route enforces auth and allowed roles before controller", async () => {
   const hits = [];
   const paymentRoutes = withModuleMocks(
     {
@@ -163,6 +163,10 @@ test("manual reverse route enforces auth and allowed roles before controller", a
         continuePayment: (_req, res) => res.json({ ok: true }),
         listReversalPayments: (_req, res) => res.json({ ok: true, payments: [] }),
         getReversalHistory: (_req, res) => res.json({ ok: true, history: [] }),
+        getCancellationReceipt: (_req, res) => res.json({ ok: true }),
+        downloadCancellationReceiptPdf: (_req, res) => res.send("pdf"),
+        reviewCancellationReceipt: (_req, res) => res.json({ ok: true }),
+        sendCancellationReceipt: (_req, res) => res.json({ ok: true }),
         cancelPayment: (req, res) => {
           hits.push({ route: "cancel", role: req.user?.role || null });
           res.json({ ok: true, route: "cancel" });
@@ -189,7 +193,7 @@ test("manual reverse route enforces auth and allowed roles before controller", a
     const port = server.address().port;
     const baseUrl = `http://127.0.0.1:${port}/api/payments/55`;
 
-    const noAuth = await fetch(`${baseUrl}/reverse`, {
+    const noAuth = await fetch(`${baseUrl}/cancel`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({})
@@ -200,7 +204,7 @@ test("manual reverse route enforces auth and allowed roles before controller", a
     assert.equal(hits.length, 0);
 
     const wrongRoleToken = jwt.sign({ sub: 7, role: "user" }, process.env.JWT_SECRET);
-    const forbidden = await fetch(`${baseUrl}/reverse`, {
+    const forbidden = await fetch(`${baseUrl}/cancel`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -214,9 +218,9 @@ test("manual reverse route enforces auth and allowed roles before controller", a
     assert.ok(!JSON.stringify(forbiddenBody).includes("Pago no encontrado"));
     assert.equal(hits.length, 0);
 
-    for (const role of ["admin", "supervisor", "operador_pagos"]) {
+    for (const role of ["admin", "operador_pagos"]) {
       const token = jwt.sign({ sub: 10, role }, process.env.JWT_SECRET);
-      const response = await fetch(`${baseUrl}/reverse`, {
+      const response = await fetch(`${baseUrl}/cancel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -226,27 +230,152 @@ test("manual reverse route enforces auth and allowed roles before controller", a
       });
       assert.equal(response.status, 200);
       const body = await response.json();
-      assert.equal(body.role, role);
+      assert.equal(body.route, "cancel");
     }
 
-    const cancelWithoutAuth = await fetch(`${baseUrl}/cancel`, {
+    const supervisorToken = jwt.sign({ sub: 11, role: "supervisor" }, process.env.JWT_SECRET);
+    const supervisorResponse = await fetch(`${baseUrl}/cancel`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supervisorToken}`
+      },
       body: JSON.stringify({})
     });
-    assert.equal(cancelWithoutAuth.status, 401);
+    assert.equal(supervisorResponse.status, 403);
+
+    const removedManualReverse = await fetch(`${baseUrl}/reverse`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt.sign({ sub: 10, role: "admin" }, process.env.JWT_SECRET)}`
+      },
+      body: JSON.stringify({})
+    });
+    assert.equal(removedManualReverse.status, 404);
 
     assert.deepEqual(
       hits,
       [
-        { route: "reverse", role: "admin" },
-        { route: "reverse", role: "supervisor" },
-        { route: "reverse", role: "operador_pagos" }
+        { route: "cancel", role: "admin" },
+        { route: "cancel", role: "operador_pagos" }
       ]
     );
   } finally {
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
+});
+
+test("cancelPayment uses the original sale trace and only accepts response code 00", async () => {
+  const payment = {
+    id: 81,
+    submission_id: 501,
+    status: "approved",
+    audit_number: "999999",
+    raw_response: {
+      flow: "3ds",
+      reversal_request: {
+        step: "step3",
+        payload: {
+          SystemsTraceNo: "000321"
+        }
+      }
+    }
+  };
+
+  function loadController(responseCode, calls) {
+    return withModuleMocks(
+      {
+        "../services/neonetService.js": {
+          getConfigDiagnostics: () => ({ ok: true, checks: {}, endpoint: "http://test" })
+        },
+        "../services/paymentVoucherService.js": {
+          buildVoucherData: () => ({}),
+          generateVoucherPdfBuffer: async () => Buffer.from("pdf")
+        },
+        "../services/paymentOrchestrator.js": {
+          createPayment: async () => ({ statusCode: 200, body: { ok: true } }),
+          continuePayment: async () => ({ statusCode: 200, body: { ok: true } })
+        },
+        "../services/paymentThreeDSService.js": {
+          resolveThreeDSReturnUrl: () => "http://localhost/3ds"
+        },
+        "../services/paymentGatewayService.js": {
+          dispatchPayment: async (payload) => {
+            calls.payloads.push(payload);
+            return {
+              ResponseCode: responseCode,
+              SystemsTraceNo: "000321",
+              PrivateUse63: { AlternateHostResponse22: responseCode === "00" ? "SUCCESS" : "DENIED" }
+            };
+          },
+          mapGatewayError: (error) => ({ statusCode: 500, message: error.message, detail: null })
+        },
+        "../services/paymentPersistenceService.js": {
+          getPaymentById: async () => payment,
+          markPaymentCancelled: async (paymentId, neoResponse, rawResponse) => {
+            calls.marked.push({ paymentId, neoResponse, rawResponse });
+            return { rows: [{ ...payment, status: "cancelled", response_code: neoResponse.ResponseCode }] };
+          },
+          markPaymentReversed: async () => ({ rows: [] })
+        },
+        "../services/paymentAdminAuditService.js": {
+          registerAdministrativeCancellationAudit: async (args) => calls.audits.push(args),
+          registerAdministrativeReverseAudit: async () => {}
+        },
+        "../services/paymentCancellationReceiptService.js": {
+          ensureCancellationReceipt: async (paymentId) => {
+            calls.receipts.push(paymentId);
+            return { payment_id: Number(paymentId) };
+          },
+          generateCancellationReceiptPdf: async () => Buffer.from("pdf"),
+          reviewCancellationReceipt: async () => ({}),
+          sendCancellationReceipt: async () => ({})
+        }
+      },
+      "../controllers/paymentController.js"
+    );
+  }
+
+  const request = {
+    params: { id: "81" },
+    body: { reason: "Pago duplicado" },
+    headers: {},
+    ip: "127.0.0.1",
+    user: { sub: 10, role: "operador_pagos" }
+  };
+
+  const successCalls = { payloads: [], marked: [], audits: [], receipts: [] };
+  const successController = loadController("00", successCalls);
+  const successResponse = createMockRes();
+  await successController.cancelPayment(request, successResponse);
+
+  assert.equal(successResponse.statusCode, 200);
+  assert.equal(successResponse.body.status, "cancelled");
+  assert.equal(successCalls.payloads[0].MessageTypeId, "0200");
+  assert.equal(successCalls.payloads[0].ProcessingCode, "020000");
+  assert.equal(successCalls.payloads[0].SystemsTraceNo, "000321");
+  assert.equal(successCalls.payloads[0].TimeLocalTrans, "");
+  assert.equal(successCalls.payloads[0].DateLocalTrans, "");
+  assert.deepEqual(successCalls.payloads[0].PayerAuthentication, {
+    Step: "",
+    UrlCommerce: "",
+    ReferenceId: ""
+  });
+  assert.equal(successCalls.marked.length, 1);
+  assert.equal(successCalls.marked[0].rawResponse.cancellation.response.ResponseCode, "00");
+  assert.equal(successCalls.audits[0].outcome, "success");
+  assert.deepEqual(successCalls.receipts, ["81"]);
+
+  const partialCalls = { payloads: [], marked: [], audits: [], receipts: [] };
+  const partialController = loadController("10", partialCalls);
+  const partialResponse = createMockRes();
+  await partialController.cancelPayment(request, partialResponse);
+
+  assert.equal(partialResponse.statusCode, 400);
+  assert.equal(partialResponse.body.message, "Anulación rechazada");
+  assert.equal(partialCalls.marked.length, 0);
+  assert.equal(partialCalls.audits[0].outcome, "failed");
 });
 
 test("reversePayment registers administrative audit on success and failure", async () => {

@@ -19,12 +19,8 @@ export class PaymentService {
     return this.http.post(`${this.apiUrl}/${paymentId}/continue`, payload);
   }
 
-  cancelPayment(paymentId: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${paymentId}/cancel`, {});
-  }
-
-  reversePayment(paymentId: number, reason: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${paymentId}/reverse`, { reason });
+  cancelPayment(paymentId: number, reason: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${paymentId}/cancel`, { reason });
   }
 
   getReversalPayments(query = '', status = ''): Observable<any> {
@@ -36,6 +32,26 @@ export class PaymentService {
 
   getReversalHistory(paymentId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/${paymentId}/reversal-history`);
+  }
+
+  getCancellationReceipt(paymentId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/${paymentId}/cancellation-receipt`);
+  }
+
+  getCancellationReceiptPdf(paymentId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/${paymentId}/cancellation-receipt/pdf`, {
+      responseType: 'blob'
+    });
+  }
+
+  reviewCancellationReceipt(paymentId: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${paymentId}/cancellation-receipt/review`, {
+      confirmed: true
+    });
+  }
+
+  sendCancellationReceipt(paymentId: number, email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${paymentId}/cancellation-receipt/send`, { email });
   }
 
   getVoucher(paymentId: number): Observable<any> {

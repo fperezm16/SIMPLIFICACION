@@ -113,20 +113,18 @@ async function updatePaymentAfterGatewayStep(paymentId, {
   );
 }
 
-async function markPaymentCancelled(paymentId, neoResponse) {
+async function markPaymentCancelled(paymentId, neoResponse, rawResponse = neoResponse) {
   return pool.query(
     `UPDATE payments
      SET status = 'cancelled',
-         transaction_id = COALESCE($1, transaction_id),
-         response_code = $2,
-         raw_response = $3,
+         response_code = $1,
+         raw_response = $2,
          updated_at = NOW()
-     WHERE id = $4
+     WHERE id = $3
      RETURNING *`,
     [
-      neoResponse.TransactionId || neoResponse.RetrievalRefNo || null,
       neoResponse.ResponseCode,
-      neoResponse,
+      rawResponse,
       paymentId
     ]
   );

@@ -275,6 +275,53 @@ async function init() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_operation_logs (
+      id SERIAL PRIMARY KEY,
+      payment_id INTEGER NOT NULL REFERENCES payments(id) ON DELETE CASCADE,
+      submission_id INTEGER,
+      operation_type TEXT NOT NULL CHECK (operation_type IN ('cancel', 'reverse', 'receipt_review', 'receipt_email')),
+      outcome TEXT NOT NULL CHECK (outcome IN ('success', 'failed')),
+      event_label TEXT NOT NULL,
+      reason TEXT,
+      actor_user_id INTEGER,
+      actor_role TEXT,
+      response_code VARCHAR(5),
+      response_message TEXT,
+      systems_trace_no VARCHAR(10),
+      reference_number VARCHAR(30),
+      metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS payment_operation_logs_payment_created_idx
+      ON payment_operation_logs (payment_id, created_at DESC);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_cancellation_receipts (
+      payment_id INTEGER PRIMARY KEY REFERENCES payments(id) ON DELETE CASCADE,
+      receipt_number VARCHAR(40) UNIQUE NOT NULL,
+      snapshot JSONB NOT NULL,
+      review_status VARCHAR(20) NOT NULL DEFAULT 'pending_review',
+      reviewed_by_user_id INTEGER,
+      reviewed_at TIMESTAMPTZ,
+      send_status VARCHAR(20) NOT NULL DEFAULT 'not_sent',
+      sent_to VARCHAR(320),
+      sent_by_user_id INTEGER,
+      sent_at TIMESTAMPTZ,
+      send_error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT payment_cancellation_receipts_review_status_check
+        CHECK (review_status IN ('pending_review', 'reviewed')),
+      CONSTRAINT payment_cancellation_receipts_send_status_check
+        CHECK (send_status IN ('not_sent', 'sent', 'error'))
+    );
+  `);
+
   // Safety: add missing columns if table already existed with older schema
   const alters = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'",
