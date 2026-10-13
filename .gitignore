@@ -30,6 +30,10 @@ Thumbs.db
 # temporary artifacts
 tmp-upload.json
 backend/test-pdf-output.pdf
+backend/.tmp-receipt-ui*.png
+.tmp_neopay_pdf.txt
+tmp_fie_extract.docx
+package-lock.json
 entrega/*.zip
 entrega/ver_front_nube/
 backups/*.backup
