@@ -117,7 +117,12 @@ interface CancellationHistoryItem {
           <div><strong>{{ payment.amount | currency:'GTQ':'symbol-narrow':'1.2-2' }}</strong><small>Ref. {{ payment.reference_number || 'N/D' }}</small></div>
           <div>
             <span class="status" [class.approved]="payment.status === 'approved'" [class.cancelled]="payment.status === 'cancelled'">{{ statusLabel(payment.status) }}</span>
-            <small class="receipt-state-copy" *ngIf="payment.status === 'cancelled'">{{ receiptStateLabel(payment) }}</small>
+            <small
+              class="receipt-state-copy"
+              [class.sent]="payment.receipt_send_status === 'sent'"
+              *ngIf="payment.status === 'cancelled'">
+              {{ receiptStateLabel(payment) }}
+            </small>
           </div>
           <div class="row-actions">
             <button type="button" class="detail-button" (click)="showHistory(payment)">Historial</button>
@@ -169,11 +174,11 @@ interface CancellationHistoryItem {
           <ng-container *ngIf="!receiptLoading && receipt">
             <div class="receipt-heading">
               <div><small>Comprobante</small><strong>{{ receipt.receipt_number }}</strong></div>
-              <span class="review-state" [class.reviewed]="receipt.review_status === 'reviewed'">{{ receiptStatusLabel() }}</span>
+              <span class="review-state" [class.sent]="receipt.send_status === 'sent'">{{ receiptStatusLabel() }}</span>
             </div>
             <dl class="receipt-summary">
-              <div><dt>Resultado</dt><dd>{{ receipt.snapshot.response_code }} {{ receipt.snapshot.response_message }}</dd></div>
-              <div><dt>Correlativo</dt><dd>{{ receipt.snapshot.systems_trace_no || 'N/D' }}</dd></div>
+              <div><dt>Estado</dt><dd>ANULADO</dd></div>
+              <div><dt>N&uacute;mero de operaci&oacute;n</dt><dd>{{ receipt.snapshot.systems_trace_no || 'N/D' }}</dd></div>
               <div><dt>Referencia</dt><dd>{{ receipt.snapshot.reference_number || 'N/D' }}</dd></div>
               <div><dt>Tarjeta</dt><dd>{{ receipt.snapshot.masked_card || 'N/D' }}</dd></div>
             </dl>
@@ -247,11 +252,11 @@ interface CancellationHistoryItem {
     .table-row:last-child { border-bottom:0; }.table-head { background:#eff6fa; color:#547186; font-size:12px; font-weight:700; }
     .table-row strong, .table-row small { display:block; }.table-row small { margin-top:3px; color:#678093; font-size:11px; overflow-wrap:anywhere; }
     .status { display:inline-flex; padding:5px 8px; border:1px solid #b7cbd9; border-radius:999px; color:#38566c; font-size:11px; font-weight:700; }.status.approved { color:#177245; border-color:#a8d8ba; background:#effbf3; }.status.cancelled { color:#0d5c91; border-color:#b4d4e8; background:#f0f8fd; }
-    .row-actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }.row-actions button { min-height:34px; }.receipt-state-copy { margin-top:5px; color:#5d7484; font-size:10px; }
+    .row-actions { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; }.row-actions button { min-height:34px; }.receipt-state-copy { margin-top:5px; color:#b42318 !important; font-size:10px; font-weight:700; }.receipt-state-copy.sent { color:#177245 !important; }
     .modal-layer { position:fixed; inset:0; z-index:1300; display:grid; place-items:center; padding:18px; }.modal-backdrop { position:absolute; inset:0; background:rgba(15,31,45,.54); }.dialog { position:relative; width:min(100%,520px); padding:20px; border-radius:8px; background:#fff; box-shadow:0 18px 44px rgba(15,31,45,.25); }
     .payment-detail { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; }.payment-detail div { border-bottom:1px solid #e0eaf0; padding-bottom:8px; }.payment-detail dt { color:#668195; font-size:11px; font-weight:700; }.payment-detail dd { margin:4px 0 0; font-weight:700; }
     footer { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }.history { margin-top:18px; }.history article { padding:10px 0; border-top:1px solid #e2ebf0; }.history span, .history small { display:block; margin-top:4px; color:#668195; font-size:12px; }.history p { margin:7px 0 0; font-size:13px; }
-    .receipt-panel { margin-top:18px; }.receipt-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }.receipt-heading small, .receipt-heading strong { display:block; }.receipt-heading small { color:#668195; font-size:11px; }.review-state { padding:5px 8px; border:1px solid #e5bf7f; border-radius:999px; background:#fff8e8; color:#8a5700; font-size:11px; font-weight:700; }.review-state.reviewed { border-color:#a8d8ba; background:#effbf3; color:#177245; }
+    .receipt-panel { margin-top:18px; }.receipt-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }.receipt-heading small, .receipt-heading strong { display:block; }.receipt-heading small { color:#668195; font-size:11px; }.review-state { padding:5px 8px; border:1px solid #efb4b4; border-radius:999px; background:#fff1f1; color:#b42318; font-size:11px; font-weight:700; }.review-state.sent { border-color:#a8d8ba; background:#effbf3; color:#177245; }
     .receipt-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 14px; }.receipt-summary div { border-bottom:1px solid #e0eaf0; padding-bottom:7px; }.receipt-summary dt { color:#668195; font-size:11px; font-weight:700; }.receipt-summary dd { margin:4px 0 0; font-size:13px; font-weight:700; overflow-wrap:anywhere; }.review-confirmation { margin-top:14px; padding:12px; border:1px solid #d6e4ec; border-radius:6px; background:#f8fbfd; }.review-confirmation label { display:flex; grid-template-columns:none; align-items:flex-start; gap:9px; }.review-confirmation input[type='checkbox'] { width:16px; height:16px; margin:2px 0 0; padding:0; flex:0 0 16px; }.reviewed-copy { color:#376277; font-size:13px; }
     @media (max-width:700px) { .reversals-page { padding:16px; }.filters { grid-template-columns:1fr; }.filter-button { width:100%; }.payment-detail { grid-template-columns:1fr; }.row-actions { justify-content:flex-start; } }
   `]
@@ -419,14 +424,14 @@ export class PaymentReversalsPageComponent implements OnInit {
     if (!this.receipt) return '';
     if (this.receipt.send_status === 'sent') return 'Enviado';
     if (this.receipt.send_status === 'error') return 'Error de envío';
-    return this.receipt.review_status === 'reviewed' ? 'Revisado' : 'Pendiente de revisión';
+    return this.receipt.review_status === 'reviewed' ? 'Pendiente de envío' : 'Pendiente de revisión';
   }
 
   receiptStateLabel(payment: PaymentOperation): string {
     if (payment.receipt_send_status === 'sent') return 'Comprobante enviado';
     if (payment.receipt_send_status === 'error') return 'Error de envío';
     return payment.receipt_review_status === 'reviewed'
-      ? 'Comprobante revisado'
+      ? 'Pendiente de envío'
       : 'Pendiente de revisión';
   }
 

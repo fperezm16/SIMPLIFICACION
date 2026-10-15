@@ -38,6 +38,14 @@ function buildReceiptNumber(payment) {
   return `ANU-${year}-${String(payment.id).padStart(6, "0")}`;
 }
 
+function buildProcedureLabel(snapshot) {
+  const code = cleanText(snapshot.submission_code, 80);
+  const name = cleanText(snapshot.procedure_name, 160);
+
+  if (code && name) return `${code} - ${name}`;
+  return code || name || "Tr\u00e1mite registrado";
+}
+
 function buildSnapshot(payment) {
   const cancellation = payment.raw_response?.cancellation || {};
   const cancellationRequest = cancellation.request || {};
@@ -162,17 +170,13 @@ function generateCancellationReceiptPdf(snapshot) {
     const rows = [
       ["Estado", "ANULADO"],
       ["Fecha de venta", formatVoucherDate(snapshot.sale_date)],
-      ["Fecha de anulacion", formatVoucherDate(snapshot.cancellation_date)],
-      ["ID de pago", `#${snapshot.payment_id}`],
-      ["Tramite", snapshot.submission_code || `Solicitud #${snapshot.submission_id}`],
+      ["Fecha de anulación", formatVoucherDate(snapshot.cancellation_date)],
+      ["Trámite", buildProcedureLabel(snapshot)],
       ["Referencia", snapshot.reference_number || "N/D"],
-      ["Autorizacion original", snapshot.authorization_code || "N/D"],
-      ["Correlativo", snapshot.systems_trace_no || "N/D"],
+      ["Número de autorización", snapshot.authorization_code || "N/D"],
+      ["Número de operación", snapshot.systems_trace_no || "N/D"],
       ["Tarjeta", snapshot.masked_card || "N/D"],
-      ["Marca", snapshot.card_brand || "N/D"],
-      ["Respuesta NeoNet", `${snapshot.response_code || "N/D"} ${snapshot.response_message || ""}`.trim()],
-      ["Operador", snapshot.cancelled_by || snapshot.cancelled_by_role || "Sistema"],
-      ["Motivo", snapshot.reason || "N/D"]
+      ["Marca", snapshot.card_brand || "N/D"]
     ];
 
     let y = 182;
@@ -194,7 +198,7 @@ function generateCancellationReceiptPdf(snapshot) {
       .text(formatVoucherAmount(snapshot.amount), 228, y + 20, { width: 290, align: "right" });
     doc.fillColor("#5b7485").fontSize(9)
       .text(
-        "La liberacion del cargo depende de los tiempos establecidos por el banco emisor.",
+        "La liberación del cargo depende de los tiempos establecidos por el banco emisor.",
         48,
         y + 66,
         { width: 498 }
@@ -271,14 +275,15 @@ async function sendCancellationReceipt(paymentId, recipientEmail, actor) {
       subject: `Comprobante de anulacion ${receipt.receipt_number}`,
       html: `<div style="font-family:Arial,Helvetica,sans-serif;color:#12324d;line-height:1.6">
         <h2>Comprobante de anulacion de pago</h2>
-        <p>Se adjunta el comprobante correspondiente al pago #${escapeHtml(receipt.snapshot.payment_id)}.</p>
+        <p>Se adjunta el comprobante de anulacion ${escapeHtml(receipt.receipt_number)}.</p>
+        <p><strong>Tr&aacute;mite:</strong> ${escapeHtml(buildProcedureLabel(receipt.snapshot))}</p>
         <p><strong>Monto anulado:</strong> ${escapeHtml(formatVoucherAmount(receipt.snapshot.amount))}</p>
         <p><strong>Referencia:</strong> ${escapeHtml(receipt.snapshot.reference_number || "N/D")}</p>
-        <p>La liberacion del cargo depende de los tiempos establecidos por el banco emisor.</p>
+        <p>La liberación del cargo depende de los tiempos establecidos por el banco emisor.</p>
       </div>`,
       text:
         `Comprobante de anulacion ${receipt.receipt_number}\n` +
-        `Pago #${receipt.snapshot.payment_id}\n` +
+        `Tr\u00e1mite: ${buildProcedureLabel(receipt.snapshot)}\n` +
         `Monto: ${formatVoucherAmount(receipt.snapshot.amount)}\n` +
         `Referencia: ${receipt.snapshot.reference_number || "N/D"}\n`,
       attachments: [{ filename, content: pdfBuffer, contentType: "application/pdf" }]
