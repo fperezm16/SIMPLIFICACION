@@ -66,7 +66,7 @@ function classifyGatewayError(error, context = {}) {
       safeMessage:
         safeMessage ||
         sanitizeGatewayMessage(message) ||
-        "Error de comunicacion con NeoNet",
+        "Error de comunicación con NeoNet",
       responseCode: responseCode || null
     };
   }

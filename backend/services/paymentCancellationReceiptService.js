@@ -137,7 +137,7 @@ async function ensureCancellationReceipt(paymentId) {
 
   const snapshot = buildSnapshot(payment);
   if (String(snapshot.response_code || "").trim() !== "00") {
-    throw receiptError("La anulacion no tiene una respuesta aprobada", 409, "CANCELLATION_NOT_APPROVED");
+    throw receiptError("La anulación no tiene una respuesta aprobada", 409, "CANCELLATION_NOT_APPROVED");
   }
 
   await pool.query(
@@ -163,7 +163,7 @@ function generateCancellationReceiptPdf(snapshot) {
     drawVoucherHeaderBands(doc);
     drawVoucherLogos(doc);
     doc.fillColor("#123b5d").fontSize(20)
-      .text("Comprobante de anulacion de pago", 42, 126);
+      .text("Comprobante de anulación de pago", 42, 126);
     doc.fillColor("#5b7485").fontSize(10)
       .text(snapshot.receipt_number, 42, 153);
 
@@ -230,7 +230,7 @@ async function reviewCancellationReceipt(paymentId, actor) {
          actor_user_id, actor_role, metadata
        )
        SELECT p.id, p.submission_id, 'receipt_review', 'success',
-              'Comprobante de anulacion revisado', $2::INTEGER, $3::TEXT,
+              'Comprobante de anulación revisado', $2::INTEGER, $3::TEXT,
               jsonb_build_object('payment_id', p.id, 'receipt_number', $4::TEXT)
        FROM payments p WHERE p.id = $1`,
       [
@@ -263,26 +263,26 @@ async function sendCancellationReceipt(paymentId, recipientEmail, actor) {
 
   const email = cleanText(recipientEmail, 320).toLowerCase();
   if (!EMAIL_REGEX.test(email)) {
-    throw receiptError("Ingrese un correo electronico valido", 400, "INVALID_EMAIL");
+    throw receiptError("Ingrese un correo electrónico valido", 400, "INVALID_EMAIL");
   }
 
   const pdfBuffer = await generateCancellationReceiptPdf(receipt.snapshot);
-  const filename = `comprobante-anulacion-${receipt.receipt_number}.pdf`;
+  const filename = `comprobante-anulación-${receipt.receipt_number}.pdf`;
 
   try {
     await sendMail({
       to: email,
-      subject: `Comprobante de anulacion ${receipt.receipt_number}`,
+      subject: `Comprobante de anulación ${receipt.receipt_number}`,
       html: `<div style="font-family:Arial,Helvetica,sans-serif;color:#12324d;line-height:1.6">
-        <h2>Comprobante de anulacion de pago</h2>
-        <p>Se adjunta el comprobante de anulacion ${escapeHtml(receipt.receipt_number)}.</p>
+        <h2>Comprobante de anulación de pago</h2>
+        <p>Se adjunta el comprobante de anulación ${escapeHtml(receipt.receipt_number)}.</p>
         <p><strong>Tr&aacute;mite:</strong> ${escapeHtml(buildProcedureLabel(receipt.snapshot))}</p>
         <p><strong>Monto anulado:</strong> ${escapeHtml(formatVoucherAmount(receipt.snapshot.amount))}</p>
         <p><strong>Referencia:</strong> ${escapeHtml(receipt.snapshot.reference_number || "N/D")}</p>
         <p>La liberación del cargo depende de los tiempos establecidos por el banco emisor.</p>
       </div>`,
       text:
-        `Comprobante de anulacion ${receipt.receipt_number}\n` +
+        `Comprobante de anulación ${receipt.receipt_number}\n` +
         `Tr\u00e1mite: ${buildProcedureLabel(receipt.snapshot)}\n` +
         `Monto: ${formatVoucherAmount(receipt.snapshot.amount)}\n` +
         `Referencia: ${receipt.snapshot.reference_number || "N/D"}\n`,
@@ -321,8 +321,8 @@ async function recordEmailAttempt(paymentId, email, actor, outcome, errorMessage
      )
      SELECT p.id, p.submission_id, 'receipt_email', $2::TEXT,
             CASE WHEN $2::TEXT = 'success'
-              THEN 'Comprobante de anulacion enviado'
-              ELSE 'Error enviando comprobante de anulacion'
+              THEN 'Comprobante de anulación enviado'
+              ELSE 'Error enviando comprobante de anulación'
             END,
             $3::TEXT, $4::INTEGER, $5::TEXT,
             jsonb_build_object('payment_id', p.id, 'recipient', $6::TEXT)

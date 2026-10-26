@@ -446,13 +446,29 @@ export class PaymentFormComponent implements OnDestroy {
       '';
 
     this.clearMessages();
-    this.errorMessage =
-      gatewayDetail ||
-      response?.message ||
+    this.errorMessage = this.getPaymentErrorMessage(
+      gatewayDetail,
+      response?.message,
+      fromContinuation
+    );
+    this.paymentRejected.emit(response);
+  }
+
+  private getPaymentErrorMessage(
+    gatewayDetail: string,
+    responseMessage: string,
+    fromContinuation: boolean
+  ): string {
+    const technicalMessage = String(gatewayDetail || responseMessage || '').trim();
+
+    if (technicalMessage.toUpperCase() === 'CONSUMER_AUTHENTICATION_FAILED') {
+      return 'No fue posible completar la autenticacion con el banco. El pago no fue procesado.';
+    }
+
+    return technicalMessage ||
       (fromContinuation
         ? 'La autenticacion 3DS no pudo completarse.'
         : 'El pago fue rechazado.');
-    this.paymentRejected.emit(response);
   }
 
   private async beginDeviceDataCollection(response: any): Promise<void> {
