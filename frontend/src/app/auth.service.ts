@@ -7,7 +7,7 @@ export interface AuthUser {
   id: number;
   email: string;
   name?: string | null;
-  role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'emisor' | 'aprobador' | 'avsec_financiero' | 'recepcion_aila' | 'recepcion_avsec' | 'jefatura_avsec' | 'jefatura_aila' | 'recepcion_dvso' | 'asistente_dvso' | 'jefatura_dvso' | 'inspector_dvso' | 'user' | string;
+  role?: 'admin' | 'supervisor' | 'revisor' | 'analista' | 'emisor' | 'aprobador' | 'avsec_financiero' | 'recepcion_aila' | 'recepcion_avsec' | 'jefatura_avsec' | 'jefatura_aila' | 'recepcion_dvso' | 'jefatura_seccion_aeronavegabilidad' | 'inspectores_aeronavegabilidad' | 'jefatura_seccion_operaciones' | 'inspector_rpas' | 'asistentes_aeronavegabilidad' | 'jefatura_dvso' | 'user' | string;
   unit_access?: string[];
 }
 

@@ -1,5 +1,5 @@
 const FORCE_HIDE_DVSO = false;
-const FORCE_HIDE_TRANSPORTE_AEREO = true;
+const FORCE_HIDE_TRANSPORTE_AEREO = false;
 const FORCE_HIDE_INFRAESTRUCTURA = true;
 
 const DVSO_HIDDEN_HOSTS = new Set<string>([

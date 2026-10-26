@@ -44,7 +44,13 @@ async function safeSendMail({ to, subject, html, text }) {
     await sendMail({ to: recipient, subject, html, text });
     return true;
   } catch (err) {
-    console.error("No se pudo enviar correo transaccional", err);
+    console.error("No se pudo enviar correo transaccional", {
+      recipient,
+      subject: sanitizeText(subject, 180),
+      code: err?.code || err?.cause?.code || null,
+      responseCode: err?.responseCode || err?.cause?.responseCode || null,
+      message: err?.message || "SMTP_SEND_FAILED"
+    });
     return false;
   }
 }

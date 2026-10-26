@@ -577,7 +577,7 @@ type TableDocument = {
             {{ approving ? 'Aprobando...' : ((isDvsoAeronavegabilidadSubmission(selected) || isDvsoOperacionesSubmission(selected)) ? 'Firmar y devolver a inspector' : isDvsoSubmission(selected) ? 'Aprobar y devolver a asistente' : 'Marcar aprobado') }}
           </button>
           <button *ngIf="canReturnToDvsoJefatura()" class="send-approver" (click)="returnToDvsoJefatura()" [disabled]="saving || returning">
-            {{ returning ? 'Trasladando...' : (isDvsoOperacionesSubmission(selected) ? 'Enviar a Jefatura de Operaciones' : isDvsoAeronavegabilidadSubmission(selected) ? 'Enviar a Jefe de Sección' : 'Devolver a jefatura DVSO') }}
+            {{ returning ? 'Trasladando...' : returnToDvsoJefaturaLabel(selected) }}
           </button>
           <button *ngIf="canSendSelectedToDvsoReception()" class="send-approver" (click)="sendToDvsoReception()" [disabled]="saving || sendingToEmitter">
             {{ sendingToEmitter ? 'Trasladando...' : 'Trasladar a recepción DVSO' }}
@@ -928,11 +928,12 @@ export class ReviewPanelComponent implements OnChanges {
   readonly ailaJefaturaAvsecRole = 'jefatura_avsec';
   readonly ailaJefaturaAilaRole = 'jefatura_aila';
   readonly dvsoRecepcionRole = 'recepcion_dvso';
-  readonly dvsoAsistenteRole = 'asistente_dvso';
+  readonly dvsoAsistenteRole = 'asistentes_aeronavegabilidad';
   readonly dvsoJefaturaRole = 'jefatura_dvso';
-  readonly dvsoJefeAeronavegabilidadRole = 'jefe_aeronavegabilidad';
-  readonly dvsoInspectorRole = 'inspector_dvso';
-  readonly dvsoJefaturaOpsRole = 'jefatura_ops';
+  readonly dvsoJefeAeronavegabilidadRole = 'jefatura_seccion_aeronavegabilidad';
+  readonly dvsoInspectorRole = 'inspectores_aeronavegabilidad';
+  readonly dvsoJefaturaOpsRole = 'jefatura_seccion_operaciones';
+  readonly dvsoInspectorRpasRole = 'inspector_rpas';
   currentUserId = this.auth.currentUser?.id || null;
   canEdit = false;
   canApprove = this.role === 'aprobador' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
@@ -940,8 +941,8 @@ export class ReviewPanelComponent implements OnChanges {
   canSendToApprover = this.role === 'emisor' || this.role === this.ailaJefaturaAvsecRole || this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
   canDeliverRole = this.role === 'revisor' || this.role === this.dvsoRecepcionRole;
   canAssign = this.role === 'revisor' || this.role === this.ailaRecepcionRole || this.role === this.dvsoRecepcionRole || this.role === 'admin' || this.role === 'supervisor';
-  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoJefeAeronavegabilidadRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
-  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
+  canViewLogs = this.role === 'analista' || this.role === 'emisor' || this.role === 'revisor' || this.role === 'aprobador' || this.role === this.ailaRecepcionRole || this.role === this.ailaRecepcionAvsecRole || this.role === this.ailaJefaturaAvsecRole || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoRecepcionRole || this.role === this.dvsoAsistenteRole || this.role === this.dvsoJefaturaRole || this.role === this.dvsoJefeAeronavegabilidadRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === this.dvsoInspectorRpasRole || this.role === 'admin' || this.role === 'supervisor';
+  canReturn = this.role === 'analista' || this.role === 'emisor' || this.role === this.ailaJefaturaAilaRole || this.role === this.dvsoInspectorRole || this.role === this.dvsoJefaturaOpsRole || this.role === this.dvsoInspectorRpasRole || this.role === 'admin' || this.role === 'supervisor';
   canReturnToAnalyst = this.role === 'aprobador';
 
   financialProcessFieldLabel() {
@@ -1068,8 +1069,13 @@ export class ReviewPanelComponent implements OnChanges {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) =>
         this.isDvsoSubmission(d) &&
-        Number(d.assigned_emisor_id) === Number(this.currentUserId) &&
-        (this.dvsoStage(d) === 'jefatura_revision' || this.dvsoStage(d) === 'jefatura_aprobacion')
+        (
+          (
+            Number(d.assigned_emisor_id) === Number(this.currentUserId) &&
+            (this.dvsoStage(d) === 'jefatura_revision' || this.dvsoStage(d) === 'jefatura_aprobacion')
+          ) ||
+          this.dvsoStage(d) === 'jefatura_dvso_firma'
+        )
       );
     }
     if (this.role === this.dvsoJefeAeronavegabilidadRole) {
@@ -1087,11 +1093,24 @@ export class ReviewPanelComponent implements OnChanges {
       if (!this.currentUserId) return [];
       rows = rows.filter((d) =>
         this.isDvsoSubmission(d) &&
+        !this.isDvsoOperacionesSubmission(d) &&
         Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
         (
-          (!this.isDvsoOps805Submission(d) && this.dvsoStage(d) === 'inspector_revision') ||
-          ((this.isDvsoAeronavegabilidadSubmission(d) || this.isDvsoOperacionesSubmission(d)) && this.dvsoStage(d) === 'inspector_envio') ||
-          (this.isDvsoOps805Submission(d) && (this.dvsoStage(d) === 'inspector_revision' || this.dvsoStage(d) === 'inspector_finalizacion'))
+          this.dvsoStage(d) === 'inspector_revision' ||
+          (this.isDvsoAeronavegabilidadSubmission(d) && this.dvsoStage(d) === 'inspector_envio')
+        )
+      );
+    }
+    if (this.role === this.dvsoInspectorRpasRole) {
+      if (!this.currentUserId) return [];
+      rows = rows.filter((d) =>
+        this.isDvsoOperacionesSubmission(d) &&
+        Number(d.assigned_aprobador_id) === Number(this.currentUserId) &&
+        (
+          this.dvsoStage(d) === 'inspector_revision' ||
+          this.dvsoStage(d) === 'inspector_envio' ||
+          this.dvsoStage(d) === 'inspector_finalizacion' ||
+          this.dvsoStage(d) === 'inspector_envio_jefatura_dvso'
         )
       );
     }
@@ -1329,6 +1348,7 @@ export class ReviewPanelComponent implements OnChanges {
     if (role === this.dvsoJefaturaRole) return `dvso_${this.dvsoStage(row) || 'jefatura_revision'}:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
     if (role === this.dvsoJefeAeronavegabilidadRole) return `dvso_aeronavegabilidad_${this.dvsoStage(row) || 'jefe_revision'}:${markerUser}:${rowId}`;
     if (role === this.dvsoInspectorRole) return `dvso_inspector_${this.dvsoStage(row) || 'inspector_revision'}:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
+    if (role === this.dvsoInspectorRpasRole) return `dvso_inspector_rpas_${this.dvsoStage(row) || 'inspector_revision'}:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
     if (role === this.dvsoJefaturaOpsRole) return `dvso_ops_${this.dvsoStage(row) || 'revision'}:${markerUser}:${rowId}:${row.assigned_aprobador_id || 'na'}`;
     if (role === 'analista') return `analista:${markerUser}:${rowId}:${row.assigned_analista_id || 'na'}`;
     if (role === 'emisor') return `emisor:${markerUser}:${rowId}:${row.assigned_emisor_id || 'na'}`;
@@ -1697,10 +1717,13 @@ export class ReviewPanelComponent implements OnChanges {
       return 'Jefatura AILA';
     }
     if (this.isDvsoSubmission(row)) {
+      if (this.isDvso801Submission(row) && stage === 'analista') return 'Jefatura de la Sección de Operaciones';
       if (stage === 'analista') return 'Asistente DVSO';
       if (this.isDvsoAeronavegabilidadSubmission(row) && stage === 'emisor') return 'Jefe de Sección de Aeronavegabilidad';
+      if (this.isDvso801Submission(row) && stage === 'emisor') return 'Jefatura de la Sección de Operaciones';
       if (stage === 'emisor') return 'Jefatura DVSO';
-      if (this.isDvsoOps805Submission(row)) return 'Jefatura OPS';
+      if (this.isDvso801Submission(row)) return 'Inspector RPAS';
+      if (this.isDvsoOps805Submission(row)) return 'Inspector RPAS';
       return 'Inspector DVSO';
     }
     if (this.isFinancialPaymentPasswordFlow(row)) {
@@ -1734,8 +1757,9 @@ export class ReviewPanelComponent implements OnChanges {
 
   sendToApproverLabel(row: Submission | null | undefined) {
     if (this.isAilaGenericFlow(row)) return 'Enviar a Jefatura AILA';
+    if (this.isDvso801Submission(row)) return 'Nombrar Inspector RPAS';
     if (this.isDvsoOps805Submission(row)) {
-      return this.role === this.dvsoInspectorRole ? 'Enviar a Jefatura OPS' : 'Enviar a Inspector DVSO';
+      return this.role === this.dvsoInspectorRpasRole ? 'Enviar a Jefatura de Operaciones' : 'Enviar a Inspector RPAS';
     }
     if (this.isDvsoAeronavegabilidadSubmission(row)) return 'Nombrar inspector';
     if (this.isDvsoOperacionesSubmission(row)) return 'Nombrar Inspector RPAS';
@@ -2088,6 +2112,7 @@ export class ReviewPanelComponent implements OnChanges {
 
   primaryActionLabel() {
     if (!this.canEdit && this.canAssign) {
+      if (this.isDvso801Submission(this.selected)) return 'Asignar Jefatura de Operaciones';
       return this.isDvsoSubmission(this.selected) ? 'Asignar asistente DVSO' : 'Asignar analista';
     }
     return 'Guardar cambios';
@@ -2246,8 +2271,11 @@ export class ReviewPanelComponent implements OnChanges {
     if (!this.canReturn) return false;
     if (this.role === 'emisor' && this.isFinancialSubmission(this.selected) && !this.isFinancialPaymentPasswordFlow(this.selected)) return false;
     if (this.isDvsoSubmission(this.selected)) {
+      if (this.isDvso801Submission(this.selected)) {
+        return this.role === this.dvsoInspectorRpasRole || this.role === 'admin' || this.role === 'supervisor';
+      }
       if (this.isDvsoOps805Submission(this.selected)) {
-        return this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
+        return this.role === this.dvsoInspectorRpasRole || this.role === 'admin' || this.role === 'supervisor';
       }
       return this.role === this.dvsoInspectorRole || this.role === 'admin' || this.role === 'supervisor';
     }
@@ -2256,22 +2284,45 @@ export class ReviewPanelComponent implements OnChanges {
 
   canReturnToDvsoJefatura() {
     if (!this.selected?.id || !this.isDvsoSubmission(this.selected)) return false;
+    if (this.isDvso801Submission(this.selected) || this.isDvsoOps805Submission(this.selected)) {
+      const stage = this.dvsoStage(this.selected);
+      if (stage === 'jefe_firma') {
+        return this.role === this.dvsoJefaturaOpsRole || this.role === 'admin' || this.role === 'supervisor';
+      }
+      if (stage === 'inspector_revision' || stage === 'inspector_envio_jefatura_dvso') {
+        if (this.role === 'admin' || this.role === 'supervisor') return true;
+        return this.role === this.dvsoInspectorRpasRole &&
+          Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
+      }
+      return false;
+    }
+    if (this.isDvsoOps805Submission(this.selected) && this.dvsoStage(this.selected) === 'jefatura_ops_revision') {
+      if (this.role === 'admin' || this.role === 'supervisor') return true;
+      return this.role === this.dvsoJefaturaOpsRole &&
+        Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
+    }
     if (this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected)) {
       if (this.dvsoStage(this.selected) !== 'inspector_revision') return false;
       if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoInspectorRole &&
-        Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
-    }
-    if (this.isDvsoOps805Submission(this.selected)) {
-      if (this.dvsoStage(this.selected) !== 'jefatura_ops_revision') return false;
-      if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoJefaturaOpsRole &&
+      return (this.role === this.dvsoInspectorRole || this.role === this.dvsoInspectorRpasRole) &&
         Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
     }
     if (this.dvsoStage(this.selected) !== 'inspector_revision') return false;
     if (this.role === 'admin' || this.role === 'supervisor') return true;
     return this.role === this.dvsoInspectorRole &&
       Number(this.selected.assigned_aprobador_id) === Number(this.currentUserId);
+  }
+
+  returnToDvsoJefaturaLabel(row: Submission | null | undefined) {
+    if (this.isDvso801Submission(row) || this.isDvsoOps805Submission(row)) {
+      const stage = this.dvsoStage(row);
+      if (stage === 'jefe_firma') return 'Devolver a Inspector RPAS';
+      if (stage === 'inspector_envio_jefatura_dvso') return 'Enviar a Jefatura del DVSO';
+      return 'Enviar a Jefatura de Operaciones';
+    }
+    if (this.isDvsoOperacionesSubmission(row)) return 'Enviar a Jefatura de Operaciones';
+    if (this.isDvsoAeronavegabilidadSubmission(row)) return 'Enviar a Jefe de Sección';
+    return 'Devolver a jefatura DVSO';
   }
 
   canSendSelectedToDvsoReception() {
@@ -2318,13 +2369,13 @@ export class ReviewPanelComponent implements OnChanges {
       if (this.isDvsoAeronavegabilidadSubmission(this.selected)) {
         if (role !== this.dvsoInspectorRole) return false;
       }
-      if (this.isDvsoOperacionesSubmission(this.selected)) {
-        if (role !== this.dvsoInspectorRole) return false;
-      }
       if (this.isDvsoOps805Submission(this.selected)) {
         const stage = this.dvsoStage(this.selected);
-        if (stage === 'jefatura_revision' && role !== this.dvsoInspectorRole) return false;
+        if (stage === 'jefatura_revision' && role !== this.dvsoInspectorRpasRole) return false;
         if (stage === 'inspector_revision' && role !== this.dvsoJefaturaOpsRole) return false;
+      }
+      if (this.isDvso801Submission(this.selected)) {
+        if (role !== this.dvsoInspectorRpasRole) return false;
       }
       if (this.isDvsoSubmission(this.selected) && !this.isDvsoOps805Submission(this.selected) && role === this.dvsoJefaturaOpsRole) return false;
       return units.includes(unit);
@@ -2342,6 +2393,9 @@ export class ReviewPanelComponent implements OnChanges {
   canApproveSelected() {
     if (this.isDvsoSubmission(this.selected)) {
       if (!this.selected) return false;
+      if ((this.isDvso801Submission(this.selected) || this.isDvsoOps805Submission(this.selected)) && this.dvsoStage(this.selected) === 'jefatura_dvso_firma') {
+        return this.role === this.dvsoJefaturaRole || this.role === 'admin' || this.role === 'supervisor';
+      }
       if (this.isDvsoAeronavegabilidadSubmission(this.selected)) {
         if (this.dvsoStage(this.selected) !== 'jefe_firma') return false;
         return this.role === this.dvsoJefeAeronavegabilidadRole || this.role === 'admin' || this.role === 'supervisor';
@@ -2397,15 +2451,17 @@ export class ReviewPanelComponent implements OnChanges {
     if (!row?.id) return false;
     if (this.isAilaGenericFlow(row)) return false;
     if (row.approved_at || row.delivered_at) return false;
-    if (this.isDvsoOps805Submission(row)) {
+    if (this.isDvsoOps805Submission(row) || this.isDvso801Submission(row)) {
       if (this.role === 'admin' || this.role === 'supervisor') return true;
       if (this.role === this.dvsoJefaturaRole) {
+        const stage = this.dvsoStage(row);
+        if (stage === 'jefatura_dvso_firma') return true;
         return Number(row.assigned_emisor_id) === Number(this.currentUserId) &&
-          this.dvsoStage(row) === 'jefatura_revision';
+          stage === 'jefatura_revision';
       }
-      if (this.role === this.dvsoInspectorRole) {
+      if (this.role === this.dvsoInspectorRpasRole) {
         return Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
-          (this.dvsoStage(row) === 'inspector_revision' || this.dvsoStage(row) === 'inspector_envio' || this.dvsoStage(row) === 'inspector_finalizacion');
+          (this.dvsoStage(row) === 'inspector_revision' || this.dvsoStage(row) === 'inspector_envio' || this.dvsoStage(row) === 'inspector_finalizacion' || this.dvsoStage(row) === 'inspector_envio_jefatura_dvso');
       }
       if (this.role === this.dvsoJefaturaOpsRole) {
         return this.dvsoStage(row) === 'jefe_revision' ||
@@ -2432,7 +2488,7 @@ export class ReviewPanelComponent implements OnChanges {
       return false;
     }
     if (this.isDvsoSubmission(row || null)) {
-      return this.isDvsoOps805Submission(row || null) && Boolean(
+      return (this.isDvsoOps805Submission(row || null) || this.isDvso801Submission(row || null)) && Boolean(
         row?.id &&
         (this.canUploadAnalystPdf(row) ||
           this.canSendSelectedToApprover() ||
@@ -2467,6 +2523,9 @@ export class ReviewPanelComponent implements OnChanges {
   }
 
   processPdfPanelTitle(row: Submission | null | undefined) {
+    if (this.isDvso801Submission(row || null)) {
+      return 'Dictamen técnico DVSO-OPS-801';
+    }
     if (this.isDvsoOps805Submission(row || null)) {
       return 'Archivo del proceso DVSO-OPS-805';
     }
@@ -2480,6 +2539,7 @@ export class ReviewPanelComponent implements OnChanges {
 
   boletaLockedForAnalyst() {
     if (!this.selected) return false;
+    if (this.isDvso801Submission(this.selected)) return Boolean(this.selected.delivered_at);
     if (this.isDvsoOps805Submission(this.selected)) return Boolean(this.selected.delivered_at);
     if (this.isFinancialSubmission(this.selected)) {
       if (this.isFinancialPaymentPasswordFlow(this.selected)) {
@@ -2776,11 +2836,15 @@ export class ReviewPanelComponent implements OnChanges {
       if (row.delivered_at) return 'Entregado';
       if (row.returned_at) return 'Devuelto';
       if (this.isDvsoOps805Submission(row) && stage === 'inspector_envio') return 'Autorización firmada - envío final';
+      if (this.isDvsoOps805Submission(row) && stage === 'inspector_envio_jefatura_dvso') return 'Pendiente de envío a Jefatura del DVSO';
+      if (this.isDvsoOps805Submission(row) && stage === 'jefatura_dvso_firma') return 'En firma de Jefatura del DVSO';
       if (this.isDvsoOps805Submission(row) && stage === 'jefe_firma') return 'En firma de Jefatura de Operaciones';
       if (this.isDvsoOps805Submission(row) && stage === 'jefe_revision') return 'En Jefatura de Operaciones';
       if (this.isDvsoOps805Submission(row) && stage === 'inspector_finalizacion') return 'Devuelto a inspector';
       if (this.isDvsoOps805Submission(row) && stage === 'jefatura_ops_revision') return 'En Jefatura OPS';
       if (this.isDvso801Submission(row) && stage === 'inspector_envio') return 'Dictamen firmado - envío final';
+      if (this.isDvso801Submission(row) && stage === 'inspector_envio_jefatura_dvso') return 'Pendiente de envío a Jefatura del DVSO';
+      if (this.isDvso801Submission(row) && stage === 'jefatura_dvso_firma') return 'En firma de Jefatura del DVSO';
       if (this.isDvso801Submission(row) && stage === 'jefe_firma') return 'En firma de Jefatura de Operaciones';
       if (this.isDvso801Submission(row) && stage === 'jefe_revision') return 'En Jefatura de Operaciones';
       if (this.isDvsoAeronavegabilidadSubmission(row) && stage === 'inspector_envio') return this.isDvso800Submission(row) ? 'Permiso firmado - envío final' : 'Certificado firmado - envío final';
@@ -2850,7 +2914,7 @@ export class ReviewPanelComponent implements OnChanges {
       const stage = this.dvsoStage(row);
       return this.isDvsoSubmission(row) &&
         Number(row.assigned_emisor_id) === Number(this.currentUserId) &&
-        (stage === 'jefatura_revision' || stage === 'jefatura_aprobacion');
+        (stage === 'jefatura_revision' || stage === 'jefatura_aprobacion' || stage === 'jefatura_dvso_firma');
     }
     if (role === this.dvsoJefeAeronavegabilidadRole) {
       const stage = this.dvsoStage(row);
@@ -2862,8 +2926,18 @@ export class ReviewPanelComponent implements OnChanges {
       return this.isDvsoSubmission(row) &&
         Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
         (
-          (!this.isDvsoOps805Submission(row) && (this.dvsoStage(row) === 'inspector_revision' || (this.isDvsoAeronavegabilidadSubmission(row) && this.dvsoStage(row) === 'inspector_envio'))) ||
-          (this.isDvsoOps805Submission(row) && (this.dvsoStage(row) === 'inspector_revision' || this.dvsoStage(row) === 'inspector_envio' || this.dvsoStage(row) === 'inspector_finalizacion'))
+          !this.isDvsoOperacionesSubmission(row) &&
+          (this.dvsoStage(row) === 'inspector_revision' || (this.isDvsoAeronavegabilidadSubmission(row) && this.dvsoStage(row) === 'inspector_envio'))
+        );
+    }
+    if (role === this.dvsoInspectorRpasRole) {
+      return this.isDvsoOperacionesSubmission(row) &&
+        Number(row.assigned_aprobador_id) === Number(this.currentUserId) &&
+        (
+          this.dvsoStage(row) === 'inspector_revision' ||
+          this.dvsoStage(row) === 'inspector_envio' ||
+          this.dvsoStage(row) === 'inspector_finalizacion' ||
+          this.dvsoStage(row) === 'inspector_envio_jefatura_dvso'
         );
     }
     if (role === this.dvsoJefaturaOpsRole) {
@@ -2979,11 +3053,11 @@ export class ReviewPanelComponent implements OnChanges {
   sendToApprover() {
     if (!this.selected || !this.selected.id || !this.canSendSelectedToApprover()) return;
     this.sendingToApprover = true;
-    const sendingOps805FromInspector = this.isDvsoOps805Submission(this.selected) && this.role === this.dvsoInspectorRole;
+    const sendingOps805FromInspector = this.isDvsoOps805Submission(this.selected) && this.role === this.dvsoInspectorRpasRole;
     this.status = sendingOps805FromInspector
-      ? 'Enviando a Jefatura OPS...'
+      ? 'Enviando a Jefatura de Operaciones...'
       : this.isDvsoSubmission(this.selected)
-        ? 'Enviando a inspector DVSO...'
+        ? (this.isDvso801Submission(this.selected) ? 'Nombrando Inspector RPAS...' : 'Enviando a inspector DVSO...')
         : 'Enviando a aprobador...';
     this.http.post<{ assigned_aprobador_id: number; sent_to_aprobador_at: string; assigned_aprobador_name?: string | null; assigned_aprobador_email?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/send-to-approver`,
@@ -3003,7 +3077,7 @@ export class ReviewPanelComponent implements OnChanges {
           if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
             this.selected.detalle_formulario = {
               ...this.selected.detalle_formulario,
-              dvso_stage: sendingOps805FromInspector ? 'jefatura_ops_revision' : 'inspector_revision'
+              dvso_stage: sendingOps805FromInspector ? 'jefe_firma' : 'inspector_revision'
             };
           }
         }
@@ -3017,15 +3091,15 @@ export class ReviewPanelComponent implements OnChanges {
           if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
             this.edit.detalle_formulario = {
               ...this.edit.detalle_formulario,
-              dvso_stage: sendingOps805FromInspector ? 'jefatura_ops_revision' : 'inspector_revision'
+              dvso_stage: sendingOps805FromInspector ? 'jefe_firma' : 'inspector_revision'
             };
           }
         }
         this.sendingToApprover = false;
         this.status = sendingOps805FromInspector
-          ? 'Formulario enviado a Jefatura OPS.'
+          ? 'Formulario enviado a Jefatura de Operaciones.'
           : this.isDvsoSubmission(this.selected)
-            ? 'Formulario enviado al inspector DVSO.'
+            ? (this.isDvso801Submission(this.selected) ? 'Formulario enviado al Inspector RPAS.' : 'Formulario enviado al inspector DVSO.')
             : 'Formulario enviado al aprobador.';
         if (this.selected?.id) {
           this.loadLogs(this.selected.id);
@@ -3044,6 +3118,12 @@ export class ReviewPanelComponent implements OnChanges {
     if (!this.selected || !this.selected.id || !this.canApproveSelected()) return;
     this.approving = true;
     this.status = 'Aprobando...';
+    const currentStage = this.dvsoStage(this.selected);
+    const nextApprovedDvsoStage = (this.isDvso801Submission(this.selected) || this.isDvsoOps805Submission(this.selected)) && currentStage === 'jefe_firma'
+      ? 'inspector_envio_jefatura_dvso'
+      : (this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected) || currentStage === 'jefatura_dvso_firma')
+        ? 'inspector_envio'
+        : 'asistente_sello';
     this.http.post<{
       approved_at: string | null;
       approved_by_user_id?: number | null;
@@ -3066,7 +3146,7 @@ export class ReviewPanelComponent implements OnChanges {
           if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object' && this.isDvsoSubmission(this.selected)) {
             this.selected.detalle_formulario = {
               ...this.selected.detalle_formulario,
-              dvso_stage: (this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected)) ? 'inspector_envio' : 'asistente_sello'
+              dvso_stage: nextApprovedDvsoStage
             };
           }
         }
@@ -3083,7 +3163,7 @@ export class ReviewPanelComponent implements OnChanges {
           if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object' && this.isDvsoSubmission(this.edit)) {
             this.edit.detalle_formulario = {
               ...this.edit.detalle_formulario,
-              dvso_stage: (this.isDvsoAeronavegabilidadSubmission(this.edit) || this.isDvsoOperacionesSubmission(this.edit)) ? 'inspector_envio' : 'asistente_sello'
+              dvso_stage: nextApprovedDvsoStage
             };
           }
         }
@@ -3226,38 +3306,72 @@ export class ReviewPanelComponent implements OnChanges {
       return;
     }
     this.returning = true;
-    const returningOps805ToInspector = this.isDvsoOps805Submission(this.selected);
-    const sendingDvso639ToChief = this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected);
-    this.status = this.isDvsoOperacionesSubmission(this.selected) ? 'Enviando a Jefatura de Operaciones...' : sendingDvso639ToChief ? 'Enviando a Jefe de Sección...' : returningOps805ToInspector ? 'Devolviendo a inspector...' : 'Devolviendo a jefatura DVSO...';
-    this.http.post<{ comentarios_revision?: string | null; assigned_aprobador_id?: number | null; sent_to_aprobador_at?: string | null }>(
+    const currentStage = this.dvsoStage(this.selected);
+    const isDvso801 = this.isDvso801Submission(this.selected);
+    const isDvso805 = this.isDvsoOps805Submission(this.selected);
+    const returningOps805ToInspector = isDvso805 && currentStage === 'jefatura_ops_revision';
+    const returningOpsToInspector = (isDvso801 || isDvso805) && currentStage === 'jefe_firma';
+    const sendingOpsToDvso = (isDvso801 || isDvso805) && currentStage === 'inspector_envio_jefatura_dvso';
+    const sendingDvsoToChief = (this.isDvsoAeronavegabilidadSubmission(this.selected) || this.isDvsoOperacionesSubmission(this.selected)) && currentStage === 'inspector_revision';
+    const nextDvsoStage = sendingOpsToDvso
+      ? 'jefatura_dvso_firma'
+      : returningOpsToInspector
+        ? 'inspector_revision'
+        : sendingDvsoToChief
+          ? 'jefe_firma'
+          : returningOps805ToInspector
+            ? 'inspector_finalizacion'
+            : 'jefatura_aprobacion';
+    this.status = sendingOpsToDvso
+      ? 'Enviando a Jefatura del DVSO...'
+      : returningOpsToInspector || returningOps805ToInspector
+        ? 'Devolviendo a inspector...'
+        : this.isDvsoOperacionesSubmission(this.selected)
+          ? 'Enviando a Jefatura de Operaciones...'
+          : sendingDvsoToChief
+            ? 'Enviando a Jefe de Sección...'
+            : 'Devolviendo a jefatura DVSO...';
+    this.http.post<{ comentarios_revision?: string | null; assigned_aprobador_id?: number | null; sent_to_aprobador_at?: string | null; assigned_emisor_id?: number | null; sent_to_emisor_at?: string | null }>(
       `${this.apiBase}/submissions/${this.selected.id}/dvso-return-to-jefatura`,
       { reason }
     ).subscribe({
       next: (resp) => {
         if (this.selected) {
           this.selected.comentarios_revision = resp.comentarios_revision || reason;
-          this.selected.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
-          this.selected.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'assigned_aprobador_id')) this.selected.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'sent_to_aprobador_at')) this.selected.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'assigned_emisor_id')) this.selected.assigned_emisor_id = resp.assigned_emisor_id ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'sent_to_emisor_at')) this.selected.sent_to_emisor_at = resp.sent_to_emisor_at ?? null;
           if (this.selected.detalle_formulario && typeof this.selected.detalle_formulario === 'object') {
             this.selected.detalle_formulario = {
               ...this.selected.detalle_formulario,
-              dvso_stage: sendingDvso639ToChief ? 'jefe_firma' : returningOps805ToInspector ? 'inspector_finalizacion' : 'jefatura_aprobacion'
+              dvso_stage: nextDvsoStage
             };
           }
         }
         if (this.edit) {
           this.edit.comentarios_revision = resp.comentarios_revision || reason;
-          this.edit.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
-          this.edit.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'assigned_aprobador_id')) this.edit.assigned_aprobador_id = resp.assigned_aprobador_id ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'sent_to_aprobador_at')) this.edit.sent_to_aprobador_at = resp.sent_to_aprobador_at ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'assigned_emisor_id')) this.edit.assigned_emisor_id = resp.assigned_emisor_id ?? null;
+          if (Object.prototype.hasOwnProperty.call(resp, 'sent_to_emisor_at')) this.edit.sent_to_emisor_at = resp.sent_to_emisor_at ?? null;
           if (this.edit.detalle_formulario && typeof this.edit.detalle_formulario === 'object') {
             this.edit.detalle_formulario = {
               ...this.edit.detalle_formulario,
-              dvso_stage: sendingDvso639ToChief ? 'jefe_firma' : returningOps805ToInspector ? 'inspector_finalizacion' : 'jefatura_aprobacion'
+              dvso_stage: nextDvsoStage
             };
           }
         }
         this.returning = false;
-        this.status = this.isDvsoOperacionesSubmission(this.selected) ? 'Proceso enviado a Jefatura de Operaciones.' : sendingDvso639ToChief ? 'Proceso enviado a Jefe de Sección.' : returningOps805ToInspector ? 'Proceso devuelto a inspector.' : 'Proceso devuelto a jefatura DVSO.';
+        this.status = sendingOpsToDvso
+          ? 'Proceso enviado a Jefatura del DVSO.'
+          : returningOpsToInspector || returningOps805ToInspector
+            ? 'Proceso devuelto a inspector.'
+            : this.isDvsoOperacionesSubmission(this.selected)
+              ? 'Proceso enviado a Jefatura de Operaciones.'
+              : sendingDvsoToChief
+                ? 'Proceso enviado a Jefe de Sección.'
+                : 'Proceso devuelto a jefatura DVSO.';
         if (this.selected?.id) this.loadLogs(this.selected.id);
         this.cancel();
         this.updated.emit();
@@ -3308,13 +3422,13 @@ export class ReviewPanelComponent implements OnChanges {
     if ((this.isDvsoAeronavegabilidadSubmission(row) || this.isDvsoOperacionesSubmission(row)) && this.dvsoStage(row) === 'inspector_envio') {
       if (row.delivered_at) return false;
       if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoInspectorRole &&
+      return (this.isDvsoOperacionesSubmission(row) ? this.role === this.dvsoInspectorRpasRole : this.role === this.dvsoInspectorRole) &&
         Number(row.assigned_aprobador_id) === Number(this.currentUserId);
     }
     if (this.isDvsoOps805Submission(row) && this.dvsoStage(row) === 'inspector_finalizacion') {
       if (row.delivered_at) return false;
       if (this.role === 'admin' || this.role === 'supervisor') return true;
-      return this.role === this.dvsoInspectorRole &&
+      return this.role === this.dvsoInspectorRpasRole &&
         Number(row.assigned_aprobador_id) === Number(this.currentUserId);
     }
     if (!this.canDeliverRole) return false;

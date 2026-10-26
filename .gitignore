@@ -28,6 +28,8 @@ Thumbs.db
 .vscode/
 
 # temporary artifacts
+tmp/
+**/~$*.docx
 tmp-upload.json
 backend/test-pdf-output.pdf
 entrega/*.zip

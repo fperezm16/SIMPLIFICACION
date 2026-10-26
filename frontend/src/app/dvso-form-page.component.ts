@@ -18,6 +18,7 @@ type DvsoField = {
   rows?: number;
   placeholder?: string;
   hint?: string;
+  autoValue?: 'todayGuatemala';
   options?: Array<{ value: string; label: string }>;
 };
 
@@ -409,7 +410,7 @@ const DVSO_FORMS: DvsoFormConfig[] = [
       {
         title: 'Datos de identificación',
         fields: [
-          { key: 'lugar_fecha_presentacion', label: 'Lugar y fecha de presentación', required: true, full: true },
+          { key: 'lugar_fecha_presentacion', label: 'Lugar y fecha de presentación', required: true, full: true, autoValue: 'todayGuatemala' },
           { key: 'entidad_nombre', label: 'Nombre de entidad, empresa o nombre propio', required: true, full: true },
           { key: 'correo_contacto', label: 'Correo electrónico', type: 'email', required: true },
           { key: 'telefono_contacto', label: 'Número telefónico', type: 'tel', required: true }
@@ -702,11 +703,26 @@ export class DvsoFormPageComponent implements OnInit {
       for (const section of page.sections) {
         for (const field of section.fields) {
           const key = this.digitalFieldKey(page, field);
-          next[key] = String(values[key] ?? '');
+          const value = values[key];
+          next[key] = String(value ?? (field.autoValue === 'todayGuatemala' ? this.todayGuatemalaText() : ''));
         }
       }
     }
     this.formValues = next;
+  }
+
+  private todayGuatemalaText() {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('es-GT', {
+      timeZone: 'America/Guatemala',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).formatToParts(now);
+    const day = parts.find((part) => part.type === 'day')?.value || '';
+    const month = parts.find((part) => part.type === 'month')?.value || '';
+    const year = parts.find((part) => part.type === 'year')?.value || '';
+    return `Guatemala, ${day}/${month}/${year}`;
   }
 
   private missingRequiredFields(config: DvsoFormConfig) {

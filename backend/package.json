@@ -7,7 +7,11 @@
     "start": "node src/index.js",
     "migrate": "node scripts/migrate.js",
     "migrate:new": "node scripts/new-migration.js",
-    "clean:test-data": "node scripts/clean-test-data.js"
+    "seed:dvso-users": "node scripts/create-dvso-test-users.js",
+    "seed:ta-users": "node scripts/create-ta-test-users.js",
+    "clean:test-data": "node scripts/clean-test-data.js",
+    "audit:submissions": "node scripts/audit-submission-burst.js",
+    "delete:submission-burst": "node scripts/delete-submission-burst.js"
   },
   "dependencies": {
     "axios": "^1.15.0",

@@ -90,6 +90,15 @@ Para desplegar actualizaciones en PoC:
 - Supervision: `/supervision`
 - Admin: `/admin`
 
+### Certificado de Explotación de una Línea Aérea
+- Formulario público: `/transporte-aereo/linea-aerea`. El usuario adjunta los documentos y consulta las etapas posteriores desde Inicio.
+- Roles nuevos (configurables en Admin): `analista_servicios_aereos`, `jefatura_transporte_aereo`, `asesoria_juridica_transporte_aereo` y `despacho_superior_transporte_aereo`. Su acceso queda limitado a `TRANSPORTE_AEREO`.
+- El flujo interno se gestiona en Revisión. Analista revisa y puede pedir correcciones; Jefatura adjunta dictámenes y proyecto; Jurídica prepara el convenio y Despacho firma el certificado; Analista registra la boleta; el usuario aporta constancia cuando corresponde, firma y acepta o presenta inconformidad; Jefatura y Despacho completan el convenio; Analista registra las notificaciones y archiva.
+- Al abrir una solicitud en Revisión, los cuatro roles internos de Transporte Aéreo pueden consultar los campos, tablas y documentos PDF originales ingresados por el solicitante. Las acciones de cada etapa siguen restringidas al rol responsable.
+- La boleta se solicita a Cobros del Departamento Financiero y se carga al expediente. La distribución final también se confirma manualmente; esta implementación no emite boletas ni envía esas notificaciones automáticamente.
+- La API específica es `/api/transport-line-workflow`; las rutas genéricas de modificación de solicitudes no pueden alterar este trámite. Prueba del flujo: `node --test backend/test/transport-line-workflow.test.js`.
+- Cuentas internas locales de prueba: ejecutar `npm --prefix backend run seed:ta-users`. Crea únicamente `ta2@gmail.com` a `ta5@gmail.com`, conservando como contraseña el número de cada cuenta. `ta2` es Analista; `ta3` Jefatura; `ta4` Asesoría Jurídica; `ta5` Despacho Superior. Los solicitantes deben utilizar una cuenta normal del Portal de Trámites en Línea. El script retira las antiguas cuentas solicitantes `ta1` y `ta6`, y rechaza bases de datos no locales y el entorno de producción.
+
 ### Regla de tipo de persona
 - El formulario permite elegir `Persona individual` o `Persona juridica`.
 - Si es `individual`, se oculta el numeral 5.

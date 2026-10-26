@@ -9,6 +9,7 @@ const confirmationArg = process.argv.find((arg) => arg.startsWith("--confirmar="
 const confirmation = confirmationArg?.slice("--confirmar=".length) || "";
 
 const PROCESS_TABLES = [
+  "submission_documents",
   "submission_feedback",
   "submission_logs",
   "submissions",

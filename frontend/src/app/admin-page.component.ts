@@ -43,7 +43,7 @@ type UserRow = {
           </label>
           <label>Rol
             <select [(ngModel)]="createForm.role" (ngModelChange)="onCreateRoleChange()">
-              <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+              <option *ngFor="let r of roles" [value]="r">{{ roleLabel(r) }}</option>
             </select>
           </label>
         </div>
@@ -82,7 +82,7 @@ type UserRow = {
               <td>{{ u.name || 'N/D' }}</td>
               <td>
                 <select [(ngModel)]="u.role">
-                  <option *ngFor="let r of roles" [value]="r">{{ r }}</option>
+                  <option *ngFor="let r of roles" [value]="r">{{ roleLabel(r) }}</option>
                 </select>
               </td>
               <td>
@@ -160,13 +160,13 @@ export class AdminPageComponent implements OnInit {
   private http = inject(HttpClient);
   readonly apiBase = API_BASE;
   readonly roles = hideDvsoInCurrentRuntime()
-    ? ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'admin', 'supervisor']
-    : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero', 'admin', 'supervisor'];
+    ? ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'analista_servicios_aereos', 'jefatura_transporte_aereo', 'asesoria_juridica_transporte_aereo', 'despacho_superior_transporte_aereo', 'admin', 'supervisor']
+    : ['user', 'revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'jefatura_seccion_aeronavegabilidad', 'inspectores_aeronavegabilidad', 'jefatura_seccion_operaciones', 'inspector_rpas', 'asistentes_aeronavegabilidad', 'jefatura_dvso', 'avsec_financiero', 'analista_servicios_aereos', 'jefatura_transporte_aereo', 'asesoria_juridica_transporte_aereo', 'despacho_superior_transporte_aereo', 'admin', 'supervisor'];
   readonly unitOptions: string[] = filterVisibleUnitsInCurrentRuntime(['GENERAL', 'RAN', 'DVSO', 'AILA', 'FINANCIERO', 'TRANSPORTE_AEREO', 'INFRAESTRUCTURA']);
   private readonly unitRoles = new Set(
     hideDvsoInCurrentRuntime()
-      ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero']
-      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'asistente_dvso', 'jefatura_dvso', 'jefe_aeronavegabilidad', 'inspector_dvso', 'jefatura_ops', 'avsec_financiero']
+      ? ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'avsec_financiero', 'analista_servicios_aereos', 'jefatura_transporte_aereo', 'asesoria_juridica_transporte_aereo', 'despacho_superior_transporte_aereo']
+      : ['revisor', 'analista', 'emisor', 'aprobador', 'recepcion_aila', 'recepcion_avsec', 'jefatura_avsec', 'jefatura_aila', 'recepcion_dvso', 'jefatura_seccion_aeronavegabilidad', 'inspectores_aeronavegabilidad', 'jefatura_seccion_operaciones', 'inspector_rpas', 'asistentes_aeronavegabilidad', 'jefatura_dvso', 'avsec_financiero', 'analista_servicios_aereos', 'jefatura_transporte_aereo', 'asesoria_juridica_transporte_aereo', 'despacho_superior_transporte_aereo']
   );
 
   users: UserRow[] = [];
@@ -198,6 +198,36 @@ export class AdminPageComponent implements OnInit {
     if (normalized === 'TRANSPORTE_AEREO') return 'TRANSPORTE AÉREO';
     if (normalized === 'INFRAESTRUCTURA') return 'INFRAESTRUCTURA';
     return normalized;
+  }
+
+  roleLabel(role: string) {
+    const normalized = String(role || '').trim().toLowerCase();
+    const labels: Record<string, string> = {
+      user: 'Usuario',
+      revisor: 'Recepción',
+      analista: 'Analista',
+      emisor: 'Emisor',
+      aprobador: 'Aprobador',
+      recepcion_aila: 'Recepción AILA',
+      recepcion_avsec: 'Recepción AVSEC',
+      jefatura_avsec: 'Jefatura AVSEC',
+      jefatura_aila: 'Jefatura AILA',
+      recepcion_dvso: 'Recepción DVSO',
+      jefatura_seccion_aeronavegabilidad: 'Jefatura de la Sección de Aeronavegabilidad',
+      inspectores_aeronavegabilidad: 'Inspector/es',
+      jefatura_seccion_operaciones: 'Jefatura de la Sección de Operaciones',
+      inspector_rpas: 'Inspector RPAS',
+      asistentes_aeronavegabilidad: 'Asistentes Aeronavegabilidad',
+      jefatura_dvso: 'Jefatura del DVSO',
+      avsec_financiero: 'AVSEC Financiero',
+      analista_servicios_aereos: 'Analista de Servicios Aéreos',
+      jefatura_transporte_aereo: 'Jefatura de Transporte Aéreo',
+      asesoria_juridica_transporte_aereo: 'Asesoría Jurídica (Transporte Aéreo)',
+      despacho_superior_transporte_aereo: 'Despacho Superior (Transporte Aéreo)',
+      admin: 'Admin',
+      supervisor: 'Supervisor'
+    };
+    return labels[normalized] || role;
   }
 
   toggleCreateUnit(unit: string, checked: boolean) {
@@ -312,7 +342,7 @@ export class AdminPageComponent implements OnInit {
     this.error = '';
     this.message = '';
     if (!this.isUnitRole(u.role)) {
-      this.error = 'Solo aplica para revisor, analista, emisor, aprobador o avsec_financiero.';
+      this.error = 'Este rol no permite configurar unidades.';
       return;
     }
     const units = this.normalizeUnits(u.unit_access);

@@ -1,8 +1,9 @@
 ﻿import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { AuthService } from './auth.service';
 import { ReviewPanelComponent } from './review-panel.component';
+import { TransportLineWorkflowComponent } from './transport-line-workflow.component';
 import { Submission } from './submission.model';
 import { API_BASE } from './api.config';
 import { isUnitVisibleInCurrentRuntime } from './runtime-flags';
@@ -116,7 +117,7 @@ type ApproverDashboardPayload = {
 
 @Component({
     selector: 'app-review-page',
-    imports: [CommonModule, ReviewPanelComponent],
+    imports: [CommonModule, ReviewPanelComponent, TransportLineWorkflowComponent],
     template: `
     <section class="review-page">
       <header class="head">
@@ -360,7 +361,8 @@ type ApproverDashboardPayload = {
         </div>
       </section>
 
-      <app-review-panel *ngIf="activeTab === 'review'" [data]="submissions" [apiBase]="apiBase" (updated)="fetch(true)"></app-review-panel>
+      <app-transport-line-workflow *ngIf="activeTab === 'review' && isTransportWorkflowRole()"></app-transport-line-workflow>
+      <app-review-panel *ngIf="activeTab === 'review' && !isTransportWorkflowRole()" [data]="submissions" [apiBase]="apiBase" (updated)="fetch(true)"></app-review-panel>
     </section>
   `,
     styles: [`
@@ -778,10 +780,21 @@ type ApproverDashboardPayload = {
   `]
 })
 export class ReviewPageComponent implements OnInit, OnDestroy {
+  @ViewChild(TransportLineWorkflowComponent) private transportPanel?: TransportLineWorkflowComponent;
+  isTransportWorkflowRole(): boolean {
+    return ['analista_servicios_aereos', 'jefatura_transporte_aereo', 'asesoria_juridica_transporte_aereo', 'despacho_superior_transporte_aereo'].includes(this.auth.currentUser?.role || '');
+  }
   private http = inject(HttpClient);
   private auth = inject(AuthService);
   private autoRefreshHandle: ReturnType<typeof setInterval> | null = null;
   private pendingScrollRestore: number | null = null;
+  private readonly autoRefreshMs = 2500;
+  private readonly focusRefreshMinMs = 1000;
+  private lastFetchAt = 0;
+  private readonly handleWindowFocus = () => this.refreshNowIfStale();
+  private readonly handleVisibilityChange = () => {
+    if (!document.hidden) this.refreshNowIfStale();
+  };
   readonly apiBase = API_BASE;
   submissions: Submission[] = [];
   approvedHistory: FinancialApprovedHistoryItem[] = [];
@@ -808,6 +821,8 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.fetch();
     this.startAutoRefresh();
+    window.addEventListener('focus', this.handleWindowFocus);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   ngOnDestroy(): void {
@@ -815,10 +830,14 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
       clearInterval(this.autoRefreshHandle);
       this.autoRefreshHandle = null;
     }
+    window.removeEventListener('focus', this.handleWindowFocus);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   fetch(silent = false) {
     if (this.loading) return;
+    if (!silent) this.transportPanel?.loadList();
+    this.lastFetchAt = Date.now();
     this.preserveScrollPosition();
     if (!silent) {
       this.loading = true;
@@ -828,9 +847,9 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
         this.submissions = this.mergeLocalSubmissionState((data || []).filter((row) => isUnitVisibleInCurrentRuntime(row.unidad_clave)));
         this.loading = false;
         this.restoreScrollPosition();
-        this.fetchDashboard(silent);
-        this.fetchArchive(silent);
-        this.fetchApprovedHistory(silent);
+        if (!silent || this.activeTab === 'dashboard') this.fetchDashboard(silent);
+        if (!silent || this.activeTab === 'archive') this.fetchArchive(silent);
+        if (!silent || this.activeTab === 'approved') this.fetchApprovedHistory(silent);
       },
       error: () => {
         this.submissions = [];
@@ -881,7 +900,13 @@ export class ReviewPageComponent implements OnInit, OnDestroy {
     this.autoRefreshHandle = setInterval(() => {
       if (document.hidden) return;
       this.fetch(true);
-    }, 10000);
+    }, this.autoRefreshMs);
+  }
+
+  private refreshNowIfStale() {
+    if (document.hidden) return;
+    if (Date.now() - this.lastFetchAt < this.focusRefreshMinMs) return;
+    this.fetch(true);
   }
 
   private preserveScrollPosition() {

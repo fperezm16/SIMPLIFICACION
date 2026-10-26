@@ -10,6 +10,7 @@ const { validateEmailAddress } = require("./email-validator");
 const { sendAlertEmail } = require("./mailer");
 const { notifyAssignee, notifyUserStatus } = require("../services/emailNotificationService");
 const { authRouter, requireAuth, requireRole } = require("./auth");
+const { createTransportLineWorkflowRouter, STAFF_ROLES: TRANSPORT_WORKFLOW_ROLES } = require("./transport-line-workflow");
 require("dotenv").config();
 //Modulo de pagos
 const paymentRoutes = require('../routes/paymentRoutes');
@@ -26,17 +27,19 @@ const AILA_ROLE_JEFATURA = "jefatura_avsec";
 const AILA_ROLE_JEFATURA_AILA = "jefatura_aila";
 const FINANCIAL_ROLE_AVSEC = "avsec_financiero";
 const DVSO_ROLE_RECEPCION = "recepcion_dvso";
-const DVSO_ROLE_ASISTENTE = "asistente_dvso";
+const DVSO_ROLE_ASISTENTE = "asistentes_aeronavegabilidad";
 const DVSO_ROLE_JEFATURA = "jefatura_dvso";
-const DVSO_ROLE_INSPECTOR = "inspector_dvso";
-const DVSO_ROLE_JEFATURA_OPS = "jefatura_ops";
-const DVSO_ROLE_JEFE_AERONAVEGABILIDAD = "jefe_aeronavegabilidad";
+const DVSO_ROLE_INSPECTOR = "inspectores_aeronavegabilidad";
+const DVSO_ROLE_JEFATURA_OPS = "jefatura_seccion_operaciones";
+const DVSO_ROLE_INSPECTOR_RPAS = "inspector_rpas";
+const DVSO_ROLE_JEFE_AERONAVEGABILIDAD = "jefatura_seccion_aeronavegabilidad";
 const DVSO_WORKFLOW_ROLES = [
   DVSO_ROLE_RECEPCION,
   DVSO_ROLE_ASISTENTE,
   DVSO_ROLE_JEFATURA,
   DVSO_ROLE_INSPECTOR,
   DVSO_ROLE_JEFATURA_OPS,
+  DVSO_ROLE_INSPECTOR_RPAS,
   DVSO_ROLE_JEFE_AERONAVEGABILIDAD
 ];
 const AILA_WORKFLOW_ROLES = [
@@ -56,11 +59,52 @@ const REVIEW_ROLES = [
   "supervisor",
   ...AILA_WORKFLOW_ROLES,
   ...DVSO_WORKFLOW_ROLES,
+  ...TRANSPORT_WORKFLOW_ROLES,
   FINANCIAL_ROLE_AVSEC
 ];
-const ALLOWED_ROLES = Array.from(new Set(["user", ...REVIEW_ROLES, DVSO_ROLE_JEFATURA_OPS]));
+const ALLOWED_ROLES = Array.from(new Set(["user", ...REVIEW_ROLES]));
 const ALL_UNITS = ["GENERAL", "RAN", "DVSO", "AILA", "FINANCIERO", "TRANSPORTE_AEREO", "INFRAESTRUCTURA"];
-const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, ...DVSO_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC];
+const UNIT_RESTRICTED_ROLES = ["revisor", "analista", "emisor", "aprobador", ...AILA_WORKFLOW_ROLES, ...DVSO_WORKFLOW_ROLES, ...TRANSPORT_WORKFLOW_ROLES, FINANCIAL_ROLE_AVSEC];
+
+function boundedPositiveInteger(value, fallback, min, max) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isInteger(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+const SUBMISSION_RATE_LIMIT_MAX = boundedPositiveInteger(process.env.SUBMISSION_RATE_LIMIT_MAX, 10, 1, 1000);
+const SUBMISSION_RATE_LIMIT_WINDOW_MINUTES = boundedPositiveInteger(process.env.SUBMISSION_RATE_LIMIT_WINDOW_MINUTES, 60, 1, 1440);
+const SUBMISSION_DUPLICATE_WINDOW_SECONDS = boundedPositiveInteger(process.env.SUBMISSION_DUPLICATE_WINDOW_SECONDS, 120, 10, 3600);
+
+function submissionRequestAudit(req) {
+  return {
+    remoteIp: String(req.socket?.remoteAddress || req.ip || "").trim().slice(0, 200) || null,
+    forwardedFor: String(req.headers?.["x-forwarded-for"] || "").trim().slice(0, 500) || null,
+    userAgent: String(req.headers?.["user-agent"] || "").trim().slice(0, 500) || null
+  };
+}
+
+async function registerSubmissionSecurityEvent(req, eventType, metadata = {}) {
+  const audit = submissionRequestAudit(req);
+  try {
+    await pool.query(
+      `INSERT INTO submission_security_events
+         (event_type, user_id, user_email, remote_ip, forwarded_for, user_agent, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)`,
+      [
+        String(eventType || "submission_security_event").slice(0, 100),
+        req.user?.sub || null,
+        String(req.user?.email || "").trim().slice(0, 320) || null,
+        audit.remoteIp,
+        audit.forwardedFor,
+        audit.userAgent,
+        JSON.stringify(metadata || {})
+      ]
+    );
+  } catch (err) {
+    console.error("Error registrando evento de seguridad de solicitudes", err);
+  }
+}
 
 function isDevelopmentEnvironment() {
   return String(process.env.NODE_ENV || "").trim().toLowerCase() !== "production";
@@ -119,6 +163,15 @@ function normalizeSubmissionDetail(detail) {
 
 function isDvsoWorkflow(row = {}) {
   return String(row?.unidad_clave || "").trim().toUpperCase() === "DVSO";
+}
+
+function isDvsoDigitalSubmission(row = {}) {
+  if (!isDvsoWorkflow(row)) return false;
+  const detail = normalizeSubmissionDetail(row?.detalle_formulario);
+  return (
+    String(detail.modalidad || "").trim().toLowerCase() === "formulario_digital" ||
+    (detail.campos_digitales && typeof detail.campos_digitales === "object")
+  );
 }
 
 function isDvsoOps805Workflow(row = {}) {
@@ -248,6 +301,14 @@ function isDvsoInspectorRole(role = "") {
   return String(role || "").trim().toLowerCase() === DVSO_ROLE_INSPECTOR;
 }
 
+function isDvsoInspectorRpasRole(role = "") {
+  return String(role || "").trim().toLowerCase() === DVSO_ROLE_INSPECTOR_RPAS;
+}
+
+function isDvsoAnyInspectorRole(role = "") {
+  return isDvsoInspectorRole(role) || isDvsoInspectorRpasRole(role);
+}
+
 function isDvsoJefaturaOpsRole(role = "") {
   return String(role || "").trim().toLowerCase() === DVSO_ROLE_JEFATURA_OPS;
 }
@@ -289,6 +350,9 @@ function currentStageOpenMarkerKey(row = {}, role = "", userId = null) {
   }
   if (normalizedRole === DVSO_ROLE_INSPECTOR) {
     return `dvso_inspector_${getDvsoStage(row) || "inspector_revision"}:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
+  }
+  if (normalizedRole === DVSO_ROLE_INSPECTOR_RPAS) {
+    return `dvso_inspector_rpas_${getDvsoStage(row) || "inspector_revision"}:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
   }
   if (normalizedRole === DVSO_ROLE_JEFATURA_OPS) {
     return `dvso_ops_${getDvsoStage(row) || "revision"}:${markerUser}:${rowId}:${row.assigned_aprobador_id || "na"}`;
@@ -340,6 +404,9 @@ function isFinancialGestionTiaWorkflow(row = {}) {
 
 function forcedUnitAccessForRole(role = "", requestedUnits = ALL_UNITS) {
   const normalizedRole = String(role || "").trim().toLowerCase();
+  if (TRANSPORT_WORKFLOW_ROLES.includes(normalizedRole)) {
+    return ["TRANSPORTE_AEREO"];
+  }
   if (isAilaWorkflowRole(normalizedRole)) {
     return ["AILA"];
   }
@@ -413,6 +480,38 @@ async function notifyOwnerSubmissionStatus(submissionId, { subjectPrefix, headin
     context,
     reason
   });
+}
+
+async function notifyUnitReception(submissionId) {
+  const context = await getSubmissionNotificationContext(Number(submissionId));
+  const unit = String(context?.unidad_clave || "").trim().toUpperCase();
+  if (!context || !["RAN", "FINANCIERO"].includes(unit)) return false;
+
+  const recipients = await pool.query(
+    `SELECT id, name, email
+       FROM users
+      WHERE role = 'revisor'
+        AND unit_access @> ARRAY[$1]::TEXT[]
+        AND COALESCE(TRIM(email), '') <> ''
+      ORDER BY created_at ASC, id ASC`,
+    [unit]
+  );
+  if (!recipients.rowCount) {
+    console.warn("No hay usuarios de recepción configurados para notificación", {
+      submissionId: Number(submissionId),
+      unit
+    });
+    return false;
+  }
+
+  const results = await Promise.all(recipients.rows.map((recipient) => notifyAssignee({
+    to: recipient.email,
+    recipientName: recipient.name,
+    roleLabel: `recepción de ${unit === "FINANCIERO" ? "Financiero" : "RAN"}`,
+    actionLabel: `Nueva solicitud recibida en ${unit === "FINANCIERO" ? "Financiero" : "RAN"}`,
+    context
+  })));
+  return results.some(Boolean);
 }
 
 function canFinalizeAilaAdministration(row = {}) {
@@ -1021,12 +1120,203 @@ async function buildAilaAuthorizedPdfBuffer(submission) {
   }
 }
 
+const DVSO_DIGITAL_FIELD_LABELS = {
+  matricula_aeronave: "Matrícula de la aeronave",
+  propietario_nombre_direccion: "Nombre y dirección del propietario",
+  propietario_contacto: "Teléfono y correo del propietario",
+  fabricante_aeronave: "Fabricante de la aeronave",
+  tipo_modelo_aeronave: "Tipo y modelo de la aeronave",
+  serie_aeronave: "Número de serie de la aeronave",
+  categoria_aeronave: "Categoría de la aeronave",
+  motores_modelo: "Tipo y modelo de motores",
+  motores_serie: "Número de serie de los motores",
+  helices_modelo: "Tipo y modelo de hélice(s)",
+  helices_serie: "Número de serie(s)",
+  rotor_principal: "Rotor principal",
+  rotor_cola: "Rotor de cola",
+  peso_maximo_rodaje: "Peso máximo de rodaje",
+  peso_maximo_despegue: "Peso máximo de despegue",
+  pais_importacion: "País de importación",
+  importador_nombre_direccion: "Nombre y dirección del importador",
+  informacion_adicional: "Información adicional o requisitos especiales",
+  ubicacion_inspeccion: "Ubicación para inspección física",
+  solicitante_nombre: "Nombre del solicitante",
+  solicitante_cargo: "Cargo del solicitante",
+  firma_fecha: "Firma y fecha",
+  propietario_nombre: "Nombre del propietario",
+  propietario_direccion: "Dirección del propietario",
+  propietario_telefono: "Teléfono del propietario",
+  propietario_correo: "Correo electrónico del propietario",
+  solicitante_direccion: "Dirección del solicitante",
+  solicitante_telefono: "Teléfono del solicitante",
+  solicitante_correo: "Correo electrónico del solicitante",
+  origen_destino_vuelo: "Origen y destino del vuelo",
+  fecha_prevista_vuelo: "Fecha prevista del vuelo",
+  ruta_vuelo: "Ruta del vuelo",
+  proposito_vuelo: "Propósito del vuelo",
+  personas_operan_vuelo: "Personas que operan el vuelo",
+  detalles_incumplimiento: "Detalles de incumplimiento",
+  restricciones_aplicar: "Restricciones a aplicar",
+  declaracion_veracidad: "Declaración de veracidad",
+  lugar_fecha_presentacion: "Lugar y fecha de presentación",
+  entidad_nombre: "Nombre de entidad, empresa o nombre propio",
+  correo_contacto: "Correo electrónico",
+  telefono_contacto: "Número telefónico",
+  marca_rpa: "Marca RPA",
+  modelo_rpa: "Modelo RPA",
+  serie_rpa: "Número de serie RPA",
+  peso_rpa: "Peso de la RPA",
+  cantidad_rpa: "Cantidad",
+  uso_previsto: "Uso previsto / comentarios",
+  firma_solicitante: "Firma",
+  pasaporte_numero: "Número de pasaporte",
+  pais_residencia: "País de residencia",
+  aduana_ingreso: "Aduana de ingreso",
+  aerolinea: "Aerolínea",
+  numero_vuelo: "Número de vuelo",
+  fecha_entrada: "Fecha de entrada",
+  fecha_salida: "Fecha de salida",
+  lugar_operacion: "Lugar de la operación",
+  coordenadas_operacion: "Coordenadas",
+  matricula_rpa: "Matrícula RPA",
+  comentarios_operacion: "Comentarios / observaciones"
+};
+
+function humanizeDvsoFieldKey(key = "") {
+  return String(key || "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function dvsoFieldLabel(key = "") {
+  return DVSO_DIGITAL_FIELD_LABELS[key] || humanizeDvsoFieldKey(key);
+}
+
+function getDvsoDisplayCode(submission = {}) {
+  const detail = normalizeSubmissionDetail(submission.detalle_formulario);
+  return String(detail.codigo || detail.code || submission.uso || "DVSO").trim();
+}
+
+function buildDvsoSubmissionPdfHtml(submission) {
+  const logos = getInstitutionLogoData();
+  const detail = normalizeSubmissionDetail(submission.detalle_formulario);
+  const digitalFields =
+    detail.campos_digitales && typeof detail.campos_digitales === "object"
+      ? detail.campos_digitales
+      : {};
+  const entries = Object.entries(digitalFields)
+    .filter(([key]) => key !== "dvso_stage")
+    .map(([key, value]) => [dvsoFieldLabel(key), value]);
+  const formCode = getDvsoDisplayCode(submission);
+  const title = String(detail.titulo || submission.gestion_nombre || `Formulario ${formCode}`).trim();
+  const footerCode = formCode.toUpperCase().includes("DVSO") ? formCode.toUpperCase() : `FORMA ${formCode.toUpperCase()}`;
+  const stage = String(detail.dvso_stage || "").trim();
+
+  return `<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #0f172a; font-family: Arial, Helvetica, sans-serif; font-size: 10.4px; background: #fff; }
+    .page { width: 210mm; min-height: 297mm; padding: 6mm; }
+    .document { border: 1px solid #cbd5e1; padding: 5mm 7mm; min-height: 285mm; }
+    .logos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; margin-bottom: 4px; }
+    .logo-block { display: flex; align-items: center; min-height: 38px; }
+    .logo-block.right { justify-content: flex-end; text-align: right; }
+    .logo-image { display: block; width: auto; max-width: 100%; object-fit: contain; }
+    .logo-image.mciv { max-height: 42px; }
+    .logo-image.dgac { max-height: 40px; margin-left: auto; }
+    .title { text-align: center; margin: 2px 0 6px; }
+    .title h1 { margin: 0; font-size: 13.5px; text-transform: uppercase; letter-spacing: 0.015em; line-height: 1.18; }
+    .title p { margin: 3px 0 0; color: #334155; font-size: 10.4px; }
+    .pill { display: inline-block; margin-top: 4px; border: 1px solid #93c5fd; background: #e0f2fe; color: #075985; border-radius: 999px; padding: 2px 8px; font-weight: 700; font-size: 9.8px; }
+    .meta { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; padding: 5px 0; display: grid; grid-template-columns: 1fr 1fr; gap: 5px 18px; margin-bottom: 6px; }
+    .meta div, .field-row { display: grid; grid-template-columns: 185px 1fr; gap: 7px; align-items: start; }
+    .label { font-weight: 700; }
+    .value { border-bottom: 1px solid #94a3b8; min-height: 14px; padding: 0 2px 1px; white-space: pre-wrap; word-break: break-word; line-height: 1.12; }
+    .section { border-top: 2px solid #0f172a; padding-top: 5px; margin-top: 6px; }
+    .section h2 { margin: 0 0 5px; font-size: 12.2px; text-transform: uppercase; }
+    .fields { display: grid; gap: 4px; }
+    .footer-box { margin-top: 8px; border: 1px solid #0f172a; display: grid; grid-template-columns: 1fr 1fr; font-size: 9.8px; }
+    .footer-box div { padding: 4px 6px; min-height: 28px; }
+    .footer-box div + div { border-left: 1px solid #0f172a; text-align: right; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="document">
+      <header>
+        <div class="logos">
+          <div class="logo-block">
+            ${logos.mciv ? `<img class="logo-image mciv" src="${logos.mciv}" alt="Ministerio de Comunicaciones, Infraestructura y Vivienda">` : ""}
+          </div>
+          <div class="logo-block right">
+            ${logos.dgac ? `<img class="logo-image dgac" src="${logos.dgac}" alt="Dirección General de Aeronáutica Civil">` : ""}
+          </div>
+        </div>
+        <div class="title">
+          <h1>${escapeHtml(title)}</h1>
+          <p>Departamento de Vigilancia de la Seguridad Operacional</p>
+          <span class="pill">${escapeHtml(formCode)}</span>
+        </div>
+      </header>
+
+      <section class="meta">
+        <div><span class="label">Fecha:</span><span class="value">${renderValue(formatDateOnly(submission.fecha || submission.created_at))}</span></div>
+        <div><span class="label">No. Registro:</span><span class="value">${renderValue(submission.registro_codigo || submission.id)}</span></div>
+        <div><span class="label">Solicitante:</span><span class="value">${renderValue(submission.nombre_propietario)}</span></div>
+        <div><span class="label">Correo:</span><span class="value">${renderValue(submission.correo)}</span></div>
+        <div><span class="label">Teléfono:</span><span class="value">${renderValue(submission.telefono)}</span></div>
+        <div><span class="label">Etapa:</span><span class="value">${renderValue(stage || "N/D")}</span></div>
+      </section>
+
+      <section class="section">
+        <h2>Datos del formulario digital</h2>
+        <div class="fields">
+          ${
+            entries.length
+              ? entries.map(([label, value]) => `<div class="field-row"><span class="label">${escapeHtml(label)}:</span><span class="value">${renderValue(value)}</span></div>`).join("")
+              : `<div class="field-row"><span class="label">Formulario:</span><span class="value">${renderValue(submission.gestion_nombre)}</span></div>`
+          }
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Observaciones del proceso</h2>
+        <div class="field-row"><span class="label">Comentarios:</span><span class="value">${renderValue(submission.comentarios_revision)}</span></div>
+      </section>
+
+      <div class="footer-box">
+        <div>
+          <div>Revisión: ${renderValue(detail.revision || "")}</div>
+          <div>Fecha de envío: ${renderValue(formatDateTime(submission.created_at))}</div>
+        </div>
+        <div>
+          <div>${escapeHtml(footerCode)}</div>
+          <div>Documento generado con los datos ingresados en el portal</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function buildSubmissionPdfHtml(submission) {
   const personaTipo = String(submission.persona_tipo || "individual").toLowerCase();
   const isJuridica = personaTipo === "juridica";
   const unidadClave = String(submission.unidad_clave || "GENERAL").toUpperCase();
   const isFinancialMode = unidadClave === "FINANCIERO";
   const logos = getInstitutionLogoData();
+  if (isDvsoDigitalSubmission(submission)) {
+    return buildDvsoSubmissionPdfHtml(submission);
+  }
   if (isFinancialMode) {
     const rows = buildFinancialSummaryRows(submission);
     return `<!doctype html>
@@ -1805,7 +2095,8 @@ function resolveBrowserExecutablePath() {
 async function buildSubmissionPdfBuffer(submission) {
   const isDvsoOriginal =
     String(submission?.unidad_clave || "").toUpperCase() === "DVSO" &&
-    submission?.original_form_pdf;
+    submission?.original_form_pdf &&
+    !isDvsoDigitalSubmission(submission);
   if (isDvsoOriginal) {
     return submission.original_form_pdf;
   }
@@ -1865,6 +2156,8 @@ function submissionProcessState(row) {
     if (isDvsoOperacionesWorkflow(row)) {
       const finalLabel = isDvsoOps805Workflow(row) ? "Autorización firmada - pendiente de envío" : "Dictamen firmado - pendiente de envío";
       if (stage === "inspector_envio" || stage === "inspector_finalizacion") return { code: "documento_operaciones_firmado", label: finalLabel, step: 6, percent: 92 };
+      if ((isDvso801Workflow(row) || isDvsoOps805Workflow(row)) && stage === "inspector_envio_jefatura_dvso") return { code: "en_inspector_rpas_jefatura_dvso", label: "Pendiente de envío a Jefatura del DVSO", step: 10, percent: 86 };
+      if ((isDvso801Workflow(row) || isDvsoOps805Workflow(row)) && stage === "jefatura_dvso_firma") return { code: "en_jefatura_dvso_firma", label: "En firma de Jefatura del DVSO", step: 11, percent: 90 };
       if (stage === "jefe_firma" || stage === "jefatura_ops_revision") return { code: "en_jefatura_ops_firma", label: "En firma de Jefatura de Operaciones", step: 5, percent: 82 };
       if (stage === "inspector_revision") return { code: "en_inspector_rpas", label: "En revisión de Inspector RPAS", step: 4, percent: 65 };
       if (stage === "jefe_revision") return { code: "en_jefatura_ops", label: "En Jefatura de Operaciones", step: 2, percent: 40 };
@@ -2209,6 +2502,22 @@ app.use(cors({
 app.use(express.json({ limit: "100mb" }));
 app.use("/api/payments", paymentRoutes);
 app.use("/api/auth", authRouter);
+app.use("/api/transport-line-workflow", createTransportLineWorkflowRouter({ pool, requireAuth }));
+// Este trámite usa su propio flujo; las rutas genéricas no deben saltarse sus etapas.
+app.use("/api/submissions/:id", requireAuth, async (req, res, next) => {
+  if (req.method === "GET" || !/^\d+$/.test(String(req.params.id || ""))) return next();
+  try {
+    const result = await pool.query(
+      `SELECT id FROM submissions WHERE id = $1 AND unidad_clave = 'TRANSPORTE_AEREO' AND detalle_formulario->>'slug' IN ('linea-aerea', 'modificacion-horarios-rutas-frecuencias', 'trabajos-aereos-servicios-auxiliares', 'permiso-temporal-no-regular')`,
+      [req.params.id]
+    );
+    if (result.rowCount) return res.status(409).json({ error: "Este certificado se gestiona únicamente en el flujo de Transporte Aéreo." });
+    return next();
+  } catch (err) {
+    console.error("Error checking Transport Aéreo route", err);
+    return res.status(500).json({ error: "No se pudo verificar el proceso." });
+  }
+});
 
 app.get("/api/auth/me", requireAuth, async (req, res) => {
   try {
@@ -2468,7 +2777,7 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   if (isRanDroneRequest && !origenCompra) {
     return res.status(400).json({ error: "Para RPA debes indicar si fue comprado en Guatemala o en el extranjero." });
   }
-  const requireExtraDocs = personaTipo === "juridica" || isRanDroneRequest;
+  const requireExtraDocs = !isDvsoRequest && (personaTipo === "juridica" || isRanDroneRequest);
   const useSingleActaAsRegistroMercantil =
     unidadClave === "RAN" &&
     !isRanDroneRequest &&
@@ -2656,6 +2965,67 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    const creatorUserId = Number(req.user?.sub);
+    if (!Number.isInteger(creatorUserId) || creatorUserId <= 0) {
+      await client.query("ROLLBACK");
+      return res.status(401).json({ error: "No se pudo identificar al usuario autenticado." });
+    }
+
+    // Serializa los envíos de una misma cuenta para evitar que peticiones paralelas
+    // eludan el límite o creen copias idénticas al mismo tiempo.
+    await client.query("SELECT pg_advisory_xact_lock($1::INTEGER)", [creatorUserId]);
+    const recentCountResult = await client.query(
+      `SELECT COUNT(*)::INTEGER AS total
+         FROM submissions
+        WHERE created_by_user_id = $1
+          AND created_at >= NOW() - ($2::INTEGER * INTERVAL '1 minute')`,
+      [creatorUserId, SUBMISSION_RATE_LIMIT_WINDOW_MINUTES]
+    );
+    const recentCount = Number(recentCountResult.rows[0]?.total || 0);
+    if (recentCount >= SUBMISSION_RATE_LIMIT_MAX) {
+      await client.query("ROLLBACK");
+      await registerSubmissionSecurityEvent(req, "submission_rate_limited", {
+        recent_count: recentCount,
+        limit: SUBMISSION_RATE_LIMIT_MAX,
+        window_minutes: SUBMISSION_RATE_LIMIT_WINDOW_MINUTES,
+        unidad_clave: unidadClave,
+        gestion_nombre: gestionNombre
+      });
+      res.set("Retry-After", String(SUBMISSION_RATE_LIMIT_WINDOW_MINUTES * 60));
+      return res.status(429).json({
+        error: `Se alcanzó el límite de ${SUBMISSION_RATE_LIMIT_MAX} solicitudes por cuenta en ${SUBMISSION_RATE_LIMIT_WINDOW_MINUTES} minutos. Intenta nuevamente más tarde.`
+      });
+    }
+
+    const duplicateResult = await client.query(
+      `SELECT id, registro_codigo
+         FROM submissions
+        WHERE created_by_user_id = $1
+          AND unidad_clave = $2
+          AND gestion_nombre IS NOT DISTINCT FROM $3
+          AND LOWER(COALESCE(correo, '')) = LOWER(COALESCE($4, ''))
+          AND detalle_formulario IS NOT DISTINCT FROM $5::JSONB
+          AND created_at >= NOW() - ($6::INTEGER * INTERVAL '1 second')
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [creatorUserId, unidadClave, gestionNombre, correoNormalizado, Object.keys(normalizedDetail).length ? JSON.stringify(normalizedDetail) : null, SUBMISSION_DUPLICATE_WINDOW_SECONDS]
+    );
+    if (duplicateResult.rowCount) {
+      await client.query("ROLLBACK");
+      await registerSubmissionSecurityEvent(req, "duplicate_submission_blocked", {
+        existing_submission_id: duplicateResult.rows[0].id,
+        registro_codigo: duplicateResult.rows[0].registro_codigo,
+        duplicate_window_seconds: SUBMISSION_DUPLICATE_WINDOW_SECONDS,
+        unidad_clave: unidadClave,
+        gestion_nombre: gestionNombre
+      });
+      return res.status(409).json({
+        error: "Esta solicitud ya fue recibida. No es necesario enviarla nuevamente.",
+        submission_id: duplicateResult.rows[0].id,
+        registro_codigo: duplicateResult.rows[0].registro_codigo
+      });
+    }
+
     const registroCodigo = await reserveSubmissionCode(client, unidadClave, now);
     const result = await client.query(
       `
@@ -2805,6 +3175,15 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
         payment_id || null
       ]
     );
+    const requestAudit = submissionRequestAudit(req);
+    await client.query(
+      `UPDATE submissions
+          SET created_ip = $2,
+              created_forwarded_for = $3,
+              created_user_agent = $4
+        WHERE id = $1`,
+      [result.rows[0].id, requestAudit.remoteIp, requestAudit.forwardedFor, requestAudit.userAgent]
+    );
     if (isFinancialRequest) {
       const financialDeclaraguateResult = await client.query(
         `UPDATE submissions
@@ -2911,15 +3290,26 @@ app.post("/api/submissions", requireAuth, requireRole("user", "admin"), async (r
     });
     res.status(201).json(created);
 
-    // Alerta por correo (no bloqueante)
-    sendAlertEmail({
-      subject: "Nuevo formulario TG",
-      html: `<p>Se recibio un nuevo formulario TG.</p>
-             <p><strong>Registro:</strong> ${created.registro_codigo || created.id}<br/>
-             <p><strong>Propietario:</strong> ${nombre_propietario || "N/D"}<br/>
-             <strong>Correo:</strong> ${correoNormalizado || "N/D"}<br/>
-             <strong>Matrícula TG:</strong> ${matricula_tg || "N/D"}</p>`
-    });
+    // Notificaciones por correo no bloqueantes.
+    if (["RAN", "FINANCIERO"].includes(unidadClave)) {
+      sendSubmissionNotification(async () => {
+        await notifyUnitReception(created.id);
+        await notifyOwnerSubmissionStatus(created.id, {
+          subjectPrefix: "Solicitud recibida",
+          heading: "Tu solicitud fue recibida",
+          message: `Tu solicitud fue registrada correctamente en ${unitDisplayName(unidadClave)} y se encuentra pendiente de revisión.`
+        });
+      });
+    } else {
+      sendAlertEmail({
+        subject: "Nuevo formulario TG",
+        html: `<p>Se recibio un nuevo formulario TG.</p>
+               <p><strong>Registro:</strong> ${created.registro_codigo || created.id}<br/>
+               <p><strong>Propietario:</strong> ${nombre_propietario || "N/D"}<br/>
+               <strong>Correo:</strong> ${correoNormalizado || "N/D"}<br/>
+               <strong>Matrícula TG:</strong> ${matricula_tg || "N/D"}</p>`
+      });
+    }
   } catch (err) {
     console.error("Error saving submission", err);
     res.status(500).json({ error: "Failed to save submission" });
@@ -2947,6 +3337,7 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     const isDvsoJefatura = isDvsoJefaturaRole(role);
     const isDvsoJefeAeronavegabilidad = isDvsoJefeAeronavegabilidadRole(role);
     const isDvsoInspector = isDvsoInspectorRole(role);
+    const isDvsoInspectorRpas = isDvsoInspectorRpasRole(role);
     const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isFinancialAvsec = role === FINANCIAL_ROLE_AVSEC;
     const isUnitRestricted = isUnitRestrictedRole(role);
@@ -2959,7 +3350,6 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     }
     if (isDvsoJefaturaOpsRole(role)) {
       where.push(`s.unidad_clave = 'DVSO'`);
-      where.push(dvsoOps805SqlExpression("s"));
     }
     if (isAnalyst) {
       params.push(req.user?.sub);
@@ -3019,9 +3409,9 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
     }
     if (isDvsoJefatura) {
       params.push(req.user?.sub);
-      where.push(`s.assigned_emisor_id = $${params.length}`);
+      where.push(`(s.assigned_emisor_id = $${params.length} OR COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') = 'jefatura_dvso_firma')`);
       where.push(`s.unidad_clave = 'DVSO'`);
-      where.push(`COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') IN ('jefatura_revision', 'jefatura_aprobacion')`);
+      where.push(`COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') IN ('jefatura_revision', 'jefatura_aprobacion', 'jefatura_dvso_firma')`);
       where.push(`s.delivered_at IS NULL`);
     }
     if (isDvsoJefeAeronavegabilidad) {
@@ -3035,9 +3425,18 @@ app.get("/api/submissions", requireAuth, requireRole(...REVIEW_ROLES), async (re
       where.push(`s.assigned_aprobador_id = $${params.length}`);
       where.push(`s.unidad_clave = 'DVSO'`);
       where.push(`(
-        (COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') = 'inspector_revision' AND NOT ${dvsoOps805SqlExpression("s")})
+        (COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') = 'inspector_revision' AND NOT ${dvsoOps805SqlExpression("s")} AND NOT ${dvso801SqlExpression("s")})
         OR (${dvsoAeronavegabilidadSqlExpression("s")} AND COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') = 'inspector_envio')
-        OR (${dvsoOps805SqlExpression("s")} AND COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') IN ('inspector_revision', 'inspector_envio', 'inspector_finalizacion'))
+      )`);
+      where.push(`s.delivered_at IS NULL`);
+    }
+    if (isDvsoInspectorRpas) {
+      params.push(req.user?.sub);
+      where.push(`s.assigned_aprobador_id = $${params.length}`);
+      where.push(`s.unidad_clave = 'DVSO'`);
+      where.push(`(
+        (${dvso801SqlExpression("s")} AND COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') IN ('inspector_revision', 'inspector_envio', 'inspector_envio_jefatura_dvso'))
+        OR (${dvsoOps805SqlExpression("s")} AND COALESCE(s.detalle_formulario->>'dvso_stage', 'recepcion') IN ('inspector_revision', 'inspector_envio', 'inspector_finalizacion', 'inspector_envio_jefatura_dvso'))
       )`);
       where.push(`s.delivered_at IS NULL`);
     }
@@ -4003,7 +4402,7 @@ app.post("/api/my-submissions/:id/feedback", requireAuth, requireRole("user"), a
 
   try {
     const submissionResult = await pool.query(
-      `SELECT id, approved_at
+      `SELECT id, approved_at, delivered_at, unidad_clave, detalle_formulario
        FROM submissions
        WHERE id = $1
          AND (created_by_user_id = $2 OR (created_by_user_id IS NULL AND LOWER(correo) = LOWER($3)))`,
@@ -4012,7 +4411,19 @@ app.post("/api/my-submissions/:id/feedback", requireAuth, requireRole("user"), a
     if (!submissionResult.rowCount) {
       return res.status(404).json({ error: "Formulario no encontrado." });
     }
-    if (!submissionResult.rows[0].approved_at) {
+    const feedbackSubmission = submissionResult.rows[0];
+    const feedbackDetail = feedbackSubmission.detalle_formulario && typeof feedbackSubmission.detalle_formulario === "object"
+      ? feedbackSubmission.detalle_formulario
+      : {};
+    const feedbackWorkflow = feedbackDetail.transporte_linea && typeof feedbackDetail.transporte_linea === "object"
+      ? feedbackDetail.transporte_linea
+      : {};
+    const isFinishedArchivableTransport =
+      String(feedbackSubmission.unidad_clave || "").toUpperCase() === "TRANSPORTE_AEREO" &&
+      ["trabajos-aereos-servicios-auxiliares", "permiso-temporal-no-regular"].includes(String(feedbackDetail.slug || "").trim().toLowerCase()) &&
+      String(feedbackWorkflow.etapa || "").trim().toLowerCase() === "finished" &&
+      Boolean(feedbackSubmission.delivered_at);
+    if (!feedbackSubmission.approved_at && !isFinishedArchivableTransport) {
       return res.status(400).json({ error: "Solo puedes calificar procesos aprobados." });
     }
 
@@ -4140,7 +4551,8 @@ app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin")
 
     const isDvsoOriginal =
       String(submission.unidad_clave || "").toUpperCase() === "DVSO" &&
-      submission.original_form_pdf;
+      submission.original_form_pdf &&
+      !isDvsoDigitalSubmission(submission);
     if (isDvsoOriginal) {
       const fallbackCode = String(submission.registro_codigo || `REG-${id}`).replace(/[^A-Za-z0-9-_]+/g, "-");
       const formSlug = String(submission.detalle_formulario?.slug || "formulario-dvso").replace(/[^A-Za-z0-9-_]+/g, "-");
@@ -4155,8 +4567,13 @@ app.get("/api/my-submissions/:id/pdf", requireAuth, requireRole("user", "admin")
 
     const pdfBuffer = await buildSubmissionPdfBuffer(submission);
     const fileCode = String(submission.registro_codigo || `REG-${id}`).replace(/[^A-Za-z0-9-_]+/g, "-");
+    const unitCode = String(submission.unidad_clave || "").toUpperCase();
+    const formSlug = String(submission.detalle_formulario?.slug || "").replace(/[^A-Za-z0-9-_]+/g, "-");
+    const filenamePrefix = unitCode === "DVSO"
+      ? (formSlug ? `formulario-${formSlug}` : "formulario-dvso")
+      : "formulario-tg";
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="formulario-tg-${fileCode}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filenamePrefix}-${fileCode}.pdf"`);
     return res.send(pdfBuffer);
   } catch (err) {
     console.error("Error generating submission pdf", err);
@@ -4526,6 +4943,18 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     const finalCorreo = String((req.body?.correo ?? current.correo) || "").trim();
     const finalUso = String((req.body?.uso ?? current.uso) || "").trim();
     const currentUnidad = String(current.unidad_clave || "GENERAL").toUpperCase();
+    const requestUnidad = String(req.body?.unidad_clave || "").trim().toUpperCase();
+    const requestDetail = req.body?.detalle_formulario && typeof req.body.detalle_formulario === "object" ? req.body.detalle_formulario : null;
+    const requestDetailDvsoText = requestDetail
+      ? [
+        requestDetail.tipo,
+        requestDetail.codigo,
+        requestDetail.code,
+        requestDetail.slug,
+        requestDetail.gestion_codigo,
+        requestDetail.proceso_codigo
+      ].map((value) => String(value || "").trim().toLowerCase()).join(" ")
+      : "";
     const currentGestion = String(current.gestion_nombre || "");
     const normalizedCurrentGestion = currentGestion
       .normalize("NFD")
@@ -4544,7 +4973,10 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       Boolean(current.tipo_certificacion) ||
       Boolean(req.body?.tipo_certificacion)
     );
-    const isDvsoRequest = currentUnidad === "DVSO";
+    const isDvsoRequest =
+      currentUnidad === "DVSO" ||
+      requestUnidad === "DVSO" ||
+      requestDetailDvsoText.includes("dvso");
     const isDvsoAeronavegabilidadRequest = isDvsoAeronavegabilidadWorkflow(current);
     const isDvso801Request = isDvso801Workflow(current);
     const isDvsoOperacionesRequest = isDvsoOperacionesWorkflow(current);
@@ -4558,7 +4990,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       return res.status(400).json({ error: numericValidationError });
     }
     const requireOwnerDocument = isRanReservaRequest || isRanCertificacionRequest;
-    const requireExtraDocs = !isFinancialRequest && (finalTipo === "juridica" || isRanDroneRequest);
+    const requireExtraDocs = !isFinancialRequest && !isDvsoRequest && (finalTipo === "juridica" || isRanDroneRequest);
     const useSingleActaAsRegistroMercantil =
       currentUnidad === "RAN" &&
       !isRanDroneRequest &&
@@ -4588,7 +5020,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
     const hasAilaEscortPwd2After = Boolean(aila_escort_pwd_2_pdf_base64) || Boolean(current.has_aila_escort_pwd_2);
     const hasAilaEscortPwd3After = Boolean(aila_escort_pwd_3_pdf_base64) || Boolean(current.has_aila_escort_pwd_3);
     const hasOriginalFormAfter = Boolean(original_form_pdf_base64);
-    const nextDetail = req.body?.detalle_formulario && typeof req.body.detalle_formulario === "object" ? req.body.detalle_formulario : current.detalle_formulario || {};
+    const nextDetail = requestDetail || current.detalle_formulario || {};
     const ailaHasTools = Array.isArray(nextDetail.herramientas) && nextDetail.herramientas.length > 0;
     const ailaHasVehicles = Array.isArray(nextDetail.vehiculos) && nextDetail.vehiculos.length > 0;
     const ailaExpiredEscortIndexes = isAilaRequest ? getAilaExpiredEscortIndexes(nextDetail) : [];
@@ -4604,12 +5036,12 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
 
     if (current.returned_by_user_id) {
       const analystResult = await pool.query(
-        "SELECT id, role FROM users WHERE id = $1 AND role IN ('analista', $2)",
-        [current.returned_by_user_id, DVSO_ROLE_INSPECTOR]
+        "SELECT id, role FROM users WHERE id = $1 AND role IN ('analista', $2, $3)",
+        [current.returned_by_user_id, DVSO_ROLE_INSPECTOR, DVSO_ROLE_INSPECTOR_RPAS]
       );
       if (analystResult.rowCount) {
         const returnedByRole = String(analystResult.rows[0].role || "").trim().toLowerCase();
-        if ((isDvsoAeronavegabilidadRequest || isDvsoOperacionesRequest) && returnedByRole === DVSO_ROLE_INSPECTOR) {
+        if ((isDvsoAeronavegabilidadRequest || isDvsoOperacionesRequest) && (returnedByRole === DVSO_ROLE_INSPECTOR || returnedByRole === DVSO_ROLE_INSPECTOR_RPAS)) {
           reassignedInspectorId = current.returned_by_user_id;
           reassignedAnalystId = null;
         } else if (returnedByRole === "analista") {
@@ -4618,7 +5050,7 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
       }
     }
 
-    if (!isFinancialRequest && !hasDpiAfter) {
+    if (!isFinancialRequest && !isDvsoRequest && !hasDpiAfter) {
       return res.status(400).json({
         error: isAilaRequest
           ? "El PDF de DPI, fe de edad o pasaporte de las personas es obligatorio."
@@ -5039,6 +5471,32 @@ app.put("/api/my-submissions/:id/resubmit", requireAuth, requireRole("user"), as
         reassigned_inspector_id: reassignedInspectorId || null
       }
     });
+    if (["RAN", "FINANCIERO"].includes(currentUnidad)) {
+      sendSubmissionNotification(async () => {
+        const context = await getSubmissionNotificationContext(Number(id));
+        if (context?.analyst_email) {
+          await notifyAssignee({
+            to: context.analyst_email,
+            recipientName: context.analyst_name,
+            roleLabel: "analista",
+            actionLabel: "Formulario corregido y reenviado",
+            context
+          });
+          return;
+        }
+        if (context?.emitter_email) {
+          await notifyAssignee({
+            to: context.emitter_email,
+            recipientName: context.emitter_name,
+            roleLabel: "emisor",
+            actionLabel: "Formulario corregido y reenviado",
+            context
+          });
+          return;
+        }
+        await notifyUnitReception(Number(id));
+      });
+    }
     return res.json(result.rows[0]);
   } catch (err) {
     console.error("Error resubmitting submission", err);
@@ -5757,7 +6215,7 @@ app.get("/api/submissions/:id/documento-firmado", requireAuth, requireRole(...RE
   }
 });
 
-app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista", "emisor", DVSO_ROLE_JEFATURA, DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista", "emisor", DVSO_ROLE_JEFATURA, DVSO_ROLE_INSPECTOR, DVSO_ROLE_INSPECTOR_RPAS, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const { pdf_base64, filename, mime } = req.body || {};
 
@@ -5794,6 +6252,7 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     const isEmitter = role === "emisor";
     const isDvsoJefatura = isDvsoJefaturaRole(role);
     const isDvsoInspector = isDvsoInspectorRole(role);
+    const isDvsoInspectorRpas = isDvsoInspectorRpasRole(role);
     const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
@@ -5810,9 +6269,9 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     }
     if (isDvsoJefatura) {
       accessParams.push(req.user?.sub);
-      accessWhere.push(`assigned_emisor_id = $${accessParams.length}`);
+      accessWhere.push(`(assigned_emisor_id = $${accessParams.length} OR (unidad_clave = 'DVSO' AND COALESCE(detalle_formulario->>'dvso_stage', 'recepcion') = 'jefatura_dvso_firma'))`);
     }
-    if (isDvsoInspector || isDvsoJefaturaOps) {
+    if (isDvsoInspector || isDvsoInspectorRpas) {
       accessParams.push(req.user?.sub);
       accessWhere.push(`assigned_aprobador_id = $${accessParams.length}`);
     }
@@ -5837,19 +6296,19 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
     const isDvsoAeronavegabilidad = isDvsoAeronavegabilidadWorkflow(row);
     const isDvso801 = isDvso801Workflow(row);
     const isDvsoOps805 = isDvsoOps805Workflow(row);
-    if ((isDvsoJefatura || isDvsoInspector || isDvsoJefaturaOps) && !isDvsoOps805) {
-      return res.status(400).json({ error: "Este rol solo puede cargar archivos en el proceso DVSO-OPS-805." });
+    if ((isDvsoJefatura || isDvsoInspector || isDvsoInspectorRpas || isDvsoJefaturaOps) && !isDvsoOps805 && !isDvso801) {
+      return res.status(400).json({ error: "Este rol solo puede cargar archivos en procesos DVSO-801 o DVSO-OPS-805." });
     }
-    if (isDvsoOps805) {
+    if (isDvsoOps805 || isDvso801) {
       const stage = getDvsoStage(row);
-      if (isDvsoJefatura && stage !== "jefatura_revision") {
-        return res.status(400).json({ error: "Jefatura DVSO solo puede cargar archivos antes de enviar el proceso al inspector." });
+      if (isDvsoJefatura && stage !== "jefatura_revision" && stage !== "jefatura_dvso_firma") {
+        return res.status(400).json({ error: "Jefatura DVSO solo puede cargar archivos en su etapa del proceso." });
       }
-      if (isDvsoInspector && stage !== "inspector_revision" && stage !== "inspector_envio" && stage !== "inspector_finalizacion") {
-        return res.status(400).json({ error: "Inspector RPAS solo puede cargar archivos en su etapa del proceso 805." });
+      if ((isDvsoInspector || isDvsoInspectorRpas) && stage !== "inspector_revision" && stage !== "inspector_envio" && stage !== "inspector_finalizacion" && stage !== "inspector_envio_jefatura_dvso") {
+        return res.status(400).json({ error: "Inspector solo puede cargar archivos en su etapa del proceso." });
       }
       if (isDvsoJefaturaOps && stage !== "jefatura_ops_revision" && stage !== "jefe_revision" && stage !== "jefe_firma") {
-        return res.status(400).json({ error: "Jefatura de Operaciones solo puede cargar archivos en su etapa del proceso 805." });
+        return res.status(400).json({ error: "Jefatura de Operaciones solo puede cargar archivos en su etapa del proceso." });
       }
     }
     if (isFinancial && !isPaymentPassword) {
@@ -5874,7 +6333,7 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
       if (row.sent_to_aprobador_at || row.assigned_aprobador_id) {
         return res.status(400).json({ error: "No se puede modificar el PDF. El proceso ya fue enviado a la siguiente etapa." });
       }
-    } else if (!isPaymentPassword && !isDvsoOps805 && (row.sent_to_emisor_at || row.assigned_emisor_id || row.sent_to_aprobador_at || row.assigned_aprobador_id)) {
+    } else if (!isPaymentPassword && !isDvsoOps805 && !isDvso801 && (row.sent_to_emisor_at || row.assigned_emisor_id || row.sent_to_aprobador_at || row.assigned_aprobador_id)) {
       return res.status(400).json({ error: "No se puede modificar la boleta. El proceso ya fue enviado a la siguiente etapa." });
     }
 
@@ -5908,6 +6367,24 @@ app.post("/api/submissions/:id/analyst-pdf", requireAuth, requireRole("analista"
       actorUserId: req.user?.sub || null,
       actorRole: role
     });
+
+    if (String(row.unidad_clave || "").toUpperCase() === "RAN") {
+      sendSubmissionNotification(async () => {
+        await notifyOwnerSubmissionStatus(Number(id), {
+          subjectPrefix: "Boleta de pago disponible",
+          heading: "Tu boleta de pago ya está disponible",
+          message: "Tu proceso RAN ya cuenta con la boleta de pago. Ingresa al portal para descargarla y continuar con el trámite."
+        });
+      });
+    } else if (isFinancial && isPaymentPassword) {
+      sendSubmissionNotification(async () => {
+        await notifyOwnerSubmissionStatus(Number(id), {
+          subjectPrefix: "Boleta de pago disponible",
+          heading: "Tu boleta de pago ya está disponible",
+          message: "Tu solicitud financiera ya cuenta con la boleta de pago. Ingresa al portal para descargarla y continuar con el proceso."
+        });
+      });
+    }
 
     return res.json(result.rows[0]);
   } catch (err) {
@@ -6018,6 +6495,16 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
       actorRole: role
     });
 
+    if (currentUnit === "FINANCIERO") {
+      sendSubmissionNotification(async () => {
+        await notifyOwnerSubmissionStatus(Number(id), {
+          subjectPrefix: "Documento financiero disponible",
+          heading: "Tu documento final ya está disponible",
+          message: "El documento final de tu proceso financiero fue cargado. Ingresa al portal para consultar el estado actualizado."
+        });
+      });
+    }
+
     return res.json(result.rows[0]);
   } catch (err) {
     console.error("Error uploading signed pdf", err);
@@ -6026,7 +6513,7 @@ app.post("/api/submissions/:id/signed-pdf", requireAuth, requireRole("aprobador"
 });
 
 // Analista/emisor/admin/supervisor devuelven formulario al usuario para corrección
-app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA_AILA, DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA_AILA, DVSO_ROLE_INSPECTOR, DVSO_ROLE_INSPECTOR_RPAS, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const reason = String(req.body?.reason || "").trim();
   if (!reason) {
@@ -6037,6 +6524,7 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
   const isEmitter = role === "emisor";
   const isAilaFinal = isAilaStage4Role(role);
   const isDvsoInspector = isDvsoInspectorRole(role);
+  const isDvsoInspectorRpas = isDvsoInspectorRpasRole(role);
   const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
   const isUnitRestricted = isUnitRestrictedRole(role);
   const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
@@ -6065,6 +6553,12 @@ app.post("/api/submissions/:id/return", requireAuth, requireRole("analista", "em
     if (isDvsoInspector) {
       where.push("assigned_aprobador_id = $2");
       where.push(`NOT ${dvsoOps805SqlExpression("")}`);
+      where.push(`NOT ${dvso801SqlExpression("")}`);
+    }
+    if (isDvsoInspectorRpas) {
+      where.push("assigned_aprobador_id = $2");
+      where.push("unidad_clave = 'DVSO'");
+      where.push(`(${dvso801SqlExpression("")} OR ${dvsoOps805SqlExpression("")})`);
     }
     if (isDvsoJefaturaOps) {
       where.push("assigned_aprobador_id = $2");
@@ -6316,7 +6810,7 @@ app.post("/api/submissions/:id/send-to-emisor", requireAuth, requireRole("reviso
 });
 
 // RAN/otras unidades: analista envia al aprobador. Financiero: emisor envia al aprobador. DVSO: jefatura envia al inspector.
-app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA, AILA_ROLE_UETIA, DVSO_ROLE_JEFATURA, DVSO_ROLE_JEFE_AERONAVEGABILIDAD, DVSO_ROLE_JEFATURA_OPS, DVSO_ROLE_INSPECTOR, "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA, AILA_ROLE_UETIA, DVSO_ROLE_JEFATURA, DVSO_ROLE_JEFE_AERONAVEGABILIDAD, DVSO_ROLE_JEFATURA_OPS, DVSO_ROLE_INSPECTOR, DVSO_ROLE_INSPECTOR_RPAS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const requestedAprobadorId = req.body?.aprobador_id ? Number(req.body.aprobador_id) : null;
   const comentariosRevision = String(req.body?.comentarios_revision || "").trim() || null;
@@ -6333,6 +6827,8 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     const isDvsoJefeAeronavegabilidad = isDvsoJefeAeronavegabilidadRole(role);
     const isDvsoJefaturaOps = isDvsoJefaturaOpsRole(role);
     const isDvsoInspector = isDvsoInspectorRole(role);
+    const isDvsoInspectorRpas = isDvsoInspectorRpasRole(role);
+    const isDvsoInspectorLike = isDvsoInspector || isDvsoInspectorRpas;
     const isUnitRestricted = isUnitRestrictedRole(role);
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
 
@@ -6346,7 +6842,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
       params.push(req.user?.sub);
       where.push(`assigned_emisor_id = $${params.length}`);
     }
-    if (isDvsoInspector) {
+    if (isDvsoInspectorLike) {
       params.push(req.user?.sub);
       where.push(`assigned_aprobador_id = $${params.length}`);
     }
@@ -6373,7 +6869,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     const isDvso801 = isDvso801Workflow(submission);
     const isDvsoOperaciones = isDvsoOperacionesWorkflow(submission);
     const isAdminLike = role === "admin" || role === "supervisor";
-    const isDvsoOpsInspectorStep = isDvsoSubmission && isDvsoOps805 && getDvsoStage(submission) === "inspector_revision" && (isDvsoInspector || isAdminLike);
+    const isDvsoOpsInspectorStep = isDvsoSubmission && isDvsoOps805 && getDvsoStage(submission) === "inspector_revision" && (isDvsoInspectorRpas || isAdminLike);
     if (submission.approved_at) {
       return res.status(400).json({ error: "El formulario ya está aprobado." });
     }
@@ -6385,7 +6881,7 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
     }
     if (isDvsoOpsInspectorStep) {
       if (!isDvsoOps805) {
-        return res.status(400).json({ error: "El inspector solo puede enviar a Jefatura OPS en el proceso DVSO-OPS-805." });
+        return res.status(400).json({ error: "El inspector solo puede enviar a Jefatura de Operaciones en el proceso DVSO-OPS-805." });
       }
       if (getDvsoStage(submission) !== "inspector_revision") {
         return res.status(400).json({ error: "El proceso DVSO-OPS-805 no se encuentra en etapa de inspector." });
@@ -6414,9 +6910,9 @@ app.post("/api/submissions/:id/send-to-approver", requireAuth, requireRole("anal
         }
       }
     }
-    const dvsoNextRole = isDvsoOpsInspectorStep ? DVSO_ROLE_JEFATURA_OPS : DVSO_ROLE_INSPECTOR;
-    const dvsoNextRoleLabel = isDvsoOpsInspectorStep ? "jefatura OPS" : "inspector DVSO";
-    const dvsoNextStage = isDvsoOpsInspectorStep ? "jefatura_ops_revision" : "inspector_revision";
+    const dvsoNextRole = isDvsoOpsInspectorStep ? DVSO_ROLE_JEFATURA_OPS : isDvsoOperaciones ? DVSO_ROLE_INSPECTOR_RPAS : DVSO_ROLE_INSPECTOR;
+    const dvsoNextRoleLabel = isDvsoOpsInspectorStep ? "Jefatura de Operaciones" : isDvsoOperaciones ? "Inspector RPAS" : "inspector DVSO";
+    const dvsoNextStage = isDvsoOpsInspectorStep ? "jefe_firma" : "inspector_revision";
     const dvsoDetailExtras = isDvsoOpsInspectorStep
       ? { dvso_ops_inspector_id: submission.assigned_aprobador_id || req.user?.sub || null }
       : {};
@@ -6619,7 +7115,7 @@ app.post("/api/submissions/:id/return-to-analyst", requireAuth, requireRole("apr
   }
 });
 
-app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRole(DVSO_ROLE_INSPECTOR, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
+app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRole(DVSO_ROLE_INSPECTOR, DVSO_ROLE_INSPECTOR_RPAS, DVSO_ROLE_JEFATURA_OPS, "admin", "supervisor"), async (req, res) => {
   const { id } = req.params;
   const reason = String(req.body?.reason || "").trim();
   if (!reason) {
@@ -6633,12 +7129,8 @@ app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRol
   try {
     const where = ["id = $3", "unidad_clave = 'DVSO'", "$1::text IS NOT NULL"];
     const params = [reason, req.user?.sub, id];
-    if (isDvsoInspectorRole(role)) {
+    if (isDvsoAnyInspectorRole(role)) {
       where.push("assigned_aprobador_id = $2");
-    }
-    if (isDvsoJefaturaOpsRole(role)) {
-      where.push("assigned_aprobador_id = $2");
-      where.push(dvsoOps805SqlExpression(""));
     }
     if (isUnitRestricted) {
       params.push(unitAccess);
@@ -6656,10 +7148,7 @@ app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRol
     const isOps805 = isDvsoOps805Workflow(currentRow);
     const isDvsoAeronavegabilidad = isDvsoAeronavegabilidadWorkflow(currentRow);
     const isDvso801 = isDvso801Workflow(currentRow);
-    if (isOps805 && isDvsoInspectorRole(role)) {
-      if (currentStage !== "inspector_revision") {
-        return res.status(400).json({ error: "El proceso DVSO-OPS-805 no se encuentra en revisión de Inspector RPAS." });
-      }
+    if (isOps805 && isDvsoInspectorRpasRole(role) && currentStage === "inspector_revision") {
       const updated = await pool.query(
         `UPDATE submissions
          SET comentarios_revision = $1,
@@ -6743,6 +7232,82 @@ app.post("/api/submissions/:id/dvso-return-to-jefatura", requireAuth, requireRol
             comments: reason
           });
         }
+      });
+      return res.json(updated.rows[0]);
+    }
+    if ((isDvso801 || isOps805) && currentStage === "jefe_firma" && (isDvsoJefaturaOpsRole(role) || isAdminLike)) {
+      const processCode = isOps805 ? "DVSO-OPS-805" : "DVSO-801";
+      const updated = await pool.query(
+        `UPDATE submissions
+         SET comentarios_revision = $1,
+             sent_to_aprobador_at = NOW(),
+             approved_at = NULL,
+             approved_by_user_id = NULL,
+             delivered_at = NULL,
+             delivered_by_user_id = NULL,
+             detalle_formulario = $4
+         WHERE id = $3
+           AND unidad_clave = 'DVSO'
+           AND ${(isOps805 ? dvsoOps805SqlExpression("") : dvso801SqlExpression(""))}
+         RETURNING id, comentarios_revision, assigned_aprobador_id, sent_to_aprobador_at, detalle_formulario`,
+        [reason, req.user?.sub, id, withDvsoStage(currentRow.detalle_formulario, "inspector_revision")]
+      );
+      if (!updated.rowCount) {
+        return res.status(404).json({ error: `No se pudo devolver ${processCode} al Inspector RPAS.` });
+      }
+      await registerSubmissionLog({
+        submissionId: Number(id),
+        eventCode: isOps805 ? "dvso_805_retorno_inspector_correccion" : "dvso_801_retorno_inspector_correccion",
+        eventLabel: `Jefatura de Operaciones devolvió ${processCode} al Inspector RPAS`,
+        eventDetail: reason,
+        actorUserId: req.user?.sub || null,
+        actorRole: role
+      });
+      return res.json(updated.rows[0]);
+    }
+    if ((isDvso801 || isOps805) && currentStage === "inspector_envio_jefatura_dvso" && (isDvsoInspectorRpasRole(role) || isAdminLike)) {
+      const processCode = isOps805 ? "DVSO-OPS-805" : "DVSO-801";
+      const jefaturaResult = await pool.query(
+        `SELECT id, name, email, unit_access
+         FROM users
+         WHERE role = $1
+           AND unit_access @> ARRAY['DVSO']::TEXT[]
+         ORDER BY created_at ASC, id ASC
+         LIMIT 1`,
+        [DVSO_ROLE_JEFATURA]
+      );
+      if (!jefaturaResult.rowCount) {
+        return res.status(400).json({ error: "No existe Jefatura del DVSO configurada para firmar este proceso." });
+      }
+      const jefatura = jefaturaResult.rows[0];
+      const updated = await pool.query(
+        `UPDATE submissions
+         SET comentarios_revision = $1,
+             assigned_emisor_id = $4,
+             sent_to_emisor_at = NOW(),
+             sent_to_aprobador_at = NULL,
+             approved_at = NULL,
+             approved_by_user_id = NULL,
+             delivered_at = NULL,
+             delivered_by_user_id = NULL,
+             detalle_formulario = $5
+         WHERE id = $3
+           AND unidad_clave = 'DVSO'
+           AND ${(isOps805 ? dvsoOps805SqlExpression("") : dvso801SqlExpression(""))}
+           AND assigned_aprobador_id = $2
+         RETURNING id, comentarios_revision, assigned_emisor_id, sent_to_emisor_at, detalle_formulario`,
+        [reason || `Inspector RPAS traslada ${processCode} a Jefatura del DVSO para firma.`, req.user?.sub, id, jefatura.id, withDvsoStage(currentRow.detalle_formulario, "jefatura_dvso_firma")]
+      );
+      if (!updated.rowCount) {
+        return res.status(404).json({ error: `No se pudo enviar ${processCode} a Jefatura del DVSO.` });
+      }
+      await registerSubmissionLog({
+        submissionId: Number(id),
+        eventCode: isOps805 ? "dvso_805_envio_jefatura_dvso" : "dvso_801_envio_jefatura_dvso",
+        eventLabel: `Inspector RPAS envió ${processCode} a Jefatura del DVSO`,
+        eventDetail: reason,
+        actorUserId: req.user?.sub || null,
+        actorRole: role
       });
       return res.json(updated.rows[0]);
     }
@@ -6866,7 +7431,10 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
       where.push("assigned_aprobador_id = $1");
     }
     if (isDvsoJefatura) {
-      where.push("assigned_emisor_id = $1");
+      where.push("(assigned_emisor_id = $1 OR (unidad_clave = 'DVSO' AND COALESCE(detalle_formulario->>'dvso_stage', 'recepcion') = 'jefatura_dvso_firma'))");
+    }
+    if (isDvsoJefeAeronavegabilidad || isDvsoJefaturaOps) {
+      where.push("$1::INT IS NOT NULL");
     }
     const params = [req.user?.sub, id];
     if (isUnitRestricted) {
@@ -6890,10 +7458,11 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
       if (getDvsoStage(currentRow) !== "jefe_firma") {
         return res.status(400).json({ error: `El proceso ${processCode} no se encuentra listo para firma de Jefatura de Operaciones.` });
       }
+      const nextStage = "inspector_envio_jefatura_dvso";
       const result = await pool.query(
         `UPDATE submissions
-         SET approved_at = NOW(),
-             approved_by_user_id = $1,
+         SET approved_at = NULL,
+             approved_by_user_id = NULL,
              sent_to_aprobador_at = NULL,
              delivered_at = NULL,
              delivered_by_user_id = NULL,
@@ -6905,10 +7474,11 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
              returned_by_user_id = NULL,
              detalle_formulario = $3
          WHERE id = $2
+           AND $1::INT IS NOT NULL
            AND unidad_clave = 'DVSO'
            AND ${(isDvso805 ? dvsoOps805SqlExpression("") : dvso801SqlExpression(""))}
          RETURNING id, approved_at, approved_by_user_id, assigned_aprobador_id, sent_to_aprobador_at`,
-        [req.user?.sub, id, withDvsoStage(currentRow.detalle_formulario, "inspector_envio")]
+        [req.user?.sub, id, withDvsoStage(currentRow.detalle_formulario, nextStage)]
       );
       if (!result.rowCount) {
         return res.status(404).json({ error: `Registro ${processCode} no encontrado.` });
@@ -6925,7 +7495,7 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
         await notifyOwnerSubmissionStatus(Number(id), {
           subjectPrefix: "Dictamen firmado",
           heading: isDvso805 ? "Tu autorización DVSO-OPS-805 fue firmada" : "Tu dictamen DVSO-801 fue firmado",
-          message: `Tu solicitud ${processCode} fue revisada y firmada por Jefatura de Operaciones. Continúa con el Inspector RPAS para envío final.`
+          message: `Tu solicitud ${processCode} fue revisada por Jefatura de Operaciones. Continúa con el Inspector RPAS para traslado a Jefatura del DVSO.`
         });
       });
       return res.json(result.rows[0]);
@@ -6982,9 +7552,46 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
       });
     }
     if (currentUnit === "DVSO" && isDvsoJefatura) {
+      if ((isDvso801Workflow(currentRow) || isDvsoOps805Workflow(currentRow)) && getDvsoStage(currentRow) === "jefatura_dvso_firma") {
+        const processCode = isDvsoOps805Workflow(currentRow) ? "DVSO-OPS-805" : "DVSO-801";
+        const nextDetail = withDvsoStage(currentRow.detalle_formulario, "inspector_envio");
+        const nextDetailParam = params.length + 1;
+        const result = await pool.query(
+          `UPDATE submissions
+           SET approved_at = NOW(),
+               approved_by_user_id = $1,
+               sent_to_emisor_at = NULL,
+               delivered_at = NULL,
+               delivered_by_user_id = NULL,
+               returned_to_analista_at = NULL,
+               returned_to_analista_reason = NULL,
+               returned_to_analista_by_user_id = NULL,
+               returned_at = NULL,
+               returned_reason = NULL,
+               returned_by_user_id = NULL,
+               detalle_formulario = $${nextDetailParam}
+          WHERE ${where.join(" AND ")}
+           RETURNING id, approved_at, approved_by_user_id, assigned_aprobador_id, sent_to_aprobador_at`,
+          [...params, nextDetail]
+        );
+        if (!result.rowCount) {
+          return res.status(404).json({ error: `Registro ${processCode} no encontrado o no asignado a Jefatura del DVSO.` });
+        }
+        await registerSubmissionLog({
+          submissionId: Number(id),
+          eventCode: isDvsoOps805Workflow(currentRow) ? "dvso_805_firma_jefatura_dvso" : "dvso_801_firma_jefatura_dvso",
+          eventLabel: `Jefatura del DVSO firmó ${processCode} y devolvió al Inspector RPAS`,
+          eventDetail: `Firmado por rol ${role}`,
+          actorUserId: req.user?.sub || null,
+          actorRole: role
+        });
+        return res.json(result.rows[0]);
+      }
       if (getDvsoStage(currentRow) !== "jefatura_aprobacion") {
         return res.status(400).json({ error: "El proceso DVSO no se encuentra listo para aprobación de jefatura." });
       }
+      const nextDetail = withDvsoStage(currentRow.detalle_formulario, "asistente_sello");
+      const nextDetailParam = params.length + 1;
       const result = await pool.query(
         `UPDATE submissions
          SET approved_at = NOW(),
@@ -6999,10 +7606,10 @@ app.post("/api/submissions/:id/approve", requireAuth, requireRole("aprobador", A
              returned_at = NULL,
              returned_reason = NULL,
              returned_by_user_id = NULL,
-             detalle_formulario = $3
+             detalle_formulario = $${nextDetailParam}
          WHERE ${where.join(" AND ")}
          RETURNING id, approved_at, approved_by_user_id, assigned_aprobador_id, sent_to_aprobador_at`,
-        [req.user?.sub, id, withDvsoStage(currentRow.detalle_formulario, "asistente_sello")]
+        [...params, nextDetail]
       );
       if (!result.rowCount) {
         return res.status(404).json({ error: "Registro no encontrado o no asignado a jefatura." });
@@ -7192,7 +7799,7 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
     delivery_package_mime
   } = req.body || {};
   const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
-  if (role !== "revisor" && !isDvsoReceptionRole(role) && !isDvsoInspectorRole(role)) {
+  if (role !== "revisor" && !isDvsoReceptionRole(role) && !isDvsoAnyInspectorRole(role)) {
     return res.status(403).json({ error: "Solo el receptor puede marcar este proceso como entregado o finalizado." });
   }
   const isUnitRestricted = isUnitRestrictedRole(role);
@@ -7229,8 +7836,9 @@ app.post("/api/submissions/:id/deliver", requireAuth, async (req, res) => {
     if (isRan && !row.approved_at) {
       return res.status(400).json({ error: "El proceso debe estar aprobado antes de marcarse como entregado." });
     }
+    const isDvso801 = isDvso801Workflow(row);
     const isDvsoOps805 = isDvsoOps805Workflow(row);
-    if ((isDvsoAeronavegabilidad || isDvso801 || isDvsoOps805) && isDvsoInspectorRole(role)) {
+    if ((isDvsoAeronavegabilidad || isDvso801 || isDvsoOps805) && isDvsoAnyInspectorRole(role)) {
       if (getDvsoStage(row) !== "inspector_envio") {
         if (!(isDvsoOps805 && getDvsoStage(row) === "inspector_finalizacion")) {
           return res.status(400).json({ error: "El proceso debe estar devuelto al inspector para envío final." });
@@ -7372,7 +7980,7 @@ app.post("/api/submissions/:id/open", requireAuth, requireRole(...REVIEW_ROLES),
     const unitAccess = isUnitRestricted ? await getCurrentUserUnitAccess(req.user?.sub) : [];
     const where = ["id = $1"];
     const params = [id];
-    if (isDvsoInspectorRole(role)) {
+    if (isDvsoAnyInspectorRole(role)) {
       params.push(req.user?.sub);
       where.push(`assigned_aprobador_id = $${params.length}`);
     }
@@ -7396,13 +8004,13 @@ app.post("/api/submissions/:id/open", requireAuth, requireRole(...REVIEW_ROLES),
       const canOpenOps805 = isDvsoOps805Workflow(row) && stage === "jefatura_ops_revision" && Number(row.assigned_aprobador_id) === Number(req.user?.sub);
       const canOpen801 = isDvsoOperacionesWorkflow(row) && (stage === "jefe_revision" || stage === "jefe_firma");
       if (!canOpenOps805 && !canOpen801) {
-        return res.status(403).json({ error: "Jefatura OPS solo puede abrir procesos DVSO-801 o DVSO-OPS-805 en etapa de operaciones." });
+        return res.status(403).json({ error: "Jefatura de Operaciones solo puede abrir procesos DVSO-801 o DVSO-OPS-805 en etapa de operaciones." });
       }
     }
-    if (isDvsoInspectorRole(role) && isDvsoOps805Workflow(row)) {
+    if (isDvsoInspectorRpasRole(role) && isDvsoOperacionesWorkflow(row)) {
       const stage = getDvsoStage(row);
-      if (Number(row.assigned_aprobador_id) !== Number(req.user?.sub) || (stage !== "inspector_revision" && stage !== "inspector_envio" && stage !== "inspector_finalizacion")) {
-        return res.status(403).json({ error: "Inspector DVSO solo puede abrir procesos DVSO-OPS-805 asignados en su etapa." });
+      if (Number(row.assigned_aprobador_id) !== Number(req.user?.sub) || (stage !== "inspector_revision" && stage !== "inspector_envio" && stage !== "inspector_finalizacion" && stage !== "inspector_envio_jefatura_dvso")) {
+        return res.status(403).json({ error: "Inspector RPAS solo puede abrir procesos DVSO de operaciones asignados en su etapa." });
       }
     }
     const detail = normalizeSubmissionDetail(row.detalle_formulario);
@@ -7471,6 +8079,9 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
     const submissionUnit = String(submissionRow.unidad_clave || "GENERAL").toUpperCase();
     const isAilaGeneric = isAilaGenericWorkflow(submissionRow);
     const isDvsoSubmission = isDvsoWorkflow(submissionRow);
+    const isDvso801 = isDvso801Workflow(submissionRow);
+    const isDvsoOps805 = isDvsoOps805Workflow(submissionRow);
+    const isDvsoOperationsEntry = isDvso801 || isDvsoOps805;
     if (isDvsoSubmission && role === DVSO_ROLE_RECEPCION && getDvsoStage(submissionRow) !== "recepcion") {
       return res.status(400).json({ error: "El proceso DVSO no está disponible para asignación en recepción." });
     }
@@ -7508,18 +8119,18 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
     const allowedTargetRoles = isAilaGeneric
       ? [AILA_ROLE_RECEPCION_AVSEC, AILA_ROLE_ADMINISTRACION]
       : isDvsoSubmission
-        ? [DVSO_ROLE_ASISTENTE]
+        ? (isDvsoOperationsEntry ? [DVSO_ROLE_JEFATURA_OPS] : [DVSO_ROLE_ASISTENTE])
         : ["analista"];
     if (!userRow.rowCount || !allowedTargetRoles.includes(String(userRow.rows[0].role || "").trim().toLowerCase())) {
-      return res.status(400).json({ error: isAilaGeneric ? "El usuario no es Recepción AVSEC." : isDvsoSubmission ? "El usuario no es asistente DVSO." : "El usuario no es analista." });
+      return res.status(400).json({ error: isAilaGeneric ? "El usuario no es Recepción AVSEC." : isDvsoSubmission ? (isDvsoOperationsEntry ? "El usuario no es Jefatura de la Sección de Operaciones." : "El usuario no es asistente DVSO.") : "El usuario no es analista." });
     }
     const analystUnits = normalizeUnitAccess(userRow.rows[0].unit_access);
     if (!analystUnits.includes(submissionUnit)) {
       return res.status(400).json({ error: "El analista no tiene acceso a la unidad de este formulario." });
     }
     const result = await pool.query(
-      "UPDATE submissions SET assigned_analista_id = $1, comentarios_revision = $3, detalle_formulario = $4, assigned_emisor_id = NULL, sent_to_emisor_at = NULL, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL, signed_pdf = NULL, signed_pdf_filename = NULL, signed_pdf_mime = NULL, signed_pdf_uploaded_at = NULL WHERE id = $2 RETURNING id",
-      [analista_id, id, comentariosRevision, isDvsoSubmission ? withDvsoStage(submissionRow.detalle_formulario, 'asistente_revision') : submissionRow.detalle_formulario]
+      "UPDATE submissions SET assigned_analista_id = $1::INTEGER, comentarios_revision = $3, detalle_formulario = $4, assigned_emisor_id = CASE WHEN $5::BOOLEAN THEN $1::INTEGER ELSE NULL END, sent_to_emisor_at = CASE WHEN $5::BOOLEAN THEN NOW() ELSE NULL END, assigned_aprobador_id = NULL, sent_to_aprobador_at = NULL, signed_pdf = NULL, signed_pdf_filename = NULL, signed_pdf_mime = NULL, signed_pdf_uploaded_at = NULL WHERE id = $2 RETURNING id",
+      [analista_id, id, comentariosRevision, isDvsoSubmission ? withDvsoStage(submissionRow.detalle_formulario, isDvsoOperationsEntry ? 'jefe_revision' : 'asistente_revision') : submissionRow.detalle_formulario, isDvsoOperationsEntry]
     );
     if (!result.rowCount) {
       return res.status(404).json({ error: "Registro no encontrado" });
@@ -7527,7 +8138,7 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
     await registerSubmissionLog({
       submissionId: Number(id),
       eventCode: "asignado_analista",
-        eventLabel: isAilaGeneric ? "Formulario asignado a Recepción AVSEC" : isDvsoSubmission ? "Formulario asignado a asistente DVSO" : "Formulario asignado a analista",
+        eventLabel: isAilaGeneric ? "Formulario asignado a Recepción AVSEC" : isDvsoSubmission ? (isDvsoOperationsEntry ? "Formulario asignado a Jefatura de Operaciones" : "Formulario asignado a asistente DVSO") : "Formulario asignado a analista",
       eventDetail: comentariosRevision || userRow.rows[0].name || userRow.rows[0].email || `ID ${analista_id}`,
       actorUserId: req.user?.sub || null,
       actorRole: role,
@@ -7543,8 +8154,8 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
         await notifyAssignee({
           to: context.analyst_email,
           recipientName: context.analyst_name,
-          roleLabel: isAilaGeneric ? "Recepcion AVSEC" : isDvsoSubmission ? "asistente DVSO" : "analista",
-          actionLabel: isAilaGeneric ? "Nuevo formulario asignado a Recepcion AVSEC" : isDvsoSubmission ? "Nuevo formulario asignado a asistente DVSO" : "Nuevo formulario asignado",
+          roleLabel: isAilaGeneric ? "Recepcion AVSEC" : isDvsoSubmission ? (isDvsoOperationsEntry ? "Jefatura de Operaciones" : "asistente DVSO") : "analista",
+          actionLabel: isAilaGeneric ? "Nuevo formulario asignado a Recepcion AVSEC" : isDvsoSubmission ? (isDvsoOperationsEntry ? "Nuevo formulario asignado a Jefatura de Operaciones" : "Nuevo formulario asignado a asistente DVSO") : "Nuevo formulario asignado",
           context,
           comments: comentariosRevision
         });
@@ -7555,7 +8166,7 @@ app.post("/api/submissions/:id/assign", requireAuth, requireRole("revisor", AILA
         message: isAilaGeneric
           ? "Tu solicitud fue asignada a Recepcion AVSEC para iniciar la revision."
           : isDvsoSubmission
-            ? "Tu solicitud fue asignada a un asistente DVSO para iniciar la revision."
+            ? (isDvsoOperationsEntry ? "Tu solicitud fue asignada a Jefatura de Operaciones para iniciar la revisión." : "Tu solicitud fue asignada a un asistente DVSO para iniciar la revision.")
             : "Tu solicitud fue asignada a un analista para iniciar la revision.",
         reason: comentariosRevision || ""
       });
@@ -7583,7 +8194,7 @@ app.get("/api/analistas", requireAuth, requireRole("revisor", AILA_ROLE_RECEPCIO
     let where = role === AILA_ROLE_RECEPCION
       ? `(role = 'recepcion_avsec' OR role = 'administracion_aila')`
       : role === DVSO_ROLE_RECEPCION
-        ? `role = '${DVSO_ROLE_ASISTENTE}'`
+        ? `(role = '${DVSO_ROLE_ASISTENTE}' OR role = '${DVSO_ROLE_JEFATURA_OPS}')`
         : "role = 'analista'";
     if (isUnitRestricted) {
       params.push(unitAccess);
@@ -7601,7 +8212,7 @@ app.get("/api/analistas", requireAuth, requireRole("revisor", AILA_ROLE_RECEPCIO
 });
 
 // Lista aprobadores disponibles por unidad
-app.get("/api/aprobadores", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA, AILA_ROLE_UETIA, DVSO_ROLE_JEFATURA, DVSO_ROLE_JEFE_AERONAVEGABILIDAD, DVSO_ROLE_JEFATURA_OPS, DVSO_ROLE_INSPECTOR, "admin", "supervisor"), async (req, res) => {
+app.get("/api/aprobadores", requireAuth, requireRole("analista", "emisor", AILA_ROLE_JEFATURA, AILA_ROLE_UETIA, DVSO_ROLE_JEFATURA, DVSO_ROLE_JEFE_AERONAVEGABILIDAD, DVSO_ROLE_JEFATURA_OPS, DVSO_ROLE_INSPECTOR, DVSO_ROLE_INSPECTOR_RPAS, "admin", "supervisor"), async (req, res) => {
   try {
     const role = await getCurrentUserRole(req.user?.sub, req.user?.role);
     const isUnitRestricted = isUnitRestrictedRole(role);
@@ -7614,8 +8225,10 @@ app.get("/api/aprobadores", requireAuth, requireRole("analista", "emisor", AILA_
         : isDvsoJefeAeronavegabilidadRole(role)
           ? `role = '${DVSO_ROLE_INSPECTOR}'`
         : isDvsoJefaturaOpsRole(role)
-          ? `role = '${DVSO_ROLE_INSPECTOR}'`
+          ? `role = '${DVSO_ROLE_INSPECTOR_RPAS}'`
         : isDvsoInspectorRole(role)
+          ? `role = '${DVSO_ROLE_JEFATURA_OPS}'`
+        : isDvsoInspectorRpasRole(role)
           ? `role = '${DVSO_ROLE_JEFATURA_OPS}'`
         : "role = 'aprobador'";
     if (isUnitRestricted) {

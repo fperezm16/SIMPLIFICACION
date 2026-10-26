@@ -70,6 +70,7 @@
                   [type]="field.type || 'text'"
                   [(ngModel)]="formValues[digitalFieldKey(page, field)]"
                   [name]="page.slug + '-' + digitalFieldKey(page, field)"
+                  [readonly]="field.autoValue === 'todayGuatemala'"
                   [placeholder]="field.placeholder || ''">
               </ng-template>
             </ng-template>

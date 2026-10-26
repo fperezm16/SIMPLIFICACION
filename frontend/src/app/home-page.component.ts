@@ -7,12 +7,13 @@ import { API_BASE } from './api.config';
 import { AuthService } from './auth.service';
 import { isUnitVisibleInCurrentRuntime } from './runtime-flags';
 import { Submission } from './submission.model';
+import { TransportLineWorkflowComponent } from './transport-line-workflow.component';
 
 type UnitGroup = { unit: string; rows: Submission[] };
 
 @Component({
     selector: 'app-home-page',
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, TransportLineWorkflowComponent],
     template: `
     <section class="home">
       <header class="head">
@@ -46,6 +47,10 @@ type UnitGroup = { unit: string; rows: Submission[] };
           <p class="return-note" *ngIf="row.returned_reason">
             Corrección solicitada: {{ row.returned_reason }}
           </p>
+          <button type="button" class="track-btn" *ngIf="isTransportLineWorkflow(row)" (click)="toggleTransportTracking(row)">
+            {{ expandedTransportId === row.id ? 'Cerrar seguimiento' : 'Ver seguimiento' }}
+          </button>
+          <app-transport-line-workflow *ngIf="isTransportLineWorkflow(row) && expandedTransportId === row.id" [submissionId]="row.id"></app-transport-line-workflow>
           <button type="button" class="fix-btn" *ngIf="row.returned_at" (click)="goToCorrection(row)">
             Realizar correcciones
           </button>
@@ -76,7 +81,7 @@ type UnitGroup = { unit: string; rows: Submission[] };
           <button
             type="button"
             class="rate-btn"
-            *ngIf="row.approved_at && !row.feedback_rating"
+            *ngIf="canRateSubmission(row) && !row.feedback_rating"
             (click)="openFeedbackModal(row)">
             Calificar servicio
           </button>
@@ -190,6 +195,7 @@ type UnitGroup = { unit: string; rows: Submission[] };
     .meta { margin-top: 6px; font-size: 12px; color: var(--muted); }
     .return-note { margin: 8px 0 0; padding: 8px 10px; border: 1px solid #fca5a5; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 12px; }
     .fix-btn { margin-top: 8px; border: 1px solid #5eb4e4; background: #e6f6ff; color: #0a5c8f; border-radius: 999px; padding: 6px 11px; font-weight: 700; cursor: pointer; }
+    .track-btn { margin-top: 8px; border: 1px solid #5eb4e4; background: #e6f6ff; color: #0a5c8f; border-radius: 999px; padding: 6px 11px; font-weight: 700; cursor: pointer; }
     .download-btn { margin-top: 8px; margin-left: 8px; border: 1px solid #67ba8a; background: #e5f8ec; color: #15633b; border-radius: 999px; padding: 6px 11px; font-weight: 700; cursor: pointer; }
     .boleta-btn { border-color: #7ab8df; background: #e8f5ff; color: #0b5e92; }
     .signed-btn { border-color: #c4b5fd; background: #f5f3ff; color: #5b21b6; }
@@ -392,6 +398,18 @@ type UnitGroup = { unit: string; rows: Submission[] };
   `]
 })
 export class HomePageComponent implements OnInit, OnDestroy {
+  isTransportLineWorkflow(row: Submission): boolean {
+    const detail = row.detalle_formulario as Record<string, unknown> | null | undefined;
+    const slug = String(detail?.['slug'] || '');
+    return String(row.unidad_clave || '').toUpperCase() === 'TRANSPORTE_AEREO'
+      && ['linea-aerea', 'modificacion-horarios-rutas-frecuencias', 'trabajos-aereos-servicios-auxiliares', 'permiso-temporal-no-regular'].includes(slug);
+  }
+  expandedTransportId: number | null = null;
+
+  toggleTransportTracking(row: Submission): void {
+    if (!row.id) return;
+    this.expandedTransportId = this.expandedTransportId === row.id ? null : row.id;
+  }
   private http = inject(HttpClient);
   private router = inject(Router);
   private auth = inject(AuthService);
@@ -463,6 +481,25 @@ export class HomePageComponent implements OnInit, OnDestroy {
   }
 
   stateLabel(row: Submission) {
+    if (this.isTransportLineWorkflow(row)) {
+      const labels: Record<string, string> = {
+        analyst_review: 'En revisión del analista', user_correction: 'Corrección solicitada',
+        jefatura_review: 'En Jefatura de Transporte Aéreo', legal_and_despacho: 'En Jurídica y Despacho Superior',
+        analyst_payment: 'En gestión de inscripción', user_review: 'Pendiente de revisión del usuario',
+        jefatura_agreement: 'Convenio en Jefatura', office_agreement: 'Convenio en Despacho Superior',
+        office_signature: 'En firma de Despacho Superior', analyst_annex: 'En carga del Anexo',
+        analyst_close: 'En notificación y archivo', finished: 'Finalizado'
+      };
+      const stage = this.transportStage(row);
+      const detail = row.detalle_formulario as Record<string, unknown> | null | undefined;
+      if (stage === 'analyst_close' && detail?.['slug'] === 'modificacion-horarios-rutas-frecuencias') {
+        return 'En notificación a las unidades correspondientes';
+      }
+      if (stage === 'analyst_close' && detail?.['slug'] === 'trabajos-aereos-servicios-auxiliares') {
+        return 'Pendiente de entrega de constancia de pago y archivo del expediente';
+      }
+      if (stage) return labels[stage] || 'En proceso';
+    }
     return this.normalizeDisplayText(row.process_label || this.inferState(row));
   }
 
@@ -479,6 +516,15 @@ export class HomePageComponent implements OnInit, OnDestroy {
   }
 
   progressPercent(row: Submission) {
+    if (this.isTransportLineWorkflow(row)) {
+      const progress: Record<string, number> = {
+        analyst_review: 15, user_correction: 20, jefatura_review: 30,
+        legal_and_despacho: 45, analyst_payment: 60, user_review: 70,
+        office_signature: 50, analyst_annex: 62,
+        jefatura_agreement: 80, office_agreement: 90, analyst_close: 90, finished: 100
+      };
+      return progress[this.transportStage(row)] ?? 15;
+    }
     if (typeof row.process_percent === 'number') return row.process_percent;
     if (row.returned_at) return 45;
     if (row.delivered_at) return 100;
@@ -490,6 +536,14 @@ export class HomePageComponent implements OnInit, OnDestroy {
     if (row.assigned_analista_id) return 68;
     if (row.receptor_opened_at) return 50;
     return 25;
+  }
+
+  private transportStage(row: Submission): string {
+    const detail = row.detalle_formulario as Record<string, unknown> | null | undefined;
+    const workflow = detail?.['transporte_linea'];
+    return workflow && typeof workflow === 'object'
+      ? String((workflow as Record<string, unknown>)['etapa'] || 'analyst_review')
+      : 'analyst_review';
   }
 
   ratingEmoji(value?: number | null) {
@@ -687,7 +741,7 @@ export class HomePageComponent implements OnInit, OnDestroy {
   }
 
   openFeedbackModal(row: Submission) {
-    if (!row?.id || !row.approved_at) return;
+    if (!row?.id || !this.canRateSubmission(row)) return;
     this.feedbackTarget = row;
     this.feedbackRating = Number(row.feedback_rating || 0);
     this.feedbackComment = row.feedback_comment || '';
@@ -771,6 +825,9 @@ export class HomePageComponent implements OnInit, OnDestroy {
       }
       return `Tu boleta de pago del proceso ${gestion} (${codigo}) ya está disponible.`;
     }
+    if (this.isArchivableTransportFinished(row)) {
+      return `Tu proceso ${gestion} (${codigo}) ha finalizado.`;
+    }
     return `Tu proceso ${gestion} (${codigo}) ya fue aprobado.`;
   }
 
@@ -780,6 +837,9 @@ export class HomePageComponent implements OnInit, OnDestroy {
         return 'Su contraseña de pago ha sido generada y enviada. Puede realizar el pago en cualquiera de las cinco sedes autorizadas de CHN: Mundo Maya, Caja Administrativa, Aurora, Vuelos Privados o Puerto Barrios, utilizando cheque de caja, cheque propio del banco, efectivo o POS presencial.';
       }
       return 'Ya puedes descargar la boleta de pago, acercarte a las instalaciones de la DGAC a realizar el pago correspondiente y pasar a recoger el documento solicitado.';
+    }
+    if (this.isArchivableTransportFinished(row)) {
+      return 'El trámite fue finalizado y el expediente quedó archivado correctamente.';
     }
     if (this.isRanSubmission(row)) {
       return 'Ya puedes venir a realizar el pago correspondiente y recoger la certificación solicitada en las instalaciones de la DGAC.';
@@ -812,6 +872,24 @@ export class HomePageComponent implements OnInit, OnDestroy {
   private isRanSubmission(row: Submission | null | undefined) {
     if (!row) return false;
     return String(row.unidad_clave || this.inferUnit(row)).toUpperCase() === 'RAN';
+  }
+
+  canRateSubmission(row: Submission | null | undefined) {
+    return Boolean(row?.approved_at || this.isArchivableTransportFinished(row));
+  }
+
+  private isArchivableTransportFinished(row: Submission | null | undefined) {
+    if (!row || String(row.unidad_clave || '').toUpperCase() !== 'TRANSPORTE_AEREO') return false;
+    const detail = row.detalle_formulario && typeof row.detalle_formulario === 'object'
+      ? row.detalle_formulario as Record<string, unknown>
+      : {};
+    const slug = String(detail['slug'] || '').trim().toLowerCase();
+    if (!['trabajos-aereos-servicios-auxiliares', 'permiso-temporal-no-regular'].includes(slug)) return false;
+    const workflow = detail['transporte_linea'];
+    const stage = workflow && typeof workflow === 'object'
+      ? String((workflow as Record<string, unknown>)['etapa'] || '').trim().toLowerCase()
+      : '';
+    return Boolean(row.delivered_at && stage === 'finished');
   }
 
   canDownloadSignedDocument(row: Submission | null | undefined) {
@@ -1041,12 +1119,19 @@ export class HomePageComponent implements OnInit, OnDestroy {
       const filename = String(row.analyst_pdf_filename || '').trim();
       return `boleta:${uploadedAt || filename || row.id}`;
     }
+    if (this.isArchivableTransportFinished(row)) {
+      return `finalizado:${String(row.delivered_at || row.id)}`;
+    }
     const approvedAt = String(row.approved_at || '').trim();
     return approvedAt ? `aprobado:${approvedAt}` : '';
   }
 
   private notificationTime(row: Submission) {
-    const source = this.isPaymentBoletaNotice(row) ? row.analyst_pdf_uploaded_at : row.approved_at;
+    const source = this.isPaymentBoletaNotice(row)
+      ? row.analyst_pdf_uploaded_at
+      : this.isArchivableTransportFinished(row)
+        ? row.delivered_at
+        : row.approved_at;
     const value = new Date(String(source || '')).getTime();
     return Number.isFinite(value) ? value : 0;
   }

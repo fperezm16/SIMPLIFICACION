@@ -32,6 +32,7 @@ type TransportOption = {
 type TransportAttachment = {
   key: string;
   label: string;
+  requiredWhenOption?: string;
 };
 
 type TransportPayloadMap = {
@@ -73,14 +74,15 @@ const TRANSPORT_FORMS: TransportFormConfig[] = [
       notesField: 'trabajo_aereo_de'
     },
     fields: [
+      { key: 'fecha_solicitud', label: 'Fecha de solicitud', type: 'date', required: true, full: true },
       { key: 'entidad', label: 'Entidad', required: true, full: true },
       { key: 'representante_legal', label: 'Representante legal', required: true, full: true },
       { key: 'direccion', label: 'Dirección', required: true, full: true },
-      { key: 'representante_legal_secundario', label: 'Representante legal', full: true },
       { key: 'telefono', label: 'Teléfono', type: 'tel', required: true },
       { key: 'correo_electronico', label: 'Correo electrónico', type: 'email', required: true },
       { key: 'trabajo_aereo_de', label: 'Trabajo aéreo de', type: 'textarea', rows: 2, full: true },
-      { key: 'servicio_naturaleza_tecnica_de', label: 'Servicio de naturaleza técnica de', type: 'textarea', rows: 2, full: true }
+      { key: 'servicio_naturaleza_tecnica_de', label: 'Servicio de naturaleza técnica de', type: 'textarea', rows: 2, full: true },
+      { key: 'observaciones', label: 'Observaciones', type: 'textarea', rows: 2, full: true }
     ],
     optionsTitle: 'Tipo de servicio',
     options: [
@@ -130,14 +132,14 @@ const TRANSPORT_FORMS: TransportFormConfig[] = [
       notesField: 'tipo_servicio'
     },
     fields: [
+      { key: 'fecha_solicitud', label: 'Fecha de solicitud', type: 'date', required: true, full: true },
       { key: 'representante_legal', label: 'Representante legal', required: true, full: true },
       { key: 'linea_aerea', label: 'Línea aérea', required: true, full: true },
       { key: 'direccion', label: 'Dirección', required: true, full: true },
       { key: 'telefono', label: 'Teléfono', type: 'tel', required: true },
       { key: 'correo_electronico', label: 'Correo electrónico', type: 'email', required: true },
       { key: 'tipo_servicio', label: 'Tipo de servicio', required: true, full: true },
-      { key: 'observaciones', label: 'Observaciones', type: 'textarea', rows: 2, full: true },
-      { key: 'fecha_solicitud', label: 'Fecha de solicitud', type: 'date' }
+      { key: 'observaciones', label: 'Observaciones', type: 'textarea', rows: 2, full: true }
     ],
     tables: [
       {
@@ -182,6 +184,72 @@ const TRANSPORT_FORMS: TransportFormConfig[] = [
     ]
   },
   {
+    slug: 'modificacion-horarios-rutas-frecuencias',
+    code: 'TA-03-2025',
+    menuLabel: 'Modificación de horarios, rutas y frecuencias',
+    title: 'SOLICITUD DEPARTAMENTO DE TRANSPORTE AÉREO MODIFICACIÓN DE HORARIOS, RUTAS Y FRECUENCIAS',
+    subtitle: 'Solicitud para cancelar o incorporar rutas y modificar horarios o frecuencias.',
+    pdfAsset: 'assets/transporte-aereo/solicitud-modificacion-horarios-rutas-frecuencias-2025.pdf',
+    payloadMap: {
+      nameField: 'entidad',
+      addressField: 'direccion',
+      phoneField: 'telefono',
+      emailField: 'correo_electronico',
+      notesField: 'observaciones'
+    },
+    fields: [
+      { key: 'fecha_solicitud', label: 'Fecha de solicitud', type: 'date', required: true, full: true },
+      { key: 'entidad', label: 'Entidad', required: true, full: true },
+      { key: 'representante_legal', label: 'Representante legal', required: true, full: true },
+      { key: 'direccion', label: 'Dirección', required: true, full: true },
+      { key: 'telefono', label: 'Teléfono', type: 'tel', required: true },
+      { key: 'correo_electronico', label: 'Correo electrónico', type: 'email', required: true },
+      { key: 'fecha_cancelacion', label: 'Fecha de cancelación', type: 'date' },
+      { key: 'fecha_inicio', label: 'Fecha de inicio', type: 'date' },
+      { key: 'observaciones', label: 'Observaciones', type: 'textarea', rows: 3, full: true }
+    ],
+    optionsTitle: 'Tipo de solicitud',
+    options: [
+      { key: 'incorporacion_ruta', label: 'Incorporación de ruta' },
+      { key: 'modificacion_horario', label: 'Modificación de horario' },
+      { key: 'modificacion_frecuencia', label: 'Modificación de frecuencia' }
+    ],
+    tables: [
+      {
+        key: 'rutas_canceladas',
+        title: 'Ruta cancelada',
+        rows: 2,
+        columns: [
+          { key: 'numero_vuelo', label: 'No. vuelo' },
+          { key: 'origen', label: 'Origen' },
+          { key: 'destino', label: 'Destino' },
+          { key: 'dias', label: 'Días' }
+        ]
+      },
+      {
+        key: 'rutas_modificadas',
+        title: 'Incorporación o modificación de ruta',
+        rows: 3,
+        columns: [
+          { key: 'numero_vuelo', label: 'No. vuelo' },
+          { key: 'origen', label: 'Origen' },
+          { key: 'hora_salida', label: 'Hora' },
+          { key: 'destino', label: 'Destino' },
+          { key: 'hora_llegada', label: 'Hora' },
+          { key: 'dias', label: 'Días' }
+        ]
+      }
+    ],
+    attachments: [
+      { key: 'dictamen_tecnico_favorable_dvso', label: 'Dictamen Técnico Favorable (DVSO).' },
+      {
+        key: 'autorizacion_estado_origen',
+        label: 'Autorización del estado de origen de la empresa (nuevas rutas).',
+        requiredWhenOption: 'incorporacion_ruta'
+      }
+    ]
+  },
+  {
     slug: 'permiso-temporal-no-regular',
     code: 'TA-04-2024',
     menuLabel: 'Permiso temporal de explotación comercial no regular',
@@ -196,13 +264,13 @@ const TRANSPORT_FORMS: TransportFormConfig[] = [
       notesField: 'tipo_operacion'
     },
     fields: [
+      { key: 'fecha_solicitud', label: 'Fecha de solicitud', type: 'date', required: true, full: true },
       { key: 'entidad', label: 'Entidad', required: true, full: true },
       { key: 'representante_legal', label: 'Representante legal', required: true, full: true },
       { key: 'direccion', label: 'Dirección', required: true, full: true },
-      { key: 'representante_legal_secundario', label: 'Representante legal', full: true },
       { key: 'telefono', label: 'Teléfono', type: 'tel', required: true },
       { key: 'correo_electronico', label: 'Correo electrónico', type: 'email', required: true },
-      { key: 'fecha_solicitud', label: 'Fecha de solicitud', type: 'date' }
+      { key: 'observaciones', label: 'Observaciones', type: 'textarea', rows: 2, full: true }
     ],
     optionsTitle: 'Tipo de operación',
     options: [
@@ -262,11 +330,14 @@ export class TransporteAereoFormPageComponent implements OnInit {
   readonly currentConfig = signal<TransportFormConfig | null>(null);
   readonly pageTitle = computed(() => this.currentConfig()?.title || 'Formulario Transporte Aéreo');
   readonly maxFileSize = 10 * 1024 * 1024;
+  readonly maxTableRows = 6;
 
   formValues: Record<string, string> = {};
   optionValues: Record<string, boolean> = {};
   tableValues: Record<string, string> = {};
+  tableRowCounts: Record<string, number> = {};
   supportFiles: Record<string, File | null> = {};
+  annexFile: File | null = null;
   isSubmitting = false;
   status: { type: 'success' | 'error'; message: string } | null = null;
 
@@ -294,11 +365,30 @@ export class TransporteAereoFormPageComponent implements OnInit {
   }
 
   tableRows(table: TransportTable) {
-    return Array.from({ length: table.rows }, (_value, index) => index);
+    const rowCount = this.tableRowCounts[table.key] || table.rows;
+    return Array.from({ length: rowCount }, (_value, index) => index);
   }
 
   tableCellKey(table: TransportTable, rowIndex: number, columnKey: string) {
     return `${table.key}_${rowIndex}_${columnKey}`;
+  }
+
+  addTableRow(table: TransportTable) {
+    const currentRows = this.tableRowCounts[table.key] || table.rows;
+    if (currentRows >= this.maxTableRows) return;
+
+    for (const column of table.columns) {
+      this.tableValues[this.tableCellKey(table, currentRows, column.key)] = '';
+    }
+    this.tableRowCounts = { ...this.tableRowCounts, [table.key]: currentRows + 1 };
+  }
+
+  tableReachedMaximum(table: TransportTable) {
+    return (this.tableRowCounts[table.key] || table.rows) >= this.maxTableRows;
+  }
+
+  showAnnexUpload(config: TransportFormConfig) {
+    return config.tables.some((table) => this.tableReachedMaximum(table));
   }
 
   onSupportFileSelected(event: Event, attachment: TransportAttachment) {
@@ -320,6 +410,25 @@ export class TransporteAereoFormPageComponent implements OnInit {
     this.supportFiles = { ...this.supportFiles, [attachment.key]: file };
   }
 
+  onAnnexFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    this.status = null;
+    this.annexFile = null;
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      this.status = { type: 'error', message: 'El documento "Anexos" debe cargarse en formato PDF.' };
+      input.value = '';
+      return;
+    }
+    if (file.size > this.maxFileSize) {
+      this.status = { type: 'error', message: 'El documento "Anexos" supera el tamaño máximo de 10 MB.' };
+      input.value = '';
+      return;
+    }
+    this.annexFile = file;
+  }
+
   async onSubmit() {
     const config = this.currentConfig();
     if (!config) return;
@@ -333,7 +442,8 @@ export class TransporteAereoFormPageComponent implements OnInit {
       this.status = { type: 'error', message: `Faltan campos obligatorios: ${missing.join(', ')}.` };
       return;
     }
-    const missingDocuments = config.attachments
+    const requiredAttachments = this.requiredAttachments(config);
+    const missingDocuments = requiredAttachments
       .filter((attachment) => !this.supportFiles[attachment.key])
       .map((attachment) => attachment.label);
     if (missingDocuments.length) {
@@ -344,7 +454,8 @@ export class TransporteAereoFormPageComponent implements OnInit {
     this.isSubmitting = true;
     try {
       const currentUser = this.auth.currentUser;
-      const supportDocuments = await Promise.all(config.attachments.map(async (attachment) => {
+      const selectedAttachments = config.attachments.filter((attachment) => Boolean(this.supportFiles[attachment.key]));
+      const supportDocuments = await Promise.all(selectedAttachments.map(async (attachment) => {
         const file = this.supportFiles[attachment.key];
         return {
           key: attachment.key,
@@ -354,6 +465,15 @@ export class TransporteAereoFormPageComponent implements OnInit {
           pdf_base64: file ? await this.readFileAsBase64(file) : ''
         };
       }));
+      if (this.showAnnexUpload(config) && this.annexFile) {
+        supportDocuments.push({
+          key: 'anexos',
+          label: 'Anexos',
+          filename: this.annexFile.name,
+          mime: 'application/pdf',
+          pdf_base64: await this.readFileAsBase64(this.annexFile)
+        });
+      }
       const payload = {
         unidad_clave: 'TRANSPORTE_AEREO',
         gestion_nombre: config.menuLabel,
@@ -374,7 +494,7 @@ export class TransporteAereoFormPageComponent implements OnInit {
           campos_digitales: this.digitalFields(config),
           opciones: this.digitalOptions(config),
           tablas: this.digitalTables(config),
-          adjuntos_requeridos: config.attachments.map((attachment) => attachment.label),
+          adjuntos_requeridos: requiredAttachments.map((attachment) => attachment.label),
           documentos_soporte: supportDocuments.map((doc) => ({
             key: doc.key,
             label: doc.label,
@@ -390,6 +510,7 @@ export class TransporteAereoFormPageComponent implements OnInit {
           const registro = saved?.registro_codigo ? ` Correlativo: ${saved.registro_codigo}.` : '';
           this.status = { type: 'success', message: `Solicitud de Transporte Aéreo enviada correctamente.${registro}` };
           this.supportFiles = {};
+          this.annexFile = null;
           this.resetForm(config);
           this.isSubmitting = false;
         },
@@ -408,10 +529,15 @@ export class TransporteAereoFormPageComponent implements OnInit {
     return `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
   }
 
+  isAttachmentRequired(attachment: TransportAttachment) {
+    return !attachment.requiredWhenOption || Boolean(this.optionValues[attachment.requiredWhenOption]);
+  }
+
   private resetForm(config: TransportFormConfig) {
     const fields: Record<string, string> = {};
     const options: Record<string, boolean> = {};
     const tables: Record<string, string> = {};
+    this.tableRowCounts = Object.fromEntries(config.tables.map((table) => [table.key, table.rows]));
 
     for (const field of config.fields) {
       fields[field.key] = field.key === 'fecha_solicitud' ? this.todayLocalDateValue() : '';
@@ -429,10 +555,15 @@ export class TransporteAereoFormPageComponent implements OnInit {
     this.optionValues = options;
     this.tableValues = tables;
     this.supportFiles = Object.fromEntries(config.attachments.map((attachment) => [attachment.key, null]));
+    this.annexFile = null;
   }
 
   private value(key?: string) {
     return key ? String(this.formValues[key] || '').trim() : '';
+  }
+
+  private requiredAttachments(config: TransportFormConfig) {
+    return config.attachments.filter((attachment) => this.isAttachmentRequired(attachment));
   }
 
   private todayLocalDateValue() {

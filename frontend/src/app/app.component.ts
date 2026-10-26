@@ -16,8 +16,8 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
         <div class="header__right">
           <nav class="nav" *ngIf="auth.user$ | async as user; else guestNav">
             <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
-            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
-            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'asistente_dvso' || user.role === 'jefatura_dvso' || user.role === 'jefe_aeronavegabilidad' || user.role === 'inspector_dvso' || user.role === 'jefatura_ops' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
+            <a routerLink="/revision" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'jefatura_seccion_aeronavegabilidad' || user.role === 'inspectores_aeronavegabilidad' || user.role === 'jefatura_seccion_operaciones' || user.role === 'inspector_rpas' || user.role === 'asistentes_aeronavegabilidad' || user.role === 'jefatura_dvso' || user.role === 'avsec_financiero' || user.role === 'analista_servicios_aereos' || user.role === 'jefatura_transporte_aereo' || user.role === 'asesoria_juridica_transporte_aereo' || user.role === 'despacho_superior_transporte_aereo' || user.role === 'admin' || user.role === 'supervisor'">Revisión</a>
+            <a routerLink="/busqueda" routerLinkActive="active" *ngIf="user.role === 'revisor' || user.role === 'analista' || user.role === 'emisor' || user.role === 'aprobador' || user.role === 'recepcion_aila' || user.role === 'recepcion_avsec' || user.role === 'jefatura_avsec' || user.role === 'jefatura_aila' || user.role === 'recepcion_dvso' || user.role === 'jefatura_seccion_aeronavegabilidad' || user.role === 'inspectores_aeronavegabilidad' || user.role === 'jefatura_seccion_operaciones' || user.role === 'inspector_rpas' || user.role === 'asistentes_aeronavegabilidad' || user.role === 'jefatura_dvso' || user.role === 'avsec_financiero' || user.role === 'admin' || user.role === 'supervisor'">Búsqueda</a>
             <a routerLink="/supervision" routerLinkActive="active" *ngIf="user.role === 'supervisor' || user.role === 'admin'">Dashboard</a>
             <a routerLink="/admin" routerLinkActive="active" *ngIf="user.role === 'admin'">Admin</a>
             <div class="units-menu" *ngIf="showUnitsMenu && canAccessForms(user.role)">
@@ -46,6 +46,7 @@ import { hideDvsoInCurrentRuntime, hideInfraestructuraInCurrentRuntime, hideTran
                   <div class="units-submenu-panel">
                     <a routerLink="/transporte-aereo/trabajos-aereos-servicios-auxiliares" routerLinkActive="active-link">Certificado de explotación a trabajos aéreos/servicios auxiliares</a>
                     <a routerLink="/transporte-aereo/linea-aerea" routerLinkActive="active-link">Certificado de explotación de una línea aérea</a>
+                    <a routerLink="/transporte-aereo/modificacion-horarios-rutas-frecuencias" routerLinkActive="active-link">Modificación de horarios, rutas y frecuencias</a>
                     <a routerLink="/transporte-aereo/permiso-temporal-no-regular" routerLinkActive="active-link">Permiso temporal de explotación comercial no regular</a>
                   </div>
                 </div>
@@ -226,9 +227,18 @@ export class AppComponent {
   }
 
   displayRole(role: string | null | undefined) {
+    if (role === 'analista_servicios_aereos') return 'Analista de Servicios Aéreos';
+    if (role === 'jefatura_transporte_aereo') return 'Jefatura de Transporte Aéreo';
+    if (role === 'asesoria_juridica_transporte_aereo') return 'Asesoría Jurídica de Transporte Aéreo';
+    if (role === 'despacho_superior_transporte_aereo') return 'Despacho Superior de Transporte Aéreo';
     if (role === 'revisor') return 'Recepción';
-    if (role === 'jefatura_ops') return 'Jefatura OPS';
-    if (role === 'jefe_aeronavegabilidad') return 'Jefe de Sección de Aeronavegabilidad';
+    if (role === 'recepcion_dvso') return 'Recepción DVSO';
+    if (role === 'jefatura_seccion_aeronavegabilidad') return 'Jefatura de la Sección de Aeronavegabilidad';
+    if (role === 'inspectores_aeronavegabilidad') return 'Inspector/es Aeronavegabilidad';
+    if (role === 'jefatura_seccion_operaciones') return 'Jefatura de la Sección de Operaciones';
+    if (role === 'inspector_rpas') return 'Inspector RPAS';
+    if (role === 'asistentes_aeronavegabilidad') return 'Asistentes Aeronavegabilidad';
+    if (role === 'jefatura_dvso') return 'Jefatura del DVSO';
     return role || 'user';
   }
 

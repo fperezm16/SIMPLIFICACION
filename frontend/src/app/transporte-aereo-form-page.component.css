@@ -209,6 +209,50 @@
   font: inherit;
 }
 
+.table-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.add-row-button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid #79b9df;
+  border-radius: 999px;
+  color: #0b5e92;
+  background: #eaf7ff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.add-row-button:disabled {
+  border-color: #cbd5df;
+  color: #64748b;
+  background: #f1f5f9;
+  cursor: default;
+}
+
+.table-limit-note {
+  max-width: 760px;
+  margin: 10px auto 0;
+  padding: 9px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  color: #1e4f75;
+  background: #eff6ff;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.annex-card {
+  border-color: #8fc5e6;
+  background: #f4fbff;
+}
+
 .attachments {
   margin-top: 28px;
   font-size: 16px;
